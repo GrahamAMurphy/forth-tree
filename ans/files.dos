@@ -1,0 +1,10 @@
+cmach/prims.fr
+cmach/strings.fr
+cmach/file.fr
+cmach/unixmem.fr
+cmach/unixtty.fr
+cmach/lostart.fr
+os.fr
+file-include.fr
+unix-start.fr
+cmach/dict.f

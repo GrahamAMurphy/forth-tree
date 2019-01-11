@@ -1,0 +1,48 @@
+\ (c) 2005 Johns Hopkins University / Applied Physics Laboratory
+\ Test basic I/O of 16-bit SCIP.  Assumes standard memory map for test
+\ port.  Assumes that the test port has been looped back.  Sends a test
+\ byte out and tests that it returns successfully.  If successful, a
+\ value of all ones is written to parallel port output.
+hex
+
+\ reset vector
+2 allot
+
+label send
+\ UART send	\ ( x -- )
+\ Precondition: far memory page set and far mode selected.
+	<lis	0 +# nopb pushp >.		\ I/O base address
+1 l:	<@	6 +# mem16 pushp >.		\ read parallel port
+	<lis	2 +# banda >.			\ test for UART transmit ready
+	<testx	nopa Zbar popp >.
+	<?br	>. 1 back
+	<!	0 +# mem16 popp >.		\ store UART data
+	<alu	nopb popp return >.
+
+label get
+\ UART get	\ ( -- x )
+\ Precondition: far memory page set and far mode selected.
+	<lis	0 +# nopb pushp >.		\ I/O base address
+1 l:	<@	6 +# mem16 pushp >.		\ read parallel port
+	<lis	1 +# banda >.			\ test for UART receive ready
+	<testx	nopa Zbar popp >.
+	<?br	>. 1 back
+	<@	0 +# mem16 return >.		\ read UART data
+
+label iotest
+here *callop* w0 forth @ host t-w!		\ patch reset vector
+	<lis	10 +# nopb pushp >.		\ all accesses to page 16
+	<reg!	nopa dpr popp >.		\   everything is far
+	<spec	farmode >.
+	55 *literal*				\ test pattern is 55
+	send *call*				\ send test pattern: ab
+	get *call*				\ it should loop back to rcver
+	<lil	aminusb >.	55 >.
+	<testx	nopa EQ popp >.
+0 l:	<?br	>.	0 back
+
+label done
+	<lis	0 +# notb pushp >.		\ success: -1
+	<lis	2 +# nopb pushp >.		\ parallel port address
+	<!	mem16 popp >.			\ write to port
+0 l:	<br	>.	0 back			\ done

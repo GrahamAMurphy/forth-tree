@@ -1,0 +1,15 @@
+		Known Bugs and Limitations
+
+See also: ../bugs
+
+Forth system:
+	A constant with value a020 (or a variable at address a020)
+causes disaster when compiled and executed.
+ 
+	.s and depth can fail when stacks are small (e.g. 32 cells).
+This is because parameter stack is copied to return stack to find depth.
+
+	int: doesn't align dictionary pointer before compiling.
+
+Cross-compiler:
+

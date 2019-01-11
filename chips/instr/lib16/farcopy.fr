@@ -1,0 +1,24 @@
+\ (c) 1998 Johns Hopkins University / Applied Physics Laboratory
+\ Copy from arbitrary address space to address space.
+hex
+
+\ Note: uses set-mem/get-mem API and memory interface API.
+
+: copy		\ ( src src-memid dst dst-memid bytes -- ) Copy source to
+		\ destination.  Source and destination may be on different
+		\ pages, might be EEPROM, or RAM, and might not be
+		\ byte-addressable.  Specifying zero length copies causes
+		\ an entire 64k to be copied.
+		\ Note: the only restriction is that the source and
+		\ destination regions cannot overlap.
+   get-mem >r				\ remember current memory id
+   open-mem				\ open stream
+   >r seek-memid seek-memaddr		\ setup target memory
+   set-mem				\ set source
+   r> 0 do				\ for each byte
+      dup far c@ near >mem		\ copy one byte (may be word accessable)
+      1+				\ step source address (wrap around)
+   loop drop
+   close-mem
+   r> set-mem ;				\ restore original memory id
+

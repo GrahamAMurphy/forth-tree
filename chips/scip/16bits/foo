@@ -1,0 +1,8 @@
+\ Compile Forth for simulator
+
+" target.fr" used
+" scip/16bits" is-target		\ cross compile for 16-bit Frisc5
+
+0 set-ram
+" foomap" is-logfile
+" kernel1.fr" ftload

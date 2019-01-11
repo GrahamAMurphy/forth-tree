@@ -1,0 +1,39 @@
+\ (c) 2005 Johns Hopkins University / Applied Physics Laboratory
+\ Boot boot program.
+\ Copies boot program from ROM at address 0 to RAM.  The parameters
+\ boot-addr# and #boot-words define the destination memory and number of
+\ words to copy.  After the copy, execution continues in RAM.  Next, the
+\ the ROM is mapped out.  There must be a bit mask, remap-msk#, in the
+\ same word as the interrupt mask register.  Next, the program is copied
+\ back to address 0.  Finally, control is transferred to the reboot routine
+\ at address 0.
+hex
+
+noheads
+
+: copy-out	\ ( src dst -- ) Copy source to destination, using 16-bit
+		\ reads and writes.  Copies #boot-words of data.
+   #boot-words 0 do			\ for each of word
+      over w@ over w!			\ copy word
+      swap 2 + swap 2 +			\ update pointers
+   loop drop drop ;
+
+label romboot-cont \ ( -- ) Start running boot program.  RAM phase.
+]
+   boot-addr# set-base			\ executing in high RAM
+   remap-msk# unmask-int		\ remap "page" 0 as external RAM
+   boot-addr# 0 copy-out		\ copy back to 0, now external RAM
+   0 set-base				\ execute in page 0
+[
+   ' reboot *longcall*			\ jump to page 0, start application
+
+label romboot	\ ( -- ) Start running boot program.  ROM phase.
+here boot-addr# - *callop* w0 forth @ host t-! \ patch reset vector
+]
+   0 boot-addr# copy-out		\ copy ROM to external RAM
+   boot-addr# set-base			\ execute in high RAM
+\ TBD: "ROM" is still mapped in at 0.
+[
+   ' reboot *longcall*			\ jump out to new copy and continue
+
+heads

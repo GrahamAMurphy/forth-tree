@@ -1,0 +1,15 @@
+\ Compile Forth for simulator
+
+" target.fr" used
+" scip/16bits" is-target		\ cross compile for Frisc5
+
+\ Configure crosscompiler
+0 set-ram				\ ram-based system
+" hi.map" is-logfile
+
+\ Assemble program
+" hi.fr" fload
+
+report
+" hi.mem" saveobj
+cr .( stack depth = ) depth . cr

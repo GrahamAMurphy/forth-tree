@@ -1,0 +1,10 @@
+\ (c) 2007 Johns Hopkins University / Applied Physics Laboratory
+\ Define per-process "user" space
+decimal
+
+forth : user:		\ ( u -- ) create user space of u address units.
+			\ Note: all user space must be defined before
+			\ compiling nullproc.fr and process.fr
+   [host] header s" user:" add-log-string
+   [target] @run [forth] user-space @ *offset* allocate-user-space
+   [target] return [host] ;

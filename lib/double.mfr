@@ -1,0 +1,20 @@
+\ (c) 1995 Johns Hopkins University / Applied Physics Laboratory
+\ Cross-compiler extension for double.fr
+hex
+
+forth : 2constant \ ( x y -- ) ( -- x y )
+   [host] rom-create  acts-like 2constant
+      t-, t-,
+      s" 2constant" add-log-string
+   t-does>
+      [forth] @ metastate @ if		\ if cross-compiling
+	 [host] *call*			\ compile call
+      else				\ if cross-interpreting
+	 t->body dup t-cell+ t-@	\ return value of 2constant from target
+	    swap t-@
+      then ;
+
+forth : 2,	\ ( xd -- ) "Comma down" a cell-pair, ms cell first.
+		\ Note: use , instead of 2, so that 2, obeys rom/ram settings.
+   [host] , , ;
+

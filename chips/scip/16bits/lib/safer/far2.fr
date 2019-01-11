@@ -1,0 +1,87 @@
+\ (c) 2005 Johns Hopkins University / Applied Physics Laboratory
+\ Access far memory.
+decimal
+
+: far@  far @ ;	 \ ( addr -- n )
+		
+: far!  far ! ;	 \ ( n addr -- )
+
+: farc@ far c@ ; \ ( addr -- c )
+
+: farc! far c! ; \ ( c addr -- )
+
+: far2!		\ ( dl dh addr -- ) m[addr]<--dh, m[addr+cell]<--dl.
+   far dup >r ! r> cell+ ! ;
+
+: far2@		\ ( addr -- dl dh ) dh<--m[addr], dl<--m[addr+cell].
+   far dup >r cell+ @ r> @ ;
+
+: far-execute	\ ( addr mem -- ) Jump to given remote location.
+		\ Note: if destination mem not equal to current mem, then
+		\ program must not return.
+   swap >r				\ tricky: set-code suppresses ints
+   set-code || ;			\   while return jumps to saved addr
+
+: bytes-out	\ ( src dst bytes -- ) Copy given number of bytes
+		\ from source in near memory to destination in far memory.
+		\ Assumes that far memory has been set.
+   dup 1 and if				\ if an odd number of bytes
+      >r over c@ over far c! near	\ copy one byte
+      swap 1+ swap 1+ r> 1-
+   then					\ an even number of bytes remains
+   dup if				\ if number of bytes is non-zero
+      >r >r 2 - r> r> over + swap do	\ unroll loop
+	 2 + near dup c@ md! dup 1+ c@	\   and copy two bytes
+	 far md@ i c! i 1+ c!
+      2 +loop
+   else drop drop
+   then drop ;
+
+: bytes-in	\ ( src dst bytes -- ) Copy given number of bytes
+		\ from source in far memory to destination in near memory.
+		\ Assumes that far memory has been set.
+   dup 1 and if				\ if an odd number of bytes
+      >r over far c@ near over c!	\ copy one byte
+      swap 1+ swap 1+ r> 1-
+   then					\ an even number of bytes remains
+   dup if				\ if number of bytes is non-zero
+      >r >r 2 - r> r> over + swap do	\ unroll loop
+	 2 + far dup c@ md! dup 1+ c@	\   and copy two bytes
+	 near md@ i c! i 1+ c!
+      2 +loop
+   else drop drop
+   then drop ;
+
+: words-out     \ ( src dst words -- ) Copy given number of words
+		\ from source in near memory to destination in far memory.
+		\ Assumes that far memory has been set.
+		\ The routine copies a word at a time; the source and
+		\ destination must be word aligned.
+   dup 1 and if				\ if an odd number of words
+      >r over @ over far ! near		\ copy one word
+      swap cell+ swap cell+ r> 1-
+   then					\ an even number of words remains
+   dup if				\ if number of words is non-zero
+      >r >r 2 cells - r> r> cells over + swap do \ unroll loop
+	 2 cells + near dup @ md! dup cell+ @	 \   and copy two words
+	 far md@ i ! i cell+ !
+      2 cells +loop
+   else drop drop
+   then drop ;
+
+: words-in      \ ( src dst words -- ) Copy given number of words
+		\ from source in far memory to destination in near memory.
+		\ Assumes that far memory has been set.
+		\ The routine copies a word at a time; the source and
+		\ destination must be word aligned.
+   dup 1 and if				\ if an odd number of words
+      >r over far @ near over !		\ copy one word
+      swap cell+ swap cell+ r> 1-
+   then					\ an even number of words remain
+   dup if				\ if number of words is non-zero
+      >r >r 2 cells - r> r> cells over + swap do \ unroll loop
+	 2 cells + far dup @ md! dup cell+ @	 \   and copy two words
+	 near md@ i ! i cell+ !
+      2 cells +loop
+   else drop drop
+   then drop ;

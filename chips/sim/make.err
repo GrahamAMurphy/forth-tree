@@ -1,0 +1,6 @@
+cc -O    -c fsim3.c -o fsim3.o
+cc -O    -c trace.c -o trace.o
+cc -O    -c screen3.c -o screen3.o
+cc -o fsim3 -O  main.o parser.o aluopsc.o fakeio.o vectors.o save.o fsim3.o trace.o screen3.o  -lcurses -ltermlib
+cc -O    -c fkscrn.c -o fkscrn.o
+cc -o nifsim3 -O  main.o parser.o aluopsc.o fakeio.o vectors.o save.o fsim3.o trace.o fkscrn.o 

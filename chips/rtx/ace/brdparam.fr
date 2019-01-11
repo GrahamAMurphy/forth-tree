@@ -1,0 +1,8 @@
+\ (c) 1993 Johns Hopkins University / Applied Physics Laboratory
+hex
+
+\ Transmit interrupt flip-flop reset: write resets FF
+f832 define TXINTRST
+
+\ Interrupt numbers
+e define UARTINT#			\ EI1

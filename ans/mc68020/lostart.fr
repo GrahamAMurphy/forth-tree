@@ -1,0 +1,66 @@
+\ (c) 1992 Johns Hopkins University / Applied Physics Laboratory
+verbatim
+
+EOL = 0xa				/* end of line marker for unix */
+
+/*			startup code */
+	.globl _init_forth, _do_forth, _eval_forth
+	.text
+_init_forth:
+	link	a6,#-4*12		/* save registers */
+	moveml	a6/a5/a4/a3/a2/a1/d7/d6/d5/d4/d3/d2,sp@
+	movl	#TOPPS,psp		/* stack pointer */
+	movl	#pseudoprogram,iar	/* construct fake colon definition */
+	movl	#initforth,iar@		/* with execution of initforth */
+	movl	#callundoforth,sp@-	/* catch return when stack empty */
+	movl	sp,INITSP		/* record return stack location */
+	/* this hack patches a forward reference; this is only necessary
+	   to accomodate the C version */
+	movl	#HASHTABLE,hashtable+(4*cells_in_code_field)
+	movl	#lnext,addrnext		/* save inner interp. entry point */
+	next
+	/* returns to undoforth (see below) */
+
+_do_forth:	
+	link	a6,#-4*12		/* save registers */
+	moveml	a6/a5/a4/a3/a2/a1/d7/d6/d5/d4/d3/d2,sp@
+	movl	#TOPPS,psp		/* stack pointer */
+	movl	a6@(8),psp@-		/* argc */
+	movl	a6@(12),psp@-		/* argv */
+	movl	#pseudoprogram,iar	/* construct fake colon definition */
+	movl	#doforth,iar@		/* with execution token of doforth */
+	movl	#callundoforth,sp@-	/* catch return when stack empty */
+	movl	sp,INITSP		/* record return stack location */
+	movl	#lnext,addrnext		/* save inner interp. entry point */
+	next
+	/* returns to undoforth (see below) */
+
+_eval_forth:
+	link	a6,#-4*12		/* save registers */
+	moveml	a6/a5/a4/a3/a2/a1/d7/d6/d5/d4/d3/d2,sp@
+	movl	#TOPPS,psp		/* stack pointer */
+	movl	a6@(8),psp@-		/* eval string address */
+	movl	#pseudoprogram,iar	/* construct fake colon definition */
+	movl	#evalforth,iar@		/* with execution token of evalforth */
+	movl	#callundoforth,sp@-	/* catch return when stack empty */
+	movl	sp,INITSP		/* record return stack location */
+	movl	#lnext,addrnext		/* save inner interp. entry point */
+	next
+	/* returns to undoforth (see below) */
+
+	.data
+INITSP:	.long	0			/* initial value of return stack ptr*/
+
+pseudoprogram:
+	.long	0
+	.long return			/* fall through trap door on r stack */
+
+callundoforth:
+	.long undoforth
+end
+
+~ code undoforth
+	moveml	sp@,a6/a5/a4/a3/a2/a1/d7/d6/d5/d4/d3/d2
+	unlk	a6			/* restore registers */
+	rts
+end

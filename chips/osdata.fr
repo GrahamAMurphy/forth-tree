@@ -1,0 +1,9 @@
+\		Data Area Definitions
+hex
+
+label CURREGION cell allot		\ dictionary pointer
+
+label IN cell allot			\ text scanner
+label NTIB cell allot			\ size of tib
+
+label TIBPTR cell allot			\ pointer text input buffer

@@ -1,0 +1,11 @@
+\ (c) 1993 Johns Hopkins University / Applied Physics Laboratory
+\ Init registers
+hex
+
+: safe					\ establish necessary preconditions
+\ TBD
+   18 cr!				\ disable interrupts, boot
+   int-base ibc!			\ set int vector base; disable others
+   ffbf imr!				\ enable an external input pin
+   || ; inline
+

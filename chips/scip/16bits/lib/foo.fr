@@ -1,0 +1,13 @@
+hex
+
+variable page-no  7 page-no !
+: good-page?	\ ( page# -- t/f ) TBD
+   page-no @ = ;
+
+: select-ram	\ ( page# -- page#' ) TBD
+   dup begin				\ starting with given page
+      dup good-page? not while		\ test each page, if bad,
+      1-				\ test next lower page
+   dup 0= until				\ if 0 is reached,
+      swap				\ default to given page
+   then nip ;				\ return good page or default

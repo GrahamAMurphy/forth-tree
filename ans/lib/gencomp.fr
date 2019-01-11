@@ -1,0 +1,15 @@
+\ (c) 1991 Johns Hopkins University / Applied Physics Laboratory
+\ ANS/generic Forth compatibility: load this on ANS Forth to provide generic
+\ This allows obsolete programs to run.
+hex
+
+: align		aligned ;
+: start:	:noname drop ;
+: ascii		char ;
+: [ascii]	postpone [char] ; immediate
+: undo		postpone unloop ; immediate
+: s->d		s>d ;
+: otherwise	postpone dup ; immediate
+: ,word		word count 1+ aligned allot drop ;
+
+\ Other things that have changed are: " "" fload latest

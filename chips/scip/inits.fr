@@ -1,0 +1,21 @@
+\ (c) 2005 Johns Hopkins University / Applied Physics Laboratory
+\ Initialization
+hex
+
+noheads
+
+: safe
+[	<lis	0 +# nopb pushp >.	\ disable interrupts and stack caches
+	<reg!	nopa pcr popp >.
+]  1 #ints lshift 1- mask-int		\ mask off interrupts (board specific)
+   || ; inline
+
+code cacheenable
+	#pcr-se *literal*
+	<reg@	pcr bora >.		\ start atomic operation
+	<reg!	nopa pcr popp return >.	\ end atomic operation
+
+: initlocals
+  ( no locals in SCIP) ; inline
+
+heads

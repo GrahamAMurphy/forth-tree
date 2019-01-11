@@ -1,0 +1,188 @@
+# ANS Forth system Makefile
+# Note: the Makefile is automatically constructed from Makefile.tem
+# using the config shell script.
+
+# default: compile forth
+default:	forth
+
+########################################################################
+# TBD
+
+ARCH =		%arch%
+
+# Flags for forth2m (Forth compiler)
+# -u can be added to generate uppercase dictionary
+INSTALLAT =	%installat%
+mc68020flags =	-m -o ch
+sparcflags =	-m -o ch
+cmachflags =	-o tdihc
+F2MFLAGS =	$(%arch%flags) -w -i $(INSTALLAT) -p $(ARCH)/macro.fr
+
+############################################################################
+# Unix specific code.
+
+unixfsrcs =	$(ARCH)/prims.fr \
+		$(ARCH)/strings.fr $(ARCH)/file.fr $(ARCH)/unixmem.fr \
+		$(ARCH)/unixtty.fr \
+		$(ARCH)/lostart.fr \
+		os.fr file-include.fr unix-start.fr \
+		$(ARCH)/dict.fr
+unixobj =	jhforth%cors%.o filewrap.o main.o
+unixlobj =	$(unixobj)
+
+filewrap.o:	filewrap.h
+main.o:		forth.h io.h
+
+############################################################################
+# TurboRocket specific code.
+
+# library for run-time system
+UKERNEL =	%ukernel%
+
+turbofsrcs =	$(ARCH)/prims.fr \
+		$(ARCH)/satty.fr \
+		$(ARCH)/lostart.fr \
+		os.fr ../chips/silent.fr sa-start.fr \
+		$(ARCH)/dict.fr
+turboobj =	jhforth%cors%.o mips-turbo-tty.o cmach/mips/main.o
+turbolobj =	-T $(UKERNEL)/elf32ebmip.x \
+			-Ttext 0x80040000 -defsym __stacktop=0x80800000 \
+			-oformat srec \
+			$(UKERNEL)/crt0.o $(turboobj) $(UKERNEL)/turbo.a
+
+turbotty =	cmach/mips/turbo/2681int.c devices/forthio.c
+
+mips-turbo-tty.o: io.h
+mips-turbo-tty.c: $(turbotty)
+		cat $(turbotty) >mips-turbo-tty.c
+
+cmach/mips/main.o:forth.h
+
+############################################################################
+# IDT 79S381 evaluation board specific code.
+
+79s381fsrcs =	$(ARCH)/prims.fr \
+		$(ARCH)/satty.fr \
+		$(ARCH)/lostart.fr \
+		os.fr ../chips/silent.fr sa-start.fr \
+		$(ARCH)/dict.fr
+79s381obj =	jhforth%cors%.o mips-79s381-tty.o cmach/mips/main.o
+79s381lobj =	-N -Ttext 0x80000100 -defsym __stacktop=0x84040000 \
+			-oformat srec \
+			$(UKERNEL)/ramboot.o $(UKERNEL)/crt0.o \
+			$(79s381obj) $(UKERNEL)/79s381.a
+
+79s381tty =	cmach/mips/79s381/2681int.c devices/forthio.c
+
+mips-79s381-tty.o: io.h
+mips-79s381-tty.c: $(79s381tty)
+		cat $(79s381tty) >mips-79s381-tty.c
+
+cmach/mips/main.o:forth.h
+
+############################################################################
+# TIMED (Mongoose processor) specific code.
+
+timedfsrcs =	$(ARCH)/prims.fr \
+		$(ARCH)/satty.fr \
+		$(ARCH)/lostart.fr \
+		os.fr ../chips/silent.fr sa-start.fr \
+		$(ARCH)/dict.fr
+timedobj =	jhforth%cors%.o mips-timed-tty.o cmach/mips/main.o
+timedlobj =	-N -Ttext 90040000 -defsym __stacktop=0x90200000 \
+			-oformat srec \
+			$(UKERNEL)/crt0.o $(timedobj) $(UKERNEL)/timed.a
+
+timedtty =	cmach/mips/timed/mvpoll.c devices/polltty.c devices/forthio.c
+
+mips-timed-tty.o: io.h
+mips-timed-tty.c: $(timedtty)
+		cat $(timedtty) >mips-timed-tty.c
+
+cmach/mips/main.o:forth.h
+
+############################################################################
+# Advanced Camera (Mongoose processor) specific code.
+
+camerafsrcs =	$(ARCH)/prims.fr \
+		$(ARCH)/satty.fr \
+		$(ARCH)/mips/go.fr \
+		$(ARCH)/lostart.fr \
+		os.fr ../chips/silent.fr ../chips/lib/motor2.fr sa-start.fr \
+		$(ARCH)/mips/camera/dict.fr
+cameraobj =	jhforth%cors%.o mips-camera-tty.o cmach/mips/main.o
+cameralobj = -T $(UKERNEL)/elf32ebmip.x \
+			-Ttext 90010000 -defsym __stacktop=0x90010000 \
+			-oformat srec \
+			$(UKERNEL)/ramboot.o $(UKERNEL)/crt0.o \
+			$(cameraobj) $(UKERNEL)/camera.a
+
+#cameratty =	cmach/mips/camera/mvpoll.c devices/polltty.c devices/forthio.c
+cameratty =	cmach/mips/camera/mvint.c devices/forthio.c
+
+mips-camera-tty.o: io.h
+mips-camera-tty.c: $(cameratty)
+		cat $(cameratty) >mips-camera-tty.c
+
+cmach/mips/main.o:forth.h
+
+########################################################################
+# Compile Forth sources into CPP macros and C or assembly language.
+
+FORTHSRCS =	$(%target%fsrcs)
+
+jhforthc.o:	defs.h io.h forth.h # TBD: missing filewrap.h in UNIX case
+jhforthc.c:	$(ARCH)/macro.fr $(FORTHSRCS)
+		%execprefix%meta/forth2m $(F2MFLAGS) $(FORTHSRCS) >jhforthc.c
+
+jhforths.o:	defs.h
+jhforths.S:	$(ARCH)/macro.fr $(FORTHSRCS)
+		%execprefix%meta/forth2m $(F2MFLAGS) $(FORTHSRCS) >jhforths.S
+
+############################################################################
+# Compile C or assembly sources
+
+CC =		%cc%
+CFLAGS =	%cflags%
+LINK = 		%link%
+
+LOBJ =		$(%target%lobj)		# flags, start & app objects, and libs
+OBJ =		$(%target%obj)		# application objects only
+
+forth:		$(OBJ)
+		$(LINK) -o forth $(LOBJ)
+
+forth2m:	FORCE
+		(cd meta; $(MAKE))
+
+
+jhforthlib:	$(OBJ) filewrap.o
+		ld -r -o forthlib.o $(OBJ) filewrap.o
+
+FORCE:
+
+#------------------------------------------------------------------------
+# Run test suite
+sure:
+		cd tests; ../forth load.fr
+
+#------------------------------------------------------------------------
+#TBD
+unixtaskforth:	unix.o filewrap.o unixmem.o lostart.o ints.o intwrap.o
+
+install:
+		cp forth $(INSTALLAT)
+		strip $(INSTALLAT)
+
+uninstall:
+		rm -f $(INSTALLAT)
+
+clean:
+		rm -f $(OBJ) forth		# remove objects
+		rm -f jhforthc.c jhforths.S	# remove synthesized source
+		rm -f mips-turbo-tty.c mips-79s381-tty.c \
+			mips-timed-tty.c mips-camera-tty.c
+
+distclean:	clean
+		rm -f defs.h
+		rm makefile			# remove this makefile!

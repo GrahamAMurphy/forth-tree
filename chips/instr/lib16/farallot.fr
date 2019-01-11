@@ -1,0 +1,26 @@
+\ (c) 1995 Johns Hopkins University / Applied Physics Laboratory
+\ Simple far memory allocator
+\ Usage:
+\ 2 far-memory: my-page
+\   100 buffer: my-buffer1		\ 100 byte buffer
+\   200 buffer: my-buffer2		\ 200 byte buffer
+hex
+
+\ This will contain the current address on the far data page
+\ when buffers are declared
+variable far-dp
+
+: far-memory:	\ (page# "name" -- )  child: ( -- page#)
+		\ A defining word; when it is executed, it assigns a page #
+		\ to a page name; when its children are executed, they return
+		\ their page #
+  0 far-dp ! constant ;
+
+: buffer:	\ ( size "name" -- ) child: ( -- address)
+		\ A defining word to be used with far-memory: .  When it is
+		\ executed, it assigns a size to a particular buffer.  When
+		\ its children are executed, it returns the starting address
+		\ of that buffer.
+  far-dp @ constant
+  far-dp +! ;
+

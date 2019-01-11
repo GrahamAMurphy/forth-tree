@@ -1,0 +1,14 @@
+forth : array   \ ( #words -- )
+   [host]
+   ram-create acts-like array           \ array is in ram
+      s" array" add-log-string          \ log as an array
+      2* allot
+   t-does>      \ ( i -- a )
+      [forth] @ [host] >body            \ find array in target memory
+      [forth] metastate @ if            \ if cross-compiling, generate code
+                                        \ compile address of array and +
+         [target] 2* [meta] literal [target] + [forth]
+      else                              \ if cross-interpreting
+         swap 2* +                      \ compute indexed address
+      then [host] ;
+

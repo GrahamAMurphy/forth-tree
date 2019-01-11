@@ -1,0 +1,10 @@
+\ (c) 2005 Johns Hopkins University / Applied Physics Laboratory
+\ Test
+hex
+
+ab constant #testpat
+
+label test	\ ( -- ) Test processor.  Does not return.
+]  #testpat emit			\ send test pattern; should loop back
+[					\ run test
+\ compile test here ...

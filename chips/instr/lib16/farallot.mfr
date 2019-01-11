@@ -1,0 +1,19 @@
+\ (c) 1995 Johns Hopkins University / Applied Physics Laboratory
+hex
+
+forth : far-memory:
+        \ A defining word; when it is executed, it assigns a page # to a
+        \ page name; when its children are executed, they return their
+        \ page #
+        \ (page# "name" -- )  child: ( -- page#)
+  [host] 0 far-dp ! constant
+  s" far-memory:" add-log-string ;
+
+forth : buffer:
+        \ A defining word to be used with far-memory: .  When it is executed,
+        \ it assigns a size to a particular buffer.  When its children are
+        \ executed, it returns the starting address of that buffer
+        \ ( size "name" -- ) child: ( -- address)
+  [host] far-dp @ dup constant
+  + far-dp !
+  s" buffer:" add-log-string ;

@@ -1,0 +1,28 @@
+\ (c) 2008 Johns Hopkins University / Applied Physics Laboratory
+\ Command processor - text string command
+decimal
+
+commands extendmodule>
+
+\ ------------------------------------------------------------------------
+\ Text string "echo"
+
+\ Packet descriptor
+pkt-desc-size makestruct text-pkt
+
+: c-cmd-text	\ ( -- ) Send text.
+   args drop dup c@ 77 umin 1+ get-code swap
+   #text-pkt text-pkt init-pkt		\ init. descriptor with text, id
+   text-pkt tag-pkt			\ time tag
+   text-pkt send-pkt drop ;		\ construct packet and send
+
+\ ------------------------------------------------------------------------
+\ * Initialization
+
+public:
+: init-command-text \ ( -- ) Initialize.
+   ['] c-cmd-text	#cmd-text	register-cmd
+;
+private:
+
+endmodule>

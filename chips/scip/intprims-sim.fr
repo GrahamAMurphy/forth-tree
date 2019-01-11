@@ -1,0 +1,34 @@
+\ (c) 2004 Johns Hopkins University / Applied Physics Laboratory
+\ Interrupt support
+\ For test; system-specific overrides will provide more realistic versions.
+hex
+
+\ Number of interrupts
+1 constant #ints
+
+nohead
+code int-prologue	\ interrupt prologue
+	<reg@	rtop nopb pushp >.	\ fix return address
+	<lis	2 +# aminusb >.
+	<reg!	nopa rtop popp >.
+	<alu	nopx pushp >.		\ save Flag
+	<reg@	md nopb pushp >.	\   and MD registers
+t-dbits d# 16 = [if]			\ 16-bit system only:
+	<spec   nearmode >.		\ near mode (old mode saved on return)
+[then]
+	<exit> inline-keepbody
+
+nohead
+code int-epilogue	\ interrupt epilogue
+	<reg!	nopa md popp >.		\ restore MD
+	<testx	nopa Zbar popp >.	\   and Flag registers
+	#pcr-ie *literal*
+	<reg@	pcr bora >.		\ start atomic operation
+	<reg!	nopa pcr popp return >.	\ end atomic operation
+	<exit> inline-keepbody
+
+: unmask-int	\ ( mask -- ) Enable indicated interrupt(s).  Note: stub.
+   drop ;
+
+: mask-int	\ ( mask -- ) Disable indicated interrupt(s).  Note: stub.
+   drop ;

@@ -1,0 +1,41 @@
+#!/usr/local/bin/forth
+\ Compile RTX Forth
+
+" target.fr" used
+" rtx/nlr" is-target			\ cross compile for NEAR NLR RTX board
+
+\ Configure metacompiler
+hex
+1000 set-ram				\ ram-based system
+def interactive
+" nlrmap" is-logfile
+
+\ RTX/NLR specific configuration
+def rtx2010				\ expoit 2010 specific features
+100 define substack-size		\ stack size: see ../chpparam.fr
+
+\ Load the kernel
+" kernel1.fr" ftload			\ primitives and extend crosscompiler
+
+\ Load low-level tty code
+   noheads
+" brdparam.fr" ftload			\ useful addresses and defines
+   heads
+" poll8252.fr" ftload			\ emit, key, etc.
+
+\ Load rest of kernel and multitasker and interpreter if desired
+" kernel2.fr" ftload			\ interpreter?, multitasker?
+
+\ Load initialization stuff
+" nlrinit.fr" ftload			\ initialize registers
+" startup.fr" ftload			\ start up
+' doforth is-startup			\ run Forth interpreter
+
+report
+
+" romboot.fr" ftload
+" nlrforth" saveobj
+
+cr .( stack depth = ) depth . cr
+
+decimal >log rulestats !>log

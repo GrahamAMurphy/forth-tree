@@ -1,0 +1,4 @@
+\ (c) 1993 Johns Hopkins University / Applied Physics Laboratory
+\ FOOP preamble: provides current-object.
+
+variable current-object

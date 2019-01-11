@@ -1,0 +1,48 @@
+\ (c) 2006 Johns Hopkins University / Applied Physics Laboratory
+\ * Fast compression - compress an array of 16-bit values
+decimal
+
+module> fastcomp16
+
+\ * Compress an array of 16-bit values in place.  The difference between
+\ * each value is computed.  The first value is not changed; the remaining
+\ * values are replaced by the differences:  value[n] <- value[n-1] -
+\ * value[n].  The differences are encoded as unsigned numbers such that
+\ * differences with small absolute values are encoded as small unsigned
+\ * numbers.  The algorithm returns the number of bits needed to represent
+\ * the largest encoded difference.  This value, along with some
+\ * bit-packing software, can be used to pack the data into a smaller
+\ * memory area.
+
+public:
+: delta16	\ ( addr len base -- ) Delta encode the len cells stored
+		\ at the given address.  Each cell is replaced with a 16-bit
+		\ code for the difference between the cell and its predecessor
+		\ (the first cell is replaced with the code for the difference
+		\ between it and the input base).
+		\ Assumes each cell is 16 bits.
+   -rot 0 do				\ for each cell; s: p0 addr
+      dup >r @ swap over -		\ delta = p0 - p1; s: p1 delta
+      dup 0< if 2* invert else 2* then ( h# ffff and)
+      r@ !				\ encode and replace cell
+      r> cell+				\ step to next cell; s: p1 addr'
+   loop 2drop ;
+private:
+
+: delta-max16	\ ( addr len -- u ) Find the maximum delta value stored
+		\ in the given array or cells.
+   0 -rot 0 do				\ for each delta; s: max addr
+      dup >r @ umax r> cell+
+   loop drop ;
+
+: count-bits16	\ ( u -- n-bits ) Return number of bits needed to hold u.
+		\ Note: returns zero if input is zero.
+   0 swap begin dup while swap 1+ swap 1 rshift repeat drop ;
+
+public:
+: fast16	\ ( addr len -- bits ) Return number of bits needed to hold
+		\ each delta in given array of cells.
+   delta-max16 count-bits16 ;
+private:
+
+endmodule>

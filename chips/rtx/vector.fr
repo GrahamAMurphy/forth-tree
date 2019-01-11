@@ -1,0 +1,15 @@
+\ (c) 1993 Johns Hopkins University / Applied Physics Laboratory
+\   Interrupt vector table
+\ Note: this only allocates space for the table; the table is filled
+\ in later, when more of crosscompiler is available.
+decimal
+
+rom
+1024 align-boundary			\ must be on 1024 byte boundary
+   label int-table
+   hex int-table fc00 and define int-base \ for interrupt base/control register
+   decimal
+
+   32 16 * allot			\ 16 "normal" interrupts
+   32 allot				\ "no interrupt" interrupt
+ram

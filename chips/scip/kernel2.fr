@@ -1,0 +1,28 @@
+[ifdef] interactive			\ if interactive system requested
+
+\ Load the interpreter
+" forthio.fr" ftload			\ rest of Forth's I/O primitives
+" osdata.fr" ftload			\ data needed by the outer interpreter
+" osprims.fr" ftload			\ interpreter helper routines in asm.
+" os.fr" ftload				\ Forth outer interpreter
+
+\ Load FRISC Forth specific extensions
+" intuser.fr" ftload			\ user-level interrupt definitions
+" silent.fr" ftload			\ download utility
+" offset.fr" ftload			\ data structure access primitive
+" extend.fr" ftload			\ extensions: for, next, etc.
+
+[then]
+
+[ifdef] multitasking			\ if multitasking system requested
+\ Note: nullproc.fr must be loaded after os.fr because of user space alloc.
+" nullproc.fr" ftload			\ null process
+" procprim.fr" ftload			\ process list manipulation
+[ifdef] interactive
+" stackalign.fr" ftload			\ stack alignment helper
+" process.fr" ftload			\ process creation
+[then]
+" process.mfr" ftload			\ process cross-creation
+[then]
+
+" inits.fr" ftload			\ initialization

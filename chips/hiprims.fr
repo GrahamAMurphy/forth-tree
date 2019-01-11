@@ -1,0 +1,80 @@
+\ (c) 1994 Johns Hopkins University / Applied Physics Laboratory
+\ code extensions: these are low level words that may be candidates
+\ for rewriting as code definitions.
+hex
+
+: true	-1 || ; inline			\ ( --- true )
+
+: false	0 || ; inline			\ ( --- false )
+
+: ?dup   dup if dup exit then ;		\ ( n --- n n <or> 0 )
+
+: 2dup   over over || ; inline		\ ( n1 n2 --- n1 n2 n1 n2 )
+
+: s>d   dup 0< || ; inline		\ ( n1 --- dl dh ) sign extend
+
+nohead : +-    0< if negate exit then ;	\ ( n1 n2 --- sign[n2]*n1 )
+
+nohead : d+-   0< if dnegate then ;	\ ( d1l d1h n1 --- d2l d2h )
+
+: abs   dup +- ;			\ ( n --- |n| )
+
+: dabs   dup d+- ;			\ ( d --- |d| )
+
+: *   m* drop ;				\ ( x y --- x*y )
+
+: 2drop   drop drop || ; inline		\ ( n1 n2 --- )
+
+: max   2dup < if nip exit then drop ;	\ ( n1 n2 --- max[n1,n2] )
+
+: min   2dup > if nip exit then drop ;	\ ( n1 n2 --- min[n1,n2] )
+
+: umax  2dup u< if nip exit then drop ;	\ ( n1 n2 --- umax[n1,n2] )
+
+: umin  2dup u> if nip exit then drop ;	\ ( n1 n2 --- umin[n1,n2] )
+
+: 2!		\ ( dl dh addr --- ) m[addr]<--dh, m[addr+cell]<--dl.
+ swap over ! cell+ ! ;
+
+: 2@		\ ( addr --- dl dh ) dh<--m[addr], dl<--m[addr+cell].
+ dup cell+ @ swap @ ;
+
+\ ------------------------------------------------------------------------
+\ unsigned multiplication and division operators
+
+: um*m		\ ( ul uh mul --- ul' uh' )
+ swap over um* drop >r um* 0 r> d+ ;
+
+: m/mmod	\ ( dl dh div --- rem quotl quoth )
+ >r 0 r@ um/mod r> swap >r um/mod r> ;
+
+\ signed multiplication and division operators
+
+: sm/rem	\ ( d n -- n[rem] n[quot] ) Symmetric division primitive
+   over >r 2dup xor >r  >r dabs r> abs um/mod
+   r> +- swap r> +- swap ;
+
+: fm/mod	\ ( sdl sdh divisor --- srem squot )
+ dup >r over over xor >r >r dabs r> abs um/mod
+ r@ +- r> rot r@ +-
+ swap 0< over and if
+    negate r> + swap 1-
+ else
+    r> drop swap
+ then ;
+
+: /mod		\ ( n1 div --- rem quot )
+ >r s>d r> fm/mod ;
+
+: /		\ ( n div --- dividend )
+ /mod nip ;
+
+: mod		\ ( n div --- mod )
+ /mod drop ;
+
+: */mod		\ ( n mul div --- rem quot )
+ >r m* r> fm/mod ;
+
+: */		\ ( n mul div --- quot )
+ */mod nip ;
+

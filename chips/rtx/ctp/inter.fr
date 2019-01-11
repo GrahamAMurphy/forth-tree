@@ -1,0 +1,84 @@
+\ (c) 1994 Johns Hopkins University / Applied Physics Laboratory
+\	Interrupts using on-chip interrupt controller
+\ Special version for NEAR/ACE CDH hardware design.
+
+\ Fills in the preallocated interrupt vector table.  The RTX gives each
+\ interrupt 32 bytes; this is not enough to hold any but the most trivial
+\ interrput routine.  Therefore the code in the interrupt vector table
+\ saves transient state, calls the actual interrupt routine, restores the
+\ state, and returns.  The default interrupt routine compiled does a
+\ nop; the nop can be patched with a call to an actual interrupt routine.
+
+decimal
+
+\ The following is a cross-compiler macro that compiles the generic
+\ interrupt handler; it is used to fill in the interrupt vector table
+\ (see below).  To fit in a vector table slot the code compiled by
+\ this macro must be less than or equal to 32 bytes (16 instructions).
+\ To make this easier to keep track of, each line in the macro compiles
+\ one instruction.  The registers saved are:
+\	md	cr
+\ md is used as a scratch register in numerous primitives.  The RTX's
+\ carry bit and complex carry are in the cr.
+\ Equally important are the registers that are not
+\ saved.  Many of these are system configuration registers that are
+\ initialized at boot and never change.  There are other register that
+\ logically need to be saved, but implementation tricks eliminate the
+\ need.  The sr register caches a do..loop control parameter; however,
+\ each use of do...loop in an interrupt routine will save and restore the
+\ register.  The mlr/mhr registers do not need to be saved on the RTX2000
+\ because the multiply instructions disable interrupts long enough for the
+\ software to copy the results out of these registers onto the stack.
+
+\ Modificates for CDH:  flip code page register back to RAM page.
+\ This allows interrupt routines to execute from RAM instead of
+\ slower EEPROM.  Also allows new interrupt routines to be defined
+\ on the fly, for example, while debugging with the Forth interpreter.
+
+forth : interrupt-stub
+\ save transient state
+\ Be careful!  If you change this you must change int-entry-size (below) too.
+   [host] ram-pg# [meta] literal
+   [target] cpr!			\ flip code page back to RAM
+   md@					\ scratch register
+   cr@					\ save complex carry
+   near					\ ignore data page
+\ call actual interrupt service routine
+   [meta] || [target] nop [meta] || [target] \ default response; patchable
+\ restore transient state
+   cr!					\ this enables interrupts!
+   md! return [host] ;
+
+\ size of interrupt entry code; this allows the computation of the
+\ address of nop so that it can be patched.
+5 cells define int-entry-size
+
+int-table revisit			\ fill in interrupt table
+   32 align-boundary interrupt-stub	\ 16 "normal" interrupts
+   32 align-boundary interrupt-stub
+   32 align-boundary interrupt-stub
+   32 align-boundary interrupt-stub
+   32 align-boundary interrupt-stub
+   32 align-boundary interrupt-stub
+   32 align-boundary interrupt-stub
+   32 align-boundary interrupt-stub
+   32 align-boundary interrupt-stub
+   32 align-boundary interrupt-stub
+   32 align-boundary interrupt-stub
+   32 align-boundary interrupt-stub
+   32 align-boundary interrupt-stub
+   32 align-boundary interrupt-stub
+   32 align-boundary interrupt-stub
+   32 align-boundary interrupt-stub
+   32 align-boundary interrupt-stub	\ "no interrupt" interrupt
+restore
+
+\ Cross compiler extensions for interrupt routines.
+forth : int:	\ ( u -- ) Install code in interrupt vector table at given slot.
+   [host] 32 * int-table + int-entry-size + here *callop* swap !
+   [meta] || [host] ] ;
+
+metaextend
+forth : ;int
+   [target] return [meta] [ [forth] ;
+hostinterp

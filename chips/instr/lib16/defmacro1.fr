@@ -1,0 +1,20 @@
+\ (c) 1997 Johns Hopkins University / Applied Physics Laboratory
+\ Macro definitions
+hex
+
+: m:		\ ( -- ) Start defining a builtin macro.
+   ;
+
+: ;m		\ ( count -- count' ) End a builtin macro.
+   0 c,					\ terminate macro with empty command
+   1+ ;					\ keep count of number of macros
+
+: w,		\ ( w -- ) Comma down one word; no alignment is necessary.
+   split c, c, ;
+
+: c:		\ ( opcode -- addr ) Add a command to builtin macro.
+   here 0 c,				\ reserve byte for length
+   swap w, ;				\ add opcode
+
+: ;c		\ ( addr -- ) End command.
+   here over - 1- swap c! ;		\ store length of command

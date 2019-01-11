@@ -1,0 +1,72 @@
+\ (c) 2002 Johns Hopkins University / Applied Physics Laboratory
+\ Modification of NEAR DPU for MESSENGER version
+hex
+
+\ ------------------------------------------------------------------------
+\ Useful G-bus interfaces
+\ Note: unused bits in the read ports return 0.
+
+\ Writes
+be98 ucode i2c-cntl!	\ ( x -- ) Write I2C bus control register.
+be99 ucode i2c-data!	\ ( x -- ) Write I2C bus data register.
+be9a ucode comm-mask!	\ ( x -- ) Write communications interrupt mask register.
+be9b ucode dpu-mask!	\ ( x -- ) Write DPU interrupt mask register.
+be9c ucode dpu-icr!	\ ( x -- ) Write to DPU Interrupt Control Register.
+be9e ucode dpu-cfg!	\ ( x -- ) Configure DPU.
+be9f ucode comm!	\ ( x -- ) Send byte.
+
+\ Reads
+be18 ucode i2c-data@	\ ( -- x ) Return I2C bus received data.
+be19 ucode i2c-status@	\ ( -- x ) Return I2C bus status.
+b01b ucode reset-watchdog \ ( -- ) Reset watchdog timer.
+be1c ucode int-status	\ ( -- x ) Return interrupt status.
+be1e ucode dpu-cfg@	\ ( -- x ) Return DPU configuration.
+be1f ucode comm@	\ ( -- x ) Read byte.
+
+\ UART
+noheads		\ only available internally for interpreter
+be1c ucode uart-status	\ ( -- x ) Return UART status (interrupt stat., Gbus 4).
+be1d ucode testport@	\ ( -- c ) Read character from UART (Gbus 5).
+be9d ucode testport!	\ ( c -- ) Send character to UART (Gbus 5).
+
+20 constant RXRDYMASK
+10 constant TXRDYMASK
+heads
+
+\ Memory bank switching abstraction.  Replaces get-page/set-page suite.
+\ On MESSENGER, there is no extra bank switching beyond that provided by
+\ the RTX data page register.
+: get-code	\ ( -- memid ) Return a memory id for the currently
+		\ executing code.
+   cpr@ || ; inline			\ same as cpr@
+
+: get-mem	\ ( -- memid ) Return the memory id for the current far
+		\ address space.
+   get-page || ; inline
+
+: set-mem	\ ( memid -- ) Set the memory id for the far address space.
+   set-page || ; inline
+
+\ ------------------------------------------------------------------------
+\ Interrupt numbers
+
+noheads
+3 constant UARTINT#			\ UART on EI5
+heads
+
+\ ------------------------------------------------------------------------
+\ Useful constants
+
+noheads
+100 constant FIFOSIZE			\ TTY input buffer, output buffer sizes
+heads
+
+\ ------------------------------------------------------------------------
+\ Stack error checker
+
+variable stack-errors
+
+: check-stack	\ ( ... -- ) Check data stack depth.  If not empty count error.
+		\ Empty stack.
+   sp@ 001f and if 1 stack-errors +! then
+   pspreset ;

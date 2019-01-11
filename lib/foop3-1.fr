@@ -1,0 +1,106 @@
+\ (c) 1991 Johns Hopkins University / Applied Physics Laboratory
+\ May be distributed freely as long as this copyright notice remains.
+\ Object Oriented Programming System, Version 3.1, dpANS (October, 1991)
+hex
+
+\ Structure of class
+structure class-structure
+   cell: .parent			\ pointer to parent class
+   cell: .vocab				\ cfa of local vocabulary
+   cell: .size				\ size (in aus) of instance region
+   cell: .nmsgs				\ number of messages accepted by class
+\ method vectors are appended here
+endstructure
+
+\ Run-time Object Management
+variable current-object			\ current object
+
+: self		\ ( --- object ) Copy current object to parameter stack.
+   current-object @ ;
+: self+		\ ( offset --- object+offset ) Index instance variable.
+   current-object @ + ;
+
+\ Define messages accepted by a particular class hierarchy.
+: messages>	\ ( --- addr[nmsgs] nmsgs )
+   create here 0 dup ,
+   does> @ ;	\ ( addr[nmsgs] --- nmsgs )
+: msg:		\ ( n --- n' ) Create message n.
+   create dup cells class-structure + , 1+
+   does>	\ ( object addr[n] --- ) Call method n for given object.
+      current-object @ >r		\ save current object
+      @ >r  dup current-object !	\ set new current object
+      @ r> + @ execute			\ fetch vector from class and execute
+      r> current-object ! ;		\ restore original 'current' object
+: endmessages>  swap ! ;
+
+\ Define class hierarchy constructors.
+variable current-class			\ class currently being defined
+: push-vocabs	\ ( <order> class -- <order>' ) Add any parent
+		\ wordlists to the search order on the stack then add
+		\ the wordlist belonging to the given class.
+   ?dup if dup >r .parent @ recurse r> .vocab @ swap 1+ then ;
+
+: default-method \ ( -- ) This is executed if an object receives a
+		\ message for which there is no defined method.
+   ." method undefined" abort ;
+
+: construct-class \ ( nmsgs size-of-object parent -- ) Build a class
+		\ data structure with the given parameters, fill with
+		\ null execution vectors, create naming wordlist,
+		\ and modify search order.
+   wordlist				\ create wordlist
+   create here dup >r current-class !	\ name class; record address
+      class-structure allot		\ allocate class structure
+      r@ .vocab !  r@ .parent !		\ fill in wordlist, parent
+      r@ .size !  dup r> .nmsgs !	\ fill in size and number of msgs
+      0 do ['] default-method  , loop	\ fill in default methods
+      get-order current-class @ push-vocabs
+      over set-current set-order ;	\ defs in new wordlist
+
+: class>	\ ( nmsgs -- ) Create a new class hiearchy.
+   0 0 construct-class ;
+
+: sub-class>	\ ( class -- ) Create a subclass of the given class.
+		\ The subclass inherits the parents' methods and instance
+		\ variables.
+   dup >r .nmsgs @  r@ .size @  r@  construct-class
+   r@ class-structure +  current-class @ class-structure +
+      r> .nmsgs @ cells move ;
+
+: end>		\ ( -- ) Complete class definition by restoring search order.
+   get-order current-class @ begin >r nip 1- r> .parent @ dup 0= until
+   drop over set-current set-order ;
+
+\ Local variables
+variable to?
+: to  true to? ! ; immediate
+: local:	\ ( -- ) Create an instance variable for current class.
+   create current-class @ .size @ dup , cell+ current-class @ .size ! immediate
+   does>	\ ( addr[offset] -- ) Compile fetch or store of instance.
+      @ cell+ postpone literal postpone self+
+      to? @ if postpone !  false to? !
+	    else postpone @
+	    then ;
+
+\ Methods
+: get-body	\ ( -- x ) Look up the next word in the input stream,
+		\ and extract its body.  It must have been 'create'd.
+   bl word find 0= abort" unknown message"
+   >body @ ;
+
+: super		\ ( -- ) Convert the next message to the self object
+		\ into a subroutine call.
+   current-class @ .parent @ get-body + @ compile, ; immediate
+
+: method:	\ ( -- addr[slot] xt colon-sys ) Define a method to
+		\ correspond with message indicated in input stream.
+   get-body current-class @ + :noname ;
+
+: ;method	\ ( addr[slot] xt colon-sys -- ) Complete compilation
+		\ of method.
+   postpone ; swap ! ; immediate
+
+\ Storage Allocator, first pass
+: new		\ ( class -- object ) Allocate an object of type class.
+   here >r dup .size @ cell+ allot	\ allot object + class pointer
+   r@ ! r> ;				\ init class pointer

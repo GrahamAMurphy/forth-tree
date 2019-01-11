@@ -1,0 +1,29 @@
+\ (c) 1998 Johns Hopkins University / Applied Physics Laboratory
+\ Command line parser and main program
+hex
+
+~ : strlen	\ ( z-addr -- len )
+   0 >r begin dup c@ while r> 1+ >r 1+ repeat drop r> ;
+
+~ : initforth
+   coldstart  warmstart			\ initialization
+   ;
+
+~ : evalforth \ ( char*s -- )
+   dup strlen evaluate ;
+
+~ : doforth	\ ( arc argv -- )
+   cell+ swap 1-
+   dup if				\ if there are command line args
+      0 do				\ for each argument
+	 dup >r @ dup strlen open-include \ open file
+	 include-file			\ and load file
+	 r> cell+
+      loop drop
+   else					\ if no arguments
+      2drop
+      cr ." JH forth, version ANS 1.3"
+      cr ." (c) 1994 JHU/Applied Physics Lab"
+      pspreset quit
+   then
+   ;

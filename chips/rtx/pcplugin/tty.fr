@@ -1,0 +1,5 @@
+\ (c) 1993 Johns Hopkins University / Applied Physics Laboratory
+hex
+
+: emit	( c -- )	34ec execute ( TBD) ;
+: key	( -- c )	350a execute dup 0d = if drop 0a then ( TBD) ;

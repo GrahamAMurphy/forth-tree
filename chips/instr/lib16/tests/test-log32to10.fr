@@ -1,0 +1,29 @@
+\ (c) 2008 Johns Hopkins University / Applied Physics Laboratory
+\ Test pseudo-log functions
+
+: dlshift       \ ( x u -- y-ls y-ms ) Shift x left u bits.
+   0 swap ?dup if 0 do 2dup d+ loop then ;
+: d<>  dnegate d+ or 0= not ;
+
+: test-most	\ ( -- ) Tests most possible 32-bit inputs.
+   h# 20 0 do				\ test each "denormal" results
+      i 0 log32to10 i <> if i u. then
+   loop
+   h# 280 h# 20 do			\ for most 10-bit log codes
+      \ i u.
+      i h# 1f and 32 + i 5 rshift 1- dlshift	\ test minimum to
+      2dup 1 i 5 rshift 1- dlshift d+ -1 s>d d+	\   maximum that generates
+      2swap begin				\   given code
+	 2dup log32to10 i <> if ." error: " i u. then
+	 2over 2over d<> while
+	 1 0 d+
+      repeat
+      2drop 2drop
+   loop
+   h# 380 h# 280 do			\ for remaining log codes
+      \ i u.
+      i h# 1f and 32 + i 5 rshift 1- dlshift	\ test minimum
+      2dup log32to10 i <> if ." error: " i u. then
+      1 i 5 rshift 1- dlshift d+ -1 s>d d+	\   and maximum only
+      log32to10 i <> if ." error: " i u. then
+   loop ;

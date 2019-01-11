@@ -1,0 +1,7 @@
+
+       memarea                          define 0100 
+       send                             define 0002 
+       get                              define 0010 
+       loadstoretest                    define 001c 
+       iotest                           define 0058 
+here = 68 

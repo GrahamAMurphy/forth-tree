@@ -1,0 +1,38 @@
+\ (c) 1992 Johns Hopkins University / Applied Physics Laboratory
+
+
+verbatim-prolog
+/* here begins a very large C function; it is the Forth system! */
+static void
+interp(int entry, ...)
+{
+end
+
+verbatim
+/* TBD: this ends interp() */
+		}
+	}
+}
+end
+
+verbatim
+
+void
+init_forth(void)
+{
+	interp(ENTRYINITFORTH, 0);
+}
+
+void
+do_forth(int argc, char *argv[])
+{
+	interp(ENTRYDOFORTH, 2, argc, argv);
+}
+
+void
+eval_forth(char *s)
+{
+	interp(ENTRYEVALFORTH, 1, s);
+}
+
+end

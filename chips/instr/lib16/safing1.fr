@@ -1,0 +1,79 @@
+\ (c) 2008 Johns Hopkins University / Applied Physics Laboratory
+\ Safing
+decimal
+
+module> safing
+
+\ * Requires constants and functions:
+\ *	wd-a#: address of watchdog tickle (read)
+\ *	dog-enb-mask#: bit mask to enable watchdog
+\ *	io@: read from memory-mapped I/O
+\ *	set-dpu-cfg: set bit in register that controls watchdog
+
+\ ------------------------------------------------------------------------
+\ Watchdog
+
+public:
+
+: reset-watchdog \ ( -- ) Reset watchdog.
+   wd-a# io@ drop ;
+
+: start-watchdog \ ( -- ) Start watchdog.
+   reset-watchdog			\ reset watchdog to prevent early reset
+   dog-enb-mask# set-dpu-cfg ;		\ enable watchdog
+
+private:
+
+\ ------------------------------------------------------------------------
+\ Maintain instrument safety
+
+variable host-bad			\ count missing "all is well" calls
+variable safing-done			\ true if we have safed instrument
+
+public:
+
+: all-is-well	\ ( -- ) All is well; host is up.
+   0 host-bad !  false safing-done ! ;
+
+: safe-instrument \ ( -- ) Safe instrument.
+   2 run-macro ;			\ run safing macro
+
+private:
+
+do: check-safety \ ( -- ) Make sure we have received "all is well" indication
+		\ from host within a commanded time interval.  If
+		\ not, run a safing macro.
+   safing-done @ not if			\ if not safed
+      host-bad @ 1+ dup host-bad !	\ if too long since last "all-is-well"
+      safing-time get u> if
+	 safe-instrument		\ run safing macro
+	 true safing-done !		\ do not do again until all is well
+      then
+   then ;do
+
+\ ------------------------------------------------------------------------
+\ Commands
+
+: c-saf-off	\ ( -- ) Request power off.
+   req-power-off ;
+
+: c-saf-reset	\ ( -- ) Commit suicide by allowing watchdog to go off.
+   start-watchdog			\ make sure watchdog is actually going
+   disable begin again ;		\ hang until reset  
+
+: c-saf-timeout	\ ( -- ) Set safing timeout.
+   arg1 arg0 join safing-time set ;
+
+\ ------------------------------------------------------------------------
+\ Initialization
+
+public:
+: init-safing	\ ( -- ) Initialize safing subsystem.
+   check-safety every 1 seconds doit	\ periodically check safety
+   ['] c-saf-off	#saf-off	0 register-cmd/args
+   ['] c-saf-reset	#saf-reset	0 register-cmd/args
+   ['] c-saf-timeout	#saf-timeout	2 register-cmd/args
+;
+private:
+
+endmodule>

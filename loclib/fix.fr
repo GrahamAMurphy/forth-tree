@@ -1,0 +1,49 @@
+\ (c) 1999 Johns Hopkins University / Applied Physics Laboratory
+\ Fixed point arithmetic
+\ TBD: why isn't this in forth/lib?
+hex
+
+\ implements fixed point arithmetic with the format :
+\                    f i
+\ with :
+\  i : is the integer part of the fix real
+\  f : is the fractional part of the fix real
+
+: sm*um		\ ( sm um -- sd ) Multiply a signed word and an unsigned word:
+		\ return a singed word.
+   swap dup >r abs um* r> d+- ;
+
+: fix*		\ ( fix1 fix2 -- fix1*fix2 ) Fixed point multiply.
+		\ fix1*fix2 = [(scale * msw1 + lsw1)*(2^16 * msw2 + lsw2)]/scale
+		\           = scale * msw1 * msw2
+		\           + msw1 * lsw2
+		\           + msw2 * lsw1
+		\           + (lsw1 * lsw2) / scale
+   2pick over m* drop 0 swap >r >r	\ (msw1 * msw2) * scale
+   2pick 2pick sm*um r> r> d+ >r >r	\ + msw1 * lsw2
+   3pick over swap sm*um r> r> d+ >r >r	\ + lsw1 * msw2
+   drop nip um* swap 0<			\ + (lsw1 * lsw2) / scale
+   if 1+ then 0 r> r> d+ ;		\ with rounding
+
+: fix^2		\ ( fix -- fix^2 ) Return square of given fixed point number.
+   2dup fix* ;
+
+: fix^3		\ ( fix -- fix^3 ) Return cube of given fixed point number
+   2dup 2dup fix* fix* ;
+
+: fix*u		\ ( fix u -- fix' ) Multiply fixed pointer number by u.
+   over >r >r dabs r> um*m r> d+- ;
+
+: fix/u		\ ( fix u -- fix' ) Divide fixed pointer number by u.
+   over >r >r dabs
+   0 r@ um/mod r> swap >r um/mod nip r>
+   r> d+- ;
+
+: fix.		\ ( fix -- ) Display fixed pointer number in pretty format.
+   dup >r dabs 0 <# #s r> sign #> type	\ must do integer part and sign first
+   [char] . emit			\ base point
+   begin				\ do fractional digits (at least one)
+      base @ um*			\ get next digit
+      dup 9 u> if 27 + then [char] 0 + emit
+      dup 0=				\ until no more
+   until drop ;

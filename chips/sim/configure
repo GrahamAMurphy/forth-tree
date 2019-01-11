@@ -1,0 +1,29 @@
+#!/bin/sh
+target=$1
+target=${target:=unix}		# default to unix
+forthlib=/home/users/john/forth/ans/forthlib
+case $target in
+	sun3|sun4)
+		cflags="-DFORTHPARSE"
+		alusim="aluopsa.o"
+		yaccpar=""
+		ldobjs=$forthlib-$target.o
+		;;
+	dos)
+		cflags="-DBITS16 -DLITTLEENDIAN -DPCCURSES"
+		alusim="aluopsc.o"
+		yaccpar="parser.o"
+		ldobjs=""
+		;;
+	*)
+		cflags=""
+		alusim="aluopsc.o"
+		yaccpar="parser.o"
+		ldobjs=""
+		;;
+esac
+sed	-e "s|%cflags|$cflags|" \
+	-e "s|%alusim|$alusim|" \
+	-e "s|%yaccpar|$yaccpar|" \
+	-e "s|%ldobjs|$ldobjs|" \
+	<Makefile.tem >Makefile

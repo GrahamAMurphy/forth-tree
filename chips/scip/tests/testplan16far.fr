@@ -1,0 +1,71 @@
+\ (c) 2004 Johns Hopkins University / Applied Physics Laboratory
+\ Extend testplan16 to do far memory test.  Must have memory in page 1.
+hex
+
+\ ------------------------------------------------------------------------
+\ Far memory
+
+label fartest
+	<br	>. 1 fwd			\ branch around helper functions
+\ Test far/near mode save/restore on return stack.  Implement far! and far@
+\ functions within several nested calls.
+label f0! <spec	farmode >.
+	<!	mem16  popp >.
+	<alu	nopb popp return >.
+label f1! <spec	nearmode >.
+	f0! *call*
+	<exit>
+label f! <spec	farmode >.
+	f1! *call*
+	<exit>
+label f0@ <spec	farmode >.
+	<@	mem16  return >.
+label f1@ <spec	nearmode >.
+	f0@ *call*
+	<exit>
+label f@ <spec	farmode >.
+	f1@ *call*
+	<exit>
+1 l:
+
+\ Test far load/store
+	<lis	1 +# nopb pushp >.		\ set DPR to 1
+	<reg!	nopa dpr popp >.
+	<reg@	cpr nopb *literal*		\ instruction 1: read CPR
+	memarea *literal*
+	' f! *call*
+	<lis	0 +# nopb pushp *literal*	\ instruction 2: push 0
+	memarea 2 + *literal*
+	' f! *call*
+	<reg!	nopa cpr popp *literal*		\ instruction 3: set CPR
+	memarea 4 + *literal*
+	' f! *call*
+	<alu	nopa return *literal*		\ instruction 4: return
+	memarea 6 + *literal*
+	' f! *call*
+	5555 *literal*  memarea *literal*	\ write test pattern at same
+	<!	mem16 popp >.			\   location locally
+	<alu    nopb popp >.
+	memarea *literal*			\ read back far memory
+	' f@ *call*				\   and verify
+	<lil	aminusb >.	<reg@	cpr nopb >.
+	<testx	nopa EQ popp >.
+0 l:	<?br	>.	0 back
+	memarea *literal*			\ read back near memory
+	<@	mem16 >.			\   and verify
+	<lil	aminusb >.	5555 >.
+	<testx	nopa EQ popp >.
+0 l:	<?br	>.	0 back
+	<reg@	dpr nopb pushp >.		\ read back and verify DPR
+	<lis	d# 1 +# bminusa >.
+	<testx	nopa EQ popp >.
+0 l:	<?br	>.	0 back
+
+\ Test far call
+	' disable *call*		\ disable interrupts (no handler on
+	<lis	2 +# nopb pushp >.	\   far page)  push 2
+	<reg!	deca cpr >.		\ do far call, set CPR
+	memarea *call*			\   and do call
+	<lis	d# 1 +# bminusa >.	\ called function should change 2 to 1
+	<testx	nopa EQ popp >.
+0 l:	<?br	>.	0 back

@@ -1,0 +1,6 @@
+hex
+
+: foo
+   open-mem
+   6 seek-memid 0 seek-memaddr 55 >mem
+   close-mem ;

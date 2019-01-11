@@ -1,0 +1,94 @@
+\ (c) 2008 Johns Hopkins University / Applied Physics Laboratory
+\ Test pseudo-log compression
+decimal
+
+h# be13 ucode t0@
+h# be93 ucode t0!
+
+\ Test 19 to 8
+\ Starting version:
+\ 8 8 8 8 8 8 30 31 35 37 41 42 46 48 52 53 57 29 36 43 13
+\ Modified large case to use norm-4b-tbd instead of norm-4b:
+\ 8 8 8 8 8 8 30 31 35 37 41 42 46 48 52 53 57 33 37 38 13
+\ Modified test for fall through >0x0f instead of >0x1f:
+\ 8 8 8 8 8 26 30 31 35 37 41 42 46 48 52 53 57 33 37 38 13
+\ Added 8-bit test to norm-4-tbd:
+\ 8 8 8 8 8 29 33 34 38 36 40 41 45 40 44 45 49 36 40 41 13
+\ Deleted 8-bit and 4-bit tests from norm-4-tbd:
+\ 8 8 8 8 8 23 27 32 36 41 45 50 54 59 63 68 72 30 34 39 13
+\ Restored 4-bit test and fall through trick if >0x1f:
+\ 8 8 8 8 8 8 30 31 35 37 41 42 46 48 52 53 57 33 37 38 13
+
+: unlog8to19	\ ( log8 -- xls xms )
+   dup h# 0f and swap 4 rshift ?dup if
+      >r 16 + 0 r> 1- for d2* next
+   else
+      0
+   then ;
+
+: unlog8to19+	\ ( log8 -- xls xms )
+   dup h# 0f and swap 4 rshift ?dup if
+      1- >r 16 + 0 r@ for d2* next
+      -1 s>d d+
+      1 0 r> for d2* next d+
+   else
+      0
+   then ;
+
+: test-a	\ ( -- )
+   256 0 do
+      i unlog8to19  log19to8 i <> if i . leave then
+      i unlog8to19+ log19to8 i <> if i . leave then
+   loop ;
+
+: time-log19to8	\ ( xls xms -- clocks ) TBD
+   0 t0!
+   t0@ >r log19to8 r> t0@ - 4 -
+   nip ;
+
+: test-time19to8 \ ( -- )
+   cr 21 0 do
+      1 0 i for d2* next -1 s>d d+
+      time-log19to8 u.
+   loop ;
+
+\ Test 32 to 10
+\ EPPS V5 version:
+\ 21 21 21 21 21 21 203 194 185 176 167 158 149 140 131 122 113 250 241 232 223 214 205 196 187 178 169 160 151 142 133 124 26
+\ New version:
+\ 8 8 8 8 8 8 27 31 32 36 38 42 43 47 49 53 54 35 39 40 44 46 31 35 36 40 42 46 47 51 53 57 58
+\ Modified test from >0x1f to >0x3f:
+\ 9 9 9 9 9 9 9 32 33 37 39 43 44 48 50 54 55 35 39 40 44 46 31 35 36 40 42 46 47 51 53 57 58
+
+: unlog10to32	\ ( log10 -- xls xms )
+   dup h# 1f and swap 5 rshift ?dup if
+      >r 32 + 0 r> 1- for d2* next
+   else
+      0
+   then ;
+
+: unlog10to32+	\ ( log10 -- xls xms )
+   dup h# 1f and swap 5 rshift ?dup if
+      1- >r 32 + 0 r@ for d2* next
+      -1 s>d d+
+      1 0 r> for d2* next d+
+   else
+      0
+   then ;
+
+: test0
+   896 0 do
+      i unlog10to32  log32to10 i <> if i . leave then
+      i unlog10to32+ log32to10 i <> if i . leave then
+   loop ;
+
+: time-log32to10 \ ( xls xms -- clocks ) TBD
+   \ 0 t0!
+   disable t0@ >r log32to10 r> t0@ - 4 - enable
+   nip ;
+
+: test-time32to10 \ ( -- )
+   cr 33 0 do
+      1 0 i for d2* next -1 s>d d+
+      time-log32to10 u.
+   loop ;

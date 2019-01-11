@@ -1,0 +1,306 @@
+\ (c) 1993 Johns Hopkins University / Applied Physics Laboratory
+\ This is a peephole optimizer for the Rtx
+decimal
+
+\ Rule data
+structure rule-struct
+	cell: .next-rule
+	cell: .reopt
+	cell: .#inputs
+	cell: .inputs
+	cell: .#wild
+	cell: .wild
+	cell: .#outputs
+	cell: .outputs
+	cell: .constraint
+	cell: .#applic
+\ rule name compiled here
+endstructure
+
+variable optimization-rules
+
+\ ------------------------------------------------------------------------
+\ Rule compiler
+: mask		\ ( bitpos #bits -- mask ) Build mask of ones with
+		\ given bit position and length.
+   1 swap rotate 1- swap lshift ;
+
+
+\ Fields and Wildcards
+create wildcard-buffer 16 cells 2* allot
+
+: ?field:	\ ( bitpos #bits -- ) ( -- ) Define a wildcard field
+		\ with given bit position and size.  The wildcard
+		\ logs its use; subsequent code constructs wildcard records.
+   create mask ,			\ mask only
+   does>				\ log wild card
+      @ optimization-rules @ .#inputs @	\ index of input pattern under constr.
+      optimization-rules @ .#wild @ 2* cells
+	 wildcard-buffer + 2!		\ save index,mask in buffer
+      1 optimization-rules @ .#wild +! ; \ count them
+
+: save-wildcards \ ( -- ) Copy wildcards from their buffer into
+		\ permanent storage and record position in rule.
+   here optimization-rules @ .wild !	\ remember wildcard location
+   wildcard-buffer
+   optimization-rules @ .#wild @ ?dup if
+      0 do				\ for each wild card
+         dup 2@ optimization-rules @ .#inputs @
+	 - ,				\ record index from head of queue
+         , cell+ cell+			\ copy mask; move to next pair
+      loop
+   then drop ;
+
+: mfield:	\ ( bitpos #bits -- ) ( mask value n -- mask' value' )
+		\ Define a match field at bitpos of given number of bits.
+		\ The child, given a mask, value, and value for this field,
+		\ incorporates the field's mask and value.
+   create
+      over , mask ,			\ bitpos, mask
+   does>
+      dup >r @ lshift or		\ or in value
+      swap r> cell+ @ or swap ;		\ or in mask
+
+: field:	\ ( bitpos #bits -- ) Create an instruction field definition
+		\ with given bit position and size.  See mfield: and ?field:.
+   2dup mfield: ?field: ;
+
+\ Rtx instruction fields
+\  Most common instruction formats: ALU, G-bus, short-literal
+12  4	field:	class	?class
+ 8  4	field:	alu	?alu
+ 9  3	field:	salu	?salu		\ alu field broken into short alu/invert
+ 8  1	field:	sinvert	?sinvert
+ 6  2	field:	sub	?sub
+ 7  1	field:	sub1	?sub1		\ individual bits in sub field
+ 6  1	field:	sub0	?sub0
+ 5  1	field:	rbit	?rbit
+ 0  5	field:	data	?data
+
+ 4  1	field: abit	?abit
+ 0  4	field: shift	?shift
+
+\ call instruction
+15  1	field: cbit	?cbit
+ 0 15	field: cdest	?cdest
+
+\ branch instructions
+13  3	field: sclss	?sclss
+11  2	field: cond	?cond
+ 0 11	field: bdest	?bdest		\ includes block selection
+
+\ load/store instructions
+\ 13  3	field: sclss	?sclss		\ same as for branch instructions
+12  1	field: c-acc	?c-acc
+
+\  The literal part of a long literal
+ 0 16	field: lit	?lit
+
+\ Rule construction macros.
+: rule		\ ( "name" -- ) Build a rule header.
+   here
+   rule-struct allot bl ,word align	\ allocate fixed size, then record name
+   dup rule-struct 0 fill		\ zero fixed data
+   optimization-rules @ over .next-rule ! \ incorporate into rule list
+   here over .inputs !			\ input records will be compiled next
+   optimization-rules ! ;		\ this is now the current rule.
+
+: reoptimize	\ ( -- ) Re-optimize; if rule matches, optimizer is re-applied
+		\ as each replacement instruction is added.
+   true optimization-rules @ .reopt ! ;
+
+: <i		\ ( -- 0 0 ) Return initial mask/value pair.
+   0 0 ;
+: i>		\ ( mask value -- ) Compile check for one instruction
+		\ and count it.
+   swap , ,
+   1 optimization-rules @ .#inputs +! ;
+
+: -->		\ ( -- ) Transition from compiling input records to
+		\ compiling output records.  Save wildcards permanently.
+   save-wildcards
+   here optimization-rules @ .outputs ! ; \ output records will be compiled next
+
+: <o		\ ( -- addr 0 0 ) Return initial initial mask/value pair
+		\ for constructing resulting instruction.  Also
+		\ returns the address of output construction data.
+   here 0 , 0 , 0 0 ;
+: o>		\ ( addr mask value -- ) Record given output instruction
+		\ and count it.
+   nip swap !				\ record value of new instruction
+   1 optimization-rules @ .#outputs +! ;
+
+: ??		\ ( addr mask value index -- addr mask value ) Add the
+		\ wildcard indicated by index to the output record
+		\ currently being constructed.
+   , 1 3pick cell+ +! ;
+
+: constraint:	\ ( -- xt sys ) Start compiling constraint checks.
+   :noname ;
+
+: ;constraint	\ ( xt sys -- ) Complete compilation of constraint check.
+   postpone ; optimization-rules @ .constraint ! ; immediate
+
+: endrule	\ ( -- ) Sugar.
+   ;
+
+\ ------------------------------------------------------------------------
+\ Here is the optimizer
+
+variable 'optimize			\ exection vector of optimizer;
+					\ allows recursive optimizations
+
+variable ?code		\ A variable that points to the beginning of the 
+			\ optimization queue.  here marks the end.	 
+			\ From cmforth on the Novix chip.		 
+
+: ||		\ ( -- ) flush optimization queue 
+   t-here ?code ! ;
+
+\ Run-time wildcard management
+\ Since the optimizer is recursive, the wildcard matches must be saved
+\ and restored on each recursive call.  We allow for 8 contexts of up
+\ to 16 wildcards.
+create wildcard-matches 16 cells 8 * allot
+variable wm-sp				\ top of wildcard match stack
+   wildcard-matches wm-sp !
+
+: nest-wildcards \ ( -- ) Nest down, allocating new wildcard buffer.
+   16 cells wm-sp +! ;
+
+: unnest-wildcards \ ( -- ) Unnest, restoring original wildcard buffer.
+   -16 cells wm-sp +! ;
+
+: wildcard	\ ( wildindex -- addr ) Map wildcard index into address
+		\ of wildcard in current context
+   cells wm-sp @ + ;
+
+: match-wildcards \ ( rule -- ) Match each wildcard against appropriate
+		\ instruction and save matched value.
+   dup .wild @
+   swap .#wild @ ?dup if
+      0 do				\ for each wildcard
+	 dup 2@ t-cells t-here + t-@ and \ extract value from instruction
+	 i wildcard !			\ and save
+	 cell+ cell+
+      loop
+   then drop ;
+
+: wildcard-match \ ( wildindex -- value ) Return value matched by indicated
+		\ wildcard.
+   wildcard @ ;
+
+\ First, see if a rule is applicable
+: enough-inputs? \ ( rule -- t/f ) Return true if number of instructions needed
+		\ by given rule is <= number of instructions in opt. queue.
+		\ Also makes sure that first "instruction" really is an
+		\ instruction and not a long literal.
+   .#inputs @ dup
+   t-here ?code @ - t-cell/ -
+   dup 0< if				\ if more instructions than needed
+      drop t-here swap 1+ t-cells -
+      t-@ h# f000 and h# d000 <>	\ make sure first isn't long literal
+   else
+      nip 0=				\ otherwise, check exactly right number
+   then ;
+
+: inputs-match?	\ ( rule -- t/f ) Return true if each instruction template in
+		\ given rule can be matched against instruction in
+		\ optimization queue.
+   t-here over .#inputs @ t-cells -	\ addr of first instr. in queue
+   over .inputs @ >r
+      swap .#inputs @ cells 2* r@ + r>
+   do					\ for each template
+      i 2@ 2pick t-@ and		\ compare template with instruction
+      <> if drop false unloop exit then	\ bail out if mismatch
+      t-cell+
+   2 cells +loop
+   drop true ;				\ if we reach here, success
+
+: constraint-ok? \ ( rule -- t/f ) Return true if constraint check succeeds.
+   .constraint @ ?dup if execute else true then ;
+
+: applicable?	\ ( rule -- t/f ) Return true if given rule is applicable.
+   dup enough-inputs? if		\ if there are enough instructions
+      dup inputs-match? if		\ and they match the rule's template
+	 dup match-wildcards		\ need wildcards for constraint checks
+	 constraint-ok? exit		\ return result of constraint check
+      then
+   then
+   drop false ;
+
+\ Apply an appropriate rule
+: roll-back-queue \ ( rule -- ) Discard instructions from optimization queue;
+		\ they will be replaced by instructions from rule application.
+   .#inputs @ t-cells negate t-allot ;
+
+: build-instruction \ ( instr addr -- instr' ) Given address of list of
+		\ applicable wildcards, incorporate wildcard matches into
+		\ given instruction.
+   dup @ ?dup if			\ if there are wildcards
+      cells over + cell+ swap cell+
+      do
+	 i @ wildcard-match or
+      cell +loop
+   else drop
+   then ;
+
+: apply-rule-opt \ ( rule -- ) Apply the given rule, re-optimizing as each
+		\ new instruction is laid down.
+   dup .outputs @
+   swap .#outputs @ ?dup if
+      0 do				\ for each new instruction
+	 dup @ over cell+ build-instruction t-,
+ 	 nest-wildcards			\ nest down
+  	 'optimize @ execute		\ re-apply optimizer
+ 	 unnest-wildcards
+	 dup cell+ @ 2+ cells +
+      loop
+   then drop ;
+
+: apply-rule-noopt \ ( rule -- ) Apply the given rule.
+   dup .outputs @
+   swap .#outputs @ ?dup if
+      0 do				\ for each new instruction
+	 dup @ over cell+ build-instruction t-,
+	 dup cell+ @ 2+ cells +
+      loop
+   then drop ;
+
+: apply-rule	\ ( rule -- ) Apply the given rule.
+   dup .reopt @ if			\ re-optimize on every instruction?
+      apply-rule-opt
+   else					\ or not
+      apply-rule-noopt
+   then ;
+
+\ The optimizer itself
+: log-success	\ ( rule -- ) Record application of given rule.
+\  dup rule-struct + count type cr	\ DEBUG: display rule name
+   1 swap .#applic +! ;			\ count usage
+
+: optimize	\ ( --- ) Apply optimization rules until none are 
+		\ successful.					    
+   optimization-rules @
+   begin
+      dup while				\ while there are untried rules
+      dup applicable? if		\ if rule is applicable
+	 dup roll-back-queue		\ delete instructions
+	 dup apply-rule dup log-success	\ apply rule
+	 drop optimization-rules @	\ start over with first rule
+      else
+	 .next-rule @			\ otherwise, try next rule
+      then
+   repeat drop ;
+
+' optimize 'optimize !			\ fill in forward reference
+
+: rulestats	\ ( --- ) print out rule application statistics 
+   optimization-rules @
+   begin
+      dup while				\ while not at end of list 
+      ." Rule " dup rule-struct + count type
+      ."  was applied " dup .#applic ?
+      ." times." cr
+      @
+   repeat drop ;

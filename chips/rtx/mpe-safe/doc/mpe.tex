@@ -1,0 +1,263 @@
+\documentstyle[fancyheadings]{article}
+\raggedbottom
+\textwidth 6.5in
+\oddsidemargin 0.0in
+\evensidemargin 0.0in
+\topmargin 0.0in
+\textheight 9.0in
+
+\pagestyle{fancy}
+\newcommand{\memonum}{S1I-94-Draft}
+\newcommand{\issuedate}{June 27, 1994}
+\lhead{}
+\chead{}
+\rhead{\memonum\\\ifnum\value{page}=1\issuedate\else Page \thepage\fi}
+\lfoot{}
+\cfoot{}
+\rfoot{}
+\addtolength{\headheight}{12pt}
+
+\newcommand{\memoaddrlabel}[1]{\mbox{\bf #1:}\hfil}
+\newenvironment{memoaddress}{%
+\begin{list}{}
+	{
+		\let\makelabel\memoaddrlabel
+		\setlength{\labelwidth}{1in}
+		\setlength{\leftmargin}{1in}
+		\setlength{\labelsep}{0in}
+		\setlength{\itemsep}{0in}
+	}
+}{%
+\end{list}}
+
+\newcommand{\doctype}{memo}			% memo/article/paper
+
+\begin{document}
+\begin{memoaddress}
+	\item[To] Distribution
+	\item[Via] R. M. Henshaw
+	\item[From] J. R. Hayes
+	\item[Subject] FRISC Forth on MPE's RTX Power Board
+	\item[Reference] Hayes, J.R., ``FRISC Forth Programmer's
+		Manual'', TES-92-45.
+\end{memoaddress}
+
+\newcommand{\fw}[1]{{\bf #1}}			% Forth words are in bold
+\newcommand{\num}[1]{{\em #1}}			% italicize numbers
+
+\section{Introduction}
+This \doctype\ documents FRISC Forth as implemented on Microprocessor
+Engineering Ltd.'s RTX Power Board.
+The \doctype\ describes how to install FRISC Forth on the board,
+how to use the system with a host computer, and
+special features of the system.
+FRISC Forth is described in general in ``FRISC Forth Programmer's
+Manual''.
+
+To install FRISC Forth on the board, the original EPROMs
+must be replaced with FRISC Forth EPROMs.  The FRISC Forth EPROMs
+are labeled ICJ and ICK; they should be inserted in the correspondingly
+labeled sockets.
+
+The FRISC Forth system uses an RS-232 interface wired as DCE.
+On reset, the interface is programmed to use 9600 baud, 8 data bits,
+no parity, and one stop bit.  The system processes some received
+characters specially.  \verb|^|S and \verb|^|Q stop and start the
+serial output.  Carriage returns are mapped to linefeeds.
+\verb|^|C executes the \fw{reboot} command, reinitializing the system
+while retaining the current dictionary.
+
+\section{Interpreting/Compiling Software}
+Forth source code can be entered interactively by typing in lines
+of fewer than 128 characters.  The line may be edited:
+\verb|^|H erases the previous character and \verb|^|U
+discards the entire line.  The line is terminated by a carriage
+return or linefeed.  The system returns an ``ok'' response
+after each line (while in interpret state).
+
+Forth source code can be downloaded from a host computer.
+The host computer can be connected to the board's RS-232 line
+and a terminal emulation program used for communication.
+The command \fw{silent}
+is typed to disable echoing and the ``ok'' response.  Files can
+then be sent from the host computer as a stream of ASCII characters.
+Each line must consist of 128 or fewer characters
+followed by a carriage return or linefeed.
+To terminate silent mode, \fw{abort} (or \fw{quit}) should be typed.
+
+\section{Special RTX Features}
+To make FRISC Forth appear uniform across different computer architectures,
+the idiosyncratic personality traits of various processors have been
+suppressed.  This makes it easier to write programs that will
+run on other FRISC Forth systems (e.g. FRISC3, FRISC4, RTX2000,
+RTX2010, etc.).  However, there may be situations where use of special
+processor features may be advantageous.  For example, the RTX has
+a loop instruction that is faster than the standard \fw{do}/\fw{loop}.
+
+A RTX implementation of Forth standard \fw{do} ... \fw{loop} control
+structure exacts a run-time toll of six clocks per iteration.  In
+situations where this is excessive, the RTX's \fw{for} ... \fw{next}
+control structure can be used instead. 
+\fw{For}, given an argument \num{n},
+executes the code between \fw{for} and \fw{next} \num{n} times;
+if \num{n} is zero, the loop is not executed.  The loop index
+counts down from \num{n-1} through 0 and is available by using \fw{r@}.
+There is a one clock overhead per iteration.
+
+An RTX instruction opcode may be given a name with the defining word
+\fw{ucode}.  The instruction may be subsequently invoked or compiled
+into a definition by using its name.  For example, the instruction
+that reads the RTX configuration register may be defined:
+\begin{verbatim}
+   be03 ucode cr@
+\end{verbatim}
+When an instruction defined by \fw{ucode} is used in a subsequent
+definition, the instruction's opcode is compiled in-line (instead of
+being called).
+
+\section{Memory}
+FRISC Forth on the RTX can access 64k bytes of address space;
+however a bank-switching mechanism allows access to additional
+64 kbyte pages.  By default, all data fetches and stores are made to
+page 0 (which also contains object code).  This default page
+is called the ``near'' page; other pages are called ``far''
+pages.
+
+FRISC Forth has words to identify a far memory page,
+and to switch back and forth between far and near pages.
+\fw{set-page} records a page number, given as an
+argument, to be used for future data accesses.
+\fw{Far} puts the system in far mode
+such that all data accesses occur in the page
+identified to \fw{set-page}.  \fw{near} switches the system
+back to near mode such that all data accesses occur
+in the default page.
+
+Note that using \fw{set-page} does not effect whether the
+system is in far or near mode.  This means that the far page
+of interest need be set only once.  A program can switch back
+and forth from far and near space as often as necessary
+using only \fw{far} and \fw{near}.  The behavior of \fw{far},
+\fw{near}, and \fw{set-page} are summarized in the Appendix.
+Some additional words for manipulating far memory (all implemented
+in terms of the three primitives) are also described in the Appendix.
+
+On reset, the Forth system copies itself from EPROM into RAM
+(near space),
+then maps the EPROM out of the address space.
+The system uses memory starting at address 0; this memory region
+grows towards higher memory addresses as words are added
+to the dictionary or data space is \fw{allot}ted.  \fw{here} returns
+the address of the next free memory location.
+
+\section{Interrupts}
+Interrupt routines may be written using the following syntax:
+\begin{verbatim}
+   n int: ... ;int
+\end{verbatim}
+\fw{int:} and \fw{;int} are analogous to \fw{:} (colon) and \fw{;}
+(semicolon); both pairs of words demarcate Forth source code to be compiled.
+\fw{Int:}, instead of associating the compiled code with a name in the
+dictionary as \fw{:} (colon) does, associates the code with interrupt
+\num{n}.  The number \num{n} identifies one of the interrupts
+known to the RTX interrupt controller (see Table 1).
+Default nop interrupt routines are preinstalled for all interrupts.
+
+\begin{table*}
+\caption{Interrupts}
+\begin{center}
+\begin{tabular}{|c|l|c|c|c|}
+\hline
+Number & Source &			IMR Mask &	Type &	Priority  \\
+\hline \hline
+16 &	No Interrupt &			na &		Edge &	na  \\
+\hline
+15 &	Nonmaskable (NMI) &		na &		Edge &	0 (highest)  \\
+\hline
+14 &	EI1 pin &			0xfffd &	Level &	1  \\
+\hline
+13 &	Parameter Stack Underflow &	0xfffb &	Level &	2  \\
+\hline
+12 &	Return Stack Underflow &	0xfff7 &	Level &	3  \\
+\hline
+11 &	Parameter Stack Overflow &	0xffef &	Level &	4  \\
+\hline
+10 &	Return Stack Overflow &		0xffdf &	Level &	5  \\
+\hline
+ 9 &	EI2 pin &			0xffbf &	Level &	6  \\
+\hline
+ 8 &	Timer 0 &			0xff7f &	Edge &	7  \\
+\hline
+ 7 &	Timer 1 &			0xfeff &	Edge &	8  \\
+\hline
+ 6 &	Timer 2 &			0xfdff &	Edge &	9  \\
+\hline
+ 5 &	EI3 pin &			0xfbff &	Level &	10  \\
+\hline
+ 4 &	EI4 pin &			0xf7ff &	Level &	11  \\
+\hline
+ 3 &	EI5 pin &			0xefff &	Level &	12  \\
+\hline
+ 2 &	Software Interrupt &		0xdfff &	Level &	13 (lowest)  \\
+\hline
+\end{tabular}
+\end{center}
+\end{table*}  
+
+
+\fw{Int:} and \fw{;int} save and restore sufficient system state that
+Forth source code may appear between \fw{int:} and \fw{;int}.
+\fw{Int:} saves the MD and CR registers and
+switches the system to use near address space (see
+Memory above).
+Further interrupts are disabled during the interrupt routine; interrupts
+are re-enabled and registers restored by \fw{;int}.
+
+Before an interrupt routine can execute, its corresponding interrupt
+must be enabled.  The interrupt mask register (IMR) contains sixteen
+bits (1 = disabled, 0 = enabled).  Table 1 shows the mask needed to
+enable each of the interrupts.  To enable all of the interrupts
+for an application, the appropriate masks from Table 1 should be
+`and'ed together and stored into the IMR.
+The words \fw{imr@} and \fw{imr!} are available for
+reading and writing the IMR.
+
+Interrupt latency, the time between the occurrence of an interrupt
+and the start of the interrupt routine, is affected by several factors.
+The RTX only responds to interrupts between instructions when
+interrupts are enabled.  This reponse delay will be
+the maximum of the longest time that interrupts are disabled and
+the time of the longest RTX instruction.  The longest time that
+interrupts are disabled, during an interrupt routine for example,
+is application specific.  The longest RTX instructions are the
+streamed instructions, which can take up to 65536 clocks to execute.
+FRISC Forth on the RTX uses streaming during divide and shift
+operations for example; the longest stream used is sixteen clocks.
+Saving system
+state creates additional delay.  The RTX adds one clock for an
+interrupt response cycle and \fw{int:} adds TBD clocks
+for saving registers.
+
+\section{EEPROMs}
+The Forth system has the ability to save the RAM memory image in EEPROM.
+To use this feature, Xicor X28VC256 55ns EEPROMs can be inserted
+in the sockets labeled ICH and ICI.  Software may be downloaded and
+compiled on the MPE board, then saved in EEPROM; \fw{save} saves
+the state of the system by copying RAM from address 0 through \fw{here}
+into EEPROM.  The saved system may be restored with \fw{unsave}.
+
+\vspace{1in}
+\hspace{4in}John R. Hayes
+
+\begin{flushleft}
+{\bf Distribution:} \\
+HKCharles, Jr. \\
+JRDettmer \\
+MEFraeman \\
+RMHenshaw \\
+GDWagner \\
+RLWilliams \\
+TES Files \\
+Archives \\
+\end{flushleft}
+\end{document}

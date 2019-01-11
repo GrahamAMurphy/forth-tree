@@ -1,0 +1,17 @@
+\ (c) 1998 Johns Hopkins University / Applied Physics Laboratory
+\ Fast memory fill
+hex
+
+e8c2 ucode fill+ \ ( x a -- x a' ) Store cell x at a and step a over cell.
+
+: cell-fill	\ ( addr u pat -- ) Fill u cells starting at given address
+		\ with given pattern.
+   swap >r swap r>			\ s: 0 addr u
+   20 /mod >r ?dup if 1- times|| fill+ || then
+   r> ?dup if 0 do
+      20 1- times|| fill+ ||
+   loop then
+   2drop ;
+
+: cell-erase	\ ( addr u -- ) Erase u cells starting at given address.
+   0 cell-fill ;

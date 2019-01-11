@@ -1,0 +1,24 @@
+\ (c) 2000 Johns Hopkins University / Applied Physics Laboratory
+\ Macros
+decimal
+
+\ Define the default built-in macros.
+
+create builtin-macros
+   0   m:				\ No action
+	#cmd-null	c: ( no args ) ;c
+      ;m
+(  1 ) m:				\ Shutdown
+	#cmd-null	c: ( no args ) ;c
+       ;m
+(  2 ) m:				\ Safing
+	#cmd-null	c: ( no args ) ;c
+       ;m
+(  3 ) m:				\ Restore
+	#cmd-null	c: ( no args ) ;c
+       ;m
+
+( * ) constant #builtin-macros
+
+: init-macro-builtin \ ( -- ) Install built-in macros.
+   builtin-macros 0 #builtin-macros install-macros ;

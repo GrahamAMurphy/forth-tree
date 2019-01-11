@@ -1,0 +1,21 @@
+To save forth in DPU EEPROM (via serial port):
+
+1.  ftp to ulysses:
+	cd /homes/john/forth/chips/rtx/dpu
+	get dpudir.alp
+	get dpudat.alp
+	bye
+
+2.  Put ftp'ed files onto host computer.
+
+3.  Reset DPU and type <cr> on terminal.
+
+4.  Load files (dpudir.alp and dpudata.alp) over serial port
+to page 2 RAM.  Use procomm upload; this is absurdly slow, probably
+due to procomm misconfiguration.
+
+5.  Copy to EEPROM:
+	c<cr>20000<cr>30000<cr>20<cr>
+	c<cr>20100<cr>30100<cr>319a<cr>
+
+Note: arguments are separated by carriage returns.

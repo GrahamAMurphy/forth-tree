@@ -1,0 +1,64 @@
+\ (c) 2014 Johns Hopkins University / Applied Physics Laboratory
+\ A/D read
+decimal
+
+\ * Read National (TI) ADC128S102 A/Ds over an SPI bus.  The SPI bus is
+\ * relatively fast, so the exchange could be polled.  However, a large
+\ * number of A/Ds can make this undesirable.  Instead, the exchange is
+\ * placed in the slot schedule.  Note: the A/D may upset in radiation;
+\ * each A/D is read the three times and the median value is used.
+\ * Requires constants:
+\ *    #a/d: number of A/D on SPI bus
+\ *    #a/d-chan: number of channesl in A/D
+
+module> adc
+
+\ Intermediate arrays for holding analog readouts.
+#a/d #a/d-chan * cells makestruct analogs1
+#a/d #a/d-chan * cells makestruct analogs2
+#a/d #a/d-chan * cells makestruct analogs3
+
+: median	\ ( u1 u2 u3 -- umed ) Return the median value of the three
+		\ inputs.
+   2dup u> if swap then >r umax r> umin ;
+
+: a/d-exchange	\ ( a/d chan -- previous ) Exchange data over SPI bus with
+		\ given A/D.  The given channel number is sent, starting
+		\ conversion.  Returns result of previous conversion.
+   11 lshift spi-exchange ;
+
+: read-a/d	\ ( addr a/d -- addr' ) Read in A/D values and save in
+		\ given location.  Uses 9 bus cycles.
+   dup 0 a/d-exchange drop		\ convert channel 0 to get things going
+   swap #a/d-chan 0 do			\ for each channel
+      over i 1+ #a/d-chan 1- and a/d-exchange \ start next channel converting
+      over !  cell+			\   and save channel just converted
+   loop nip ;
+
+: read-a/d-all	\ ( addr -- ) Read in A/D values and save in given location.
+		\ Uses #a/d*9 cycles.
+   #a/d 0 do				\ for each A/D
+      i read-a/d			\ read in values and save
+   loop drop ;
+
+: read-analogs-x3 \ ( -- ) Read analogs three times.
+		\ Uses 1 + 3*#a/d*9 cycles.
+   0 0 a/d-exchange drop		\ dummy exchange to sync up.
+   analogs1 read-a/d-all		\ convert and read analogs
+   analogs2 read-a/d-all		\   three times, into temporary
+   analogs3 read-a/d-all ;		\   buffers
+
+public:
+: read-filter-analogs \ ( addr -- ) Read analogs three times and apply median
+		\ filter to readings.  Results are placed in the given array.
+		\ Uses 1 + 3*#a/d*9 cycles.
+   read-analogs-x3			\ read analogs three times
+   #a/d #a/d-chan * 0 do		\ for each analog
+      i cells analogs1 + @		\ find median value of three readings
+      i cells analogs2 + @
+      i cells analogs3 + @ median
+      over ! cell+			\ save filtered result
+   loop drop ;
+private:
+
+endmodule>

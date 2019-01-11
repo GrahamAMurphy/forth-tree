@@ -1,0 +1,8 @@
+: .s
+   >r ?stack if r> else recurse r> dup . then ;
+: .s2
+   depth if >r recurse r> dup . then ;
+: depth2
+   >r ?stack if r> 0 else recurse r> swap 1+ then ;
+: .s3
+   depth2 if >r recurse r> dup . then ;

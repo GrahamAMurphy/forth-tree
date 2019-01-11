@@ -1,0 +1,61 @@
+\ (c) 1996 Johns Hopkins University / Applied Physics Laboratory
+\ Input/output hardware ports, bits, and fields.
+hex
+
+bits extendmodule>
+
+\ * Define ports
+public:
+
+: port-word:	\ ( addr "name" -- ) Define a hardware output port.  The
+		\ address indicates were to keep a copy of the port's data.
+		\ After use of port-word: an execution token must be appended
+		\ to the default data structure plus any parameters that 
+		\ it may need; its stack picture must be ( x port-data -- )
+		\ where port-data is the address of the parameter data.
+		\ ( -- port) The child returns the address of the port
+		\ data structure.
+   create port-word-access , , ;
+
+: port-byte:	\ ( addr "name" -- ) Define a hardware output port.  The
+		\ address indicates were to keep a copy of the port's data.
+		\ After use of port-byte: an execution token must be appended
+		\ to the default data structure plus any parameters that 
+		\ it may need; its stack picture must be ( x port-data -- )
+		\ where port-data is the address of the parameter data.
+   create port-byte-access , , ;
+
+: port-bit:	\ ( port bit# "name" -- ) Define a bit in given port.
+		\ ( -- port-bit ) The child returns bit data structure.
+   create port-bit-access ,
+   swap , pow2 , ;
+
+: port-field:	\ ( port bit# width "name" -- ) Define a field in
+		\ given port.
+		\ ( -- port-field ) The child returns field data structure.
+   create port-field-access ,
+   rot , mask over lshift , , ;
+
+: mem-word:	\ ( addr "name" -- ) Define a memory config. word.
+		\ The address indicates were to keep a copy of the data.
+		\ ( -- mem) The child returns the address of the mem
+		\ data structure.
+   create mem-word-access , , ;
+
+: mem-byte:	\ ( addr "name" -- ) Define a memory config. byte.
+		\ The address indicates were to keep a copy of the data.
+		\ ( -- mem) The child returns the address of the mem
+		\ data structure.
+   create mem-byte-access , , ;
+
+: mem-bit:	\ ( addr bit# "name" -- ) Define a bit in given location.
+		\ ( -- mem-bit ) The child returns bit data structure.
+   create mem-bit-access ,
+   swap , pow2 , ;
+
+: mem-field:	\ ( addr bit# width "name" -- ) Define field in given location.
+		\ ( -- mem-field ) The child returns field data structure.
+   create mem-field-access ,
+   rot , mask over lshift , , ;
+
+endmodule>

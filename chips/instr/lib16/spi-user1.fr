@@ -1,0 +1,45 @@
+\ (c) 2014 Johns Hopkins University / Applied Physics Laboratory
+\ SPI bus user-level interface
+decimal
+
+\ * This presents a high-level user-interface to the SPI bus, analogous to
+\ * the I2C bus interface (i2c-user1.fr).  The user exchanges data with a
+\ * specfied SPI device.  The bus timing is handled transparently.
+
+module> spi-user
+
+\ ------------------------------------------------------------------------
+\ SPI bus access
+
+\ Communication data between high-level and interrupt code.
+variable spi-trig			\ SPI exchange under way
+variable spi-done			\ SPI exchange done semaphore
+
+: spi-trans	\ ( -- ) Complete an SPI data exchange.
+		\ Note: called from within an interrupt routine.
+   spi-trig @ if			\ if SPI exchange under way
+      false spi-trig !			\ signal done semaphore
+      spi-done signal
+   then ;
+
+public:
+: spi-exchange	\ ( device x -- x' ) Exchange data over SPI bus with given
+		\ device.  The data value x is sent.  Returns the value
+		\ x' received from the device.
+   get-mem >r io-mem# set-mem far	\ remote memory-mapped I/O
+   spi-a# !  spi-a# cell+ !		\ write data; write device (trigger)
+   near true spi-trig !  spi-done wait	\ wait until exchange is complete
+   spi-a# far @ ( near )		\ read received data
+   r> set-mem ;
+private:
+
+\ ------------------------------------------------------------------------
+\ Initialization
+
+public:
+: init-spi-user	\ ( -- ) Initialize SPI user interface.
+   ['] spi-trans i2c-active		\ register activities
+;
+private:
+
+endmodule>

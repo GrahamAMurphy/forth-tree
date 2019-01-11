@@ -1,0 +1,42 @@
+\ (c) 2000 Johns Hopkins University / Applied Physics Laboratory
+\ Boot commands
+decimal
+
+module> bootcmd
+
+\ ------------------------------------------------------------------------
+\ Helpers
+
+: boot-program	\ ( boot-addr boot-mem -- ) Atempt to boot a program
+		\ using the given commanded boot header.
+   bootload if				\ if load ok
+      disable far-execute enable	\ run program
+   else					\ if load bad
+      #bad-eeprom-cmd cmd-error		\ report error
+   then ;
+
+\ -------------------------------------------------------------------------
+\ Command - boot default program
+
+: c-rom-boot	\ ( -- ) Boot default program.
+   eeprom-prog-addr eeprom-prog-mem# boot-program ;
+
+\ -------------------------------------------------------------------------
+\ Command - boot selected program
+
+: c-rom-go	\ ( -- ) Boot selected program.
+   arg3 arg2 join arg1 arg0 join boot-program ;
+
+\ ------------------------------------------------------------------------
+\ Initialization
+
+public:
+
+: init-boot	\ ( -- ) Initialize boot command module.
+   ['] c-rom-boot	#rom-boot	  0 register-cmd/args
+   ['] c-rom-go		#rom-go		  4 register-cmd/args
+;
+
+private:
+
+endmodule>

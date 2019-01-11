@@ -1,0 +1,31 @@
+\ (c) 2003 Johns Hopkins University / Applied Physics Laboratory
+\ Configure boot software
+hex
+
+\ Boot vs. application program.  Set to 0 for boot, 1 for app.
+0 constant #boot/app
+
+\ Ids for externally visible data structures.  These can be loaded and
+\ dumped via C_MEM_STR_LOAD and C_MEM_STR_READ.
+\ Note: not used by boot
+0 constant #struct			\ total number of structures
+
+\ CCSDS telemetry packet application ids.  Note: these are just the
+\ least-significant bits; the remaining bits indicate the source instrument
+\ and are supplied elsewhere.
+\ Note: user-defined ids range from 10 - 7f
+06 constant #status-pkt			\ boot status
+10 constant #n-data-id			\ total number of packet types
+
+\ Command opcodes.
+\ Note: user-defined opcodes range from 40 - ff (hex).
+1e constant #rom-boot
+1f constant #rom-go
+
+\ Results from commands.
+\ Note: user-defined range is 10 - 7f.
+08 constant #bad-eeprom-cmd		\ bad eeprom checksum
+
+\ Alarm ids.
+\ Note: user-defined range is 10 - ff.
+\ None.

@@ -1,0 +1,28 @@
+\ (c) 1993 Johns Hopkins University / Applied Physics Laboratory
+hex
+
+\ Useful G-bus interfaces
+be98 ucode dpu-cfg0!	\ ( x -- ) Configure DPU.
+be99 ucode dpu-cfg1!	\ ( x -- ) Configure DPU.
+be9a ucode dpu-cfg2!	\ ( x -- ) Configure DPU.
+be9b ucode int-mode!	\ ( x -- ) Set interrupt modes (1=edge, 0=level).
+be9c ucode dpu-icr!	\ ( x -- ) Write to DPU Interrupt Control Register.
+be9e ucode dpu-cfg6!	\ ( x -- ) Configure DPU.
+be1e ucode reset-status	\ ( -- x ) Reset status.
+be9f ucode watchdog!	\ ( x -- ) Write (and reset) watchdog.
+
+noheads		\ only available internally for interpreter
+be1c ucode uart-status	\ ( -- x ) Return UART status (interrupt stat., Gbus 4).
+be1d ucode testport@	\ ( -- c ) Read character from UART (Gbus 5).
+be9d ucode testport!	\ ( c -- ) Send character to UART (Gbus 5).
+heads
+
+\ UART
+20 define RXRDYMASK
+10 define TXRDYMASK
+
+\ Interrupt numbers and masks
+3 define UARTINT#			\ UART on EI5
+
+\ Useful constants
+100 define FIFOSIZE			\ TTY input buffer, output buffer sizes

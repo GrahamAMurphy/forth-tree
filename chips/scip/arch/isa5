@@ -1,0 +1,140 @@
+Call	0DDDDDDDDDDDDDDD			call
+CallL	1000DDDDDDDDDDDDDDDDDDDDDDDDDDDD	call long
+Branch	10010BBFFFFFFFFF			branch
+Qbranch	10011BBFFFFFFFFF			branch if Fl=0
+ALUImm	1010RSSIIIIIAAAA			imm op T -> T
+ALUImmL	1011RSS000 LAAAAiiiiiiiiiiiiiiii	longimm*scale op T -> T
+ALUStep	1011RSS001  aaaa			N op T:MD:Fl -> T:MD:Fl
+ALUOp	1011RSS010  AAAA			N op T -> T
+	1011RSS011
+ALUOpEx	1011RSS1CCCCAAAA			N op T -> T; cond -> Fl
+ALUTs	1100RSS0CCCCAAAA			N op T -> null; cond -> T
+ALUTsEx	1100RSS1CCCCAAAA			N op T -> null; cond -> Fl
+ALURdRg	1101RSS0rrrrAAAA			Reg op T -> T
+ALUWrRg	1101RSS1rrrrAAAA			N op T -> Reg
+Shift	1110RSS     OO00			N shift T -> T
+ShiftIm	1110RSSIIIIIOO01			imm shift T -> T
+Load	1110RSSIIIIIMM10			*(imm + T) -> T
+Store	1110RSSIIIIIMM11			*(imm + T) <- T
+Special	1111           s			special
+
+DDDDDDDDDDDDDDD: Call destination address
+Note: shifted left one bit to form byte address of destination instruction.
+
+BB: Block
+	00 = branch to same block
+	01 = branch to next block
+	10 = branch to block 0
+	11 = branch to previous block
+
+FFFFFFFFF: Branch destination address
+Note: shifted left one bit to form byte address of destination instruction.
+
+SS: Data stack operation
+	00 = nop	T -> T	N -> N
+	01 = push	T -> T	T -> N	N -> stack
+	10 = pop	N -> T	stack -> N
+	11 = swap	N -> T	T -> N
+Note: If a T destination is specified by the instruction type, then that
+is what happens.  Otherwise, the source of T is determined by the stack op.
+
+R: Return
+	0 = nop
+	1 = return
+
+IIIII: Short immediate operand: 0 - 31
+iiiiiiiiiiiiiiii: Long immediate operand: 0 - 65535
+
+L: Scale factor for long immediate
+	0 = 1
+	1 = 2^16 (32-bit only)
+
+AAAA: Arithmetic operation
+	0000 = b
+	0001 = a
+	0010 = b + a
+	0011 = b + a + Fl
+	0100 = b - a		b + ~a + 1
+	0101 = b - a - Fl	b + ~a + Fl
+	0110 = -b + a		~b + a + 1
+	0111 = -b + a - Fl	~b + a + Fl
+	1000 = ~b
+	1001 = ~a
+	1010 = a + 1
+	1011 = a - 1
+	1100 = a . b
+	1101 = a | b
+	1110 = a ^ b
+	1111 = Fl
+
+aaaa: Step operation
+	0000 = multiply		3-bit modified Booth multiply step
+	0001 = divide1		non-restoring divide step
+	0010 = divide2		non-restoring divide cleanup step
+	others reserved
+
+CCCC: Condition
+	0000 = 0
+	0001 = 1
+	0010 = V
+	0011 = ~V
+	0100 = N
+	0101 = ~N
+	0110 = Z		=
+	0111 = ~Z		<>
+	1000 = C		u>=
+	1001 = ~C		u<
+	1010 = N^V		<
+	1011 = ~(N^V)		>=
+	1100 = (N^V)|Z		<=
+	1101 = ~(N^V).~Z	>
+	1110 = C.~Z		u>
+	1111 = ~C|Z		u<=
+
+rrrr: Register
+	0000 = R
+	0001 = R (read pops return stack, write pushes return stack)
+	0010 = MD
+	0011 = UDR
+	0100 = PC (read only)
+	0101 = SCR (ptop:4|pover:4|rtop:4|rover:4)
+	0110 = PSP
+	0111 = RSP
+	1000 = PCR (ie|se)
+	1001 = CPR (16-bit only)
+	1010 = DPR (16-bit only)
+
+OO: Shift operation
+	00 = logical shift right (zero fill)
+	01 = arithmetic shift right (sign fill)
+	10 = shift left (zero fill)
+	11 = rotate left (fill form MSBs)
+
+MM: Memory size
+	00 = byte
+	01 = 16-bit word
+	10 = 32-bit word (32-bit only)
+	11 = TBD
+
+s: Special
+	0 = disable far memory (16-bit only)
+	1 = enable far memory (16-bit only)
+
+Notes:
+- CallL adds subroutine call beyond 32 bits.
+- Call MS bits appended from PC.
+- Immediate values are zero-extended.
+- 8-bit and 16-bit load values are zero-extended.
+- Load and store of 16-bit or 32-bit values must be to even addresses.
+- Load and store use big-endian format.
+- The 4-bit nibble layout of the instruction is serendipitously makes
+reading object code easy.
+- If an instruction pushes or pops the return stack and does a return,
+the result is undefined.
+- In an instruction writes the PCR register and pushes or pops the data
+stack or does a return, the result is undefined.
+- Reading PCR holds off interrupts for one cycle.  TBD: others?
+TBD: writing CPR holds off interrupts?
+
+Variations:
+- PC < 32 bits.  How many bits?

@@ -1,0 +1,120 @@
+\ (c) 1993 Johns Hopkins University / Applied Physics Laboratory
+hex
+
+nohead
+: *inline*	\ ( cfa --- ) copy the routine indicated by cfa inline.
+ ['] return				\ cfa return-cfa
+ 2dup =
+ if drop @ ,				\ if return, compile return opcode
+ else @ swap				\ return-code cfa
+    begin
+      2dup @ <> while			\ while not return instruction
+      dup @ , cell+
+ repeat 2drop
+ then ;
+
+nohead
+: *callop*	\ ( xt -- ) Return instruction that calls xt.
+   u2/ || ; inline
+: compile,	\ ( xt -- ) Compile call to code associated with xt.
+   u2/ , ;
+
+nohead
+: *code*	\ ( cfa --- ) if code pointed to by cfa is to be brought
+		\ in line, copy it into the dictionary.  Otherwise, compile
+		\ the cfa.
+ dup >name c@ 80 and			\ inline?
+ if *inline*
+ else compile,				\ otherwise, call it
+ then ;
+
+metaextend
+forth : postpone
+ [forth] bl word count ['] target >body @ search-wordlist
+ if >body dup @ swap cell+ @
+    sel 
+      << callable	    ==> [meta] literal [target] compile, [forth] >>
+      << inline-from-target ==> [meta] literal [target] *inline* [forth] >>
+      << inline-from-host   ==> drop
+				s" can't postpone" cross-error >>
+      << immediate-target   ==> [host] *call* >>
+    endsel
+ else [forth] s" ?" cross-error
+ then ;
+hostinterp
+
+nohead
+: *literal*	\ ( n -- ) Compile a literal instruction.
+   dup 20 u< if				\ if 0 - 31
+      <small+lit> or ,			\ compile small positive literal
+   else dup ffe0 u> if			\ if 0xffe0 - 0xffff or -32 - -1
+      invert <small-lit> or ,		\ compile small negative literal
+   else
+      <biglit> , ,			\ compile a big literal
+   then then ;
+
+nohead
+: *offset*	\ ( n -- ) Compile a literal offset instruction.
+   dup 20 u< if				\ if 0 - 31
+      <small+offset> or ,		\ compile small positive literal offset
+   else dup ffe0 u> if			\ if 0xffe0 - 0xffff or -32 - -1
+      invert <small-offset> or ,	\ compile small negative literal offset
+   else
+      <bigoffset> , ,			\ compile a big literal offset
+   then then ;
+
+noheads	\ this stuff is only used by the compiler
+: *branch-dest*	\ ( src dst -- )
+   dup 3ff and 2/ >r			\ save destination offset
+   fc00 and				\ s: src dstblk
+   dup 0= if				\ if branch to page 0
+      drop 400 ( page0)			\ s: src blkpattern
+   else
+      over 2 + fc00 and			\ s: src dstblk srcblk
+      2dup <>				\ if block crossing
+      if				\ make sure not too far to branch
+	 - dup abs 400 u> if ." branch too far" then
+	 0< if 600 ( back) else 200 ( fwd) then \ select previous or next block
+      else 2drop 0			\ current block
+      then				\ s: src blkpattern
+   then
+   over @ f800 and or r> or		\ assemble new instruction
+   swap ! ;
+
+: *branch-unpack* \ ( src -- dst ) Extract branch destination address from
+		\ a branch instruction.
+   dup @ dup 1ff and 2* >r		\ record dst offset
+   600 and				\ src dsttype
+   dup 400 = if 2drop 0
+   else
+      swap 2 + fc00 and swap		\ s: srcblk dsttype
+      2* dup 800 and if fffff000 or then \ compute 
+      +
+   then
+   r> or ;
+
+\ Local variable support
+: *locstore*	\ ( u --- ) compile code to store a number in local
+		\ variable u.
+   postpone lsp@ cells *offset* postpone ! ;
+
+: *locload*	\ ( u --- ) compile code to load a number from local
+		\ variable u.
+   postpone lsp@ cells *offset* postpone @ ;
+
+: *locinit*	\ ( u --- ) compile code to allocate and initialize u local
+		\ variables.  u > 0.
+   *literal* postpone (localloc) ;
+
+: *locfree*	\ ( u --- ) compile code to deallocate u local variable
+		\ slots.
+   postpone lsp@ cells *offset* postpone lsp! ;
+
+\ does> support
+: does-parent
+   r> u2/ ( generate subroutine call instruction) latest name> ! ;
+
+: does-child
+   r> || ; inline-keepbody
+
+heads

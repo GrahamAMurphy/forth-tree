@@ -1,0 +1,79 @@
+\ (c) 2007 Johns Hopkins University / Applied Physics Laboratory
+\ I2C bus low-level interface
+hex
+
+\ * Low-level interface to I2C bus.  The bus is time-multiplexed according
+\ * to a parameter provided by the user:  #i2c-slots defines how many time
+\ * slots to provide.  The user supplies functions that are called in each
+\ * time slot.  The slot function can use the low-level I2C bus access
+\ * functions provided here.
+
+module> i2c
+
+\ ------------------------------------------------------------------------
+\ * Slot management
+
+: i2c-nop ;	\ ( -- ) Nop. (Needed for boot program; kernel nop is bodiless.)
+
+create i2c-vectors			\ slots: each has an execution vector
+   #i2c-slots cells allot
+variable i2c-free			\ pointer to next free slot
+   i2c-vectors i2c-free !
+
+variable i2c-slot			\ current slot number
+
+public:
+
+: exec-i2c-slot	\ ( -- ) Execute next I2C bus slot function.
+		\ Note: called from an interrupt routine.
+   i2c-slot @ 1+ dup #i2c-slots =	\ step to next slot
+      if drop 0 then dup i2c-slot !	\  modulo #i2c-slots
+   cells i2c-vectors + @ execute ;	\ execute handler for this slot
+
+: i2c-active	\ ( f -- ) Schedule call of f in next free slot.
+   i2c-free @ dup cell+ i2c-free !	\ get next free slot
+   ! ;					\ record f in slot
+
+private:
+
+\ ------------------------------------------------------------------------
+\ * Direct bus access
+
+public:
+
+: i2c!s		\ ( value16 device -- ) Start write transaction.
+		\ Note: assumes that 'device' has empty lsb for R/W flag.
+		\ Note: called from within an interrupt routine.
+   \ io-mem# set-mem			\ remote memory-mapped I/O already set
+   swap i2c-data-a# far !		\ save value16
+   i2c-cont-a# ! ;			\ save device|W, trigger
+
+: i2c@s		\ ( device -- ) Start read transaction
+		\ Note: assumes that 'device' has empty lsb for R/W flag.
+		\ Note: called from within an interrupt routine.
+   \ io-mem# set-mem			\ remote memory-mapped I/O already set
+   1+ i2c-cont-a# far ! ;		\ save device|R, trigger
+
+: i2c@r		\ ( -- value16 ) Return result of read.
+   get-mem io-mem# set-mem		\ remote memory-mapped I/O
+   i2c-data-a# far @
+   swap set-mem ;
+
+: i2c-status@	\ ( -- x ) Return bus status.
+		\ Note: called from within an interrupt routine.
+   \ io-mem# set-mem			\ remote memory-mapped I/O already set
+   i2c-cont-a# far @ ;
+
+private:
+
+\ ------------------------------------------------------------------------
+\ * Initialization
+
+public:
+: init-i2c	\ ( -- ) Initialize low-level I2C interface.
+   i2c-vectors #i2c-slots 0 do		\ for each slot
+      ['] i2c-nop over !  cell+		\ place default nop
+   loop drop ;
+private:
+
+endmodule>

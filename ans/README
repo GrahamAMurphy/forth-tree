@@ -1,0 +1,26 @@
+Modified cmach/macro.fr to add at line 3:
+
+#include <stdio.h>
+#include <sys/types.h>
+#include <stdlib.h>
+
+Added at line 18 to filewrap.c:
+#include "AdjustWrite.c"
+
+Added at line 3 to filewrap.h:
+#include "AdjustWrite.h"
+
+Added into cmach/prims.fr
+
+Added:
+
+#include <stdlib.h>
+
+to ./meta/fc.c, ./meta/dirs.c, main.c, filewrap.c to eliminate "implicit exit" warnings.
+
+Finally, and very important, adjust cmach/prims.fr according to:
+
+752a753
+> 	#include "AdjustWrite.x"
+757a759
+> 	#include "AdjustWrite.x"

@@ -1,0 +1,624 @@
+\ (c) 2004 Johns Hopkins University / Applied Physics Laboratory
+\ Optimization rules
+hex
+
+\ TBD testing
+\ : >.
+\ t-i, ;
+
+\ Notes:
+\ - Some rules with <lil are used on <lil and <lih instructions.  The ?high
+\ wildcard is used to match the l/h scale factor.
+\ - Missing/failed optimizations:
+\	-1 +
+\	8000 0= ;		thinks 8000 is a long call
+
+\ ------------------------------------------------------------------------
+\ Rules for ALU instructions
+
+rule dropdup
+	<alu	nopb popp >,
+	<alu	nopa pushp
+-->	<alu	nopb >.
+endrule
+
+rule nipdup
+	<alu	nopa popp >,
+	<alu	nopa pushp
+-->	<alu	nopa swapp >.
+endrule
+
+\ Could occur, for example, in "swap lshift"
+rule swapswap
+	<alu	nopb swapp >,
+	<alu	nopb swapp
+-->	\ nothing
+endrule
+
+rule swap<binop>		\ includes swapdrop
+	<alu	nopb swapp >,
+	<alu	?aluop popp
+0 swapaluop? isconstraint
+-->	<alu	0 ?? popp >.
+endrule
+
+rule over<binop>
+	<alu	nopb pushp >,
+	<alu	?aluop popp
+0 swapaluop? isconstraint
+-->	<alu	0 ?? >.
+endrule
+
+rule over[over<binop>]
+	<alu	nopb pushp >,
+	<alu	?aluop
+0 swapaluop? isconstraint
+-->	<alu	0 ?? pushp >.
+endrule
+
+\ ------------------------------------------------------------------------
+\ Rules for test instructions
+
+rule swap<bincmp>
+	<alu	nopb swapp >,
+	<test	?aluop ?condop popp
+0 swapaluop? isconstraint
+-->	<test	0 ?? 1 ?? popp >.
+endrule
+
+rule over<bincmp>
+	<alu	nopb pushp >,
+	<test	?aluop ?condop popp
+0 swapaluop? isconstraint
+-->	<test	0 ?? 1 ?? >.
+endrule
+
+rule over[over<bincmp>]
+	<alu	nopb pushp >,
+	<test	?aluop ?condop
+0 swapaluop? isconstraint
+-->	<test	0 ?? 1 ?? pushp >.
+endrule
+
+rule <alu><uncmp>
+	<alu	?aluop ?stackop >,
+	<test	nopa ?condop
+-->	<test	0 ?? 2 ?? 1 ?? >.
+endrule
+
+rule <cmp>not
+	<test	?aluop ?condop ?stackop >,
+	<alu	nota
+1 notcond? isconstraint
+-->	<test	0 ?? 1 ?? 2 ?? >.
+endrule
+
+\ ------------------------------------------------------------------------
+\ Rules for conditional branch instructions
+
+rule <alu><?br>1
+	<alu	?aluop pushp >,
+	<testx	nopa Zbar popp
+-->	<testx	0 ?? Zbar >.
+endrule
+
+rule <alu><?br>2
+	<alu	?aluop >,
+	<testx	nopa Zbar popp
+-->	<testx	0 ?? Zbar popp >.
+endrule
+
+rule <cmp><?br>1
+	<test	?aluop ?condop pushp >,
+	<testx	nopa Zbar popp
+-->	<testx	0 ?? 1 ?? >.
+endrule
+
+rule <cmp><?br>2
+	<test	?aluop ?condop >,
+	<testx	nopa Zbar popp
+-->	<testx	0 ?? 1 ?? popp >.
+endrule
+
+\ ------------------------------------------------------------------------
+\ Rules for register access instructions
+
+rule <alu><reg!>1
+	<alu	?aluop pushp >,
+	<reg!	nopa ?reg popp
+-->	<reg!	1 ?? 0 ?? >.
+endrule
+
+rule <alu><reg!>2
+	<alu	?aluop >,
+	<reg!	nopa ?reg popp
+-->	<reg!	1 ?? 0 ?? popp >.
+endrule
+
+\ Note: handles "r> drop".  We can't delete sequence entirely because
+\ we need to preserve return stack side effects.
+rule <reg@><binop>			\ includes r> drop
+	<reg@	?reg nopb pushp >,
+	<alu	?aluop popp
+1 swapaluop? isconstraint
+-->	<reg@	0 ?? 1 ?? >.
+endrule
+
+rule dup[<reg@><binop>]
+	<alu	nopa pushp >,
+	<reg@	?reg ?aluop
+-->	<reg@	0 ?? 1 ?? pushp >.
+endrule
+
+rule <reg@>[over<binop>]
+	<reg@	?reg nopb pushp >,
+	<alu	?aluop
+1 swapaluop? isconstraint
+-->	<reg@	0 ?? 1 ?? pushp >.
+endrule
+
+\ Special case, e.g converts "r@ = ?br" to "r@- 0=?br".
+rule <reg@><bincmp><?br>
+	<reg@	?reg nopb pushp >,
+	<test	?aluop ?condop popp >,
+	<testx	nopa Zbar popp
+1 swapaluop?
+2 zerocond? and isconstraint
+-->	<reg@	0 ?? 1 ?? >.
+	<testx	nopa 2 ?? popp >.
+endrule
+
+\ Note: converts to <reg@>[over<bincmp>]
+rule dup<reg@><bincmp>
+	<alu	nopa pushp >,
+	<reg@	?reg nopb pushp >,
+	<test	?aluop ?condop popp
+-->	<reg@	0 ?? nopb pushp >.
+	<test	1 ?? 2 ?? >.
+endrule
+
+rule drop<reg@>
+	<alu	nopb popp >,
+	<reg@	?reg nopb pushp
+-->	<reg@	0 ?? nopb >.
+endrule
+
+rule nip<reg@>
+	<alu	nopa popp >,
+	<reg@	?reg nopb pushp
+-->	<reg@	0 ?? nopb swapp >.
+endrule
+
+rule drop[drop<reg@>]
+	<alu	nopb popp >,
+	<reg@	?reg nopb
+-->	<reg@	0 ?? nopb popp >.
+endrule
+
+\ Special case for "unloop drop"
+rule <reg@><reg!>drop
+	<reg@	?reg nopb pushp >,
+	<reg!	nopa ?reg popp >,
+	<alu	nopb popp
+-->	<reg@	0 ?? nopb >.
+	<reg!	nopa 1 ?? popp >.
+endrule
+
+\ Special case for "unloop drop drop"
+rule [drop<reg@>]<reg!>drop
+	<reg@	?reg nopb >,
+	<reg!	nopa ?reg popp >,
+	<alu	nopb popp
+-->	<reg@	0 ?? popp >.
+	<reg!	nopa 1 ?? popp >.
+endrule
+
+\ Note: "i +" can be optimized, but probably too rare to be useful.
+
+\ ------------------------------------------------------------------------
+\ Rules for short literal instructions
+
+\ Note: turns "short drop" into a nop; see next rule
+rule <short><binop>
+	<lis	?lit nopb pushp >,
+	<alu	?aluop popp
+1 swapaluop? isconstraint
+-->	<lis	0 ?? 1 ?? >.
+endrule
+
+\ Special-case override of previous rule.  This case occurs occasionally,
+\ e.g. with endsel.
+rule <short>drop
+	<lis	?lit nopb pushp >,
+	<alu	nopb popp
+-->	\ nothing
+endrule
+
+rule dup[<short><binop>]
+	<alu	nopa pushp >,
+	<lis	?lit ?aluop
+-->	<lis	0 ?? 1 ?? pushp >.
+endrule
+
+rule <short>[over<binop>]
+	<lis	?lit nopb pushp >,
+	<alu	?aluop
+1 swapaluop? isconstraint
+-->	<lis	0 ?? 1 ?? pushp >.
+endrule
+
+\ Special case, e.g converts "5 = ?br" to "5- 0=?br".
+rule <short><bincmp><?br>
+	<lis	?lit nopb pushp >,
+	<test	?aluop ?condop popp >,
+	<testx	nopa Zbar popp
+1 swapaluop?
+2 zerocond? and isconstraint
+-->	<lis	0 ?? 1 ?? >.
+	<testx	nopa 2 ?? popp >.
+endrule
+
+\ Note: converts to <short>[over<bincmp>]
+rule dup<short><bincmp>
+	<alu	nopa pushp >,
+	<lis	?lit nopb pushp >,
+	<test	?aluop ?condop popp
+-->	<lis	0 ?? nopb pushp >.
+	<test	1 ?? 2 ?? >.
+endrule
+
+rule drop<short/i>
+	<alu	nopb popp >,
+	<lis	?lit ?aluop pushp
+1 alubop? isconstraint
+-->	<lis	0 ?? 1 ?? >.
+endrule
+
+rule nip<short/i>
+	<alu	nopa popp >,
+	<lis	?lit ?aluop pushp
+1 alubop? isconstraint
+-->	<lis	0 ?? 1 ?? swapp >.
+endrule
+
+rule drop[drop<short/i>]
+	<alu	nopb popp >,
+	<lis	?lit ?aluop
+1 alubop? isconstraint
+-->	<lis	0 ?? 1 ?? popp >. 
+endrule
+
+\ ------------------------------------------------------------------------
+\ Rules for long literal instructions
+
+\ Note: turns "long drop" into a nop.
+rule <long><binop>
+	<lil	nopb ?high pushp >,
+	0 ?all >,
+	<alu	?aluop popp
+2 swapaluop? isconstraint
+-->	<lil	2 ?? 0 ?? >.
+	0 1 ?? >.
+endrule
+
+rule dup[<long><binop>]
+	<alu	nopa pushp >,
+	<lil	?aluop ?high >,
+	0 ?all
+-->	<lil	0 ?? 1 ?? pushp >.
+	0 2 ?? >.
+endrule
+
+\ Special case, e.g converts "500 = ?br" to "500- 0=?br".
+rule <long><bincmp><?br>
+	<lil	nopb ?high pushp >,
+	0 ?all >,
+	<test	?aluop ?condop popp >,
+	<testx	nopa Zbar popp
+2 swapaluop?
+3 zerocond? and isconstraint
+-->	<lil	2 ?? 0 ?? >.
+	0 1 ?? >.
+	<testx	nopa 3 ?? popp >.
+endrule
+
+\ Note: converts to <long>[over<bincmp>]
+rule dup<long><bincmp>
+	<alu	nopa pushp >,
+	<lil	nopb ?high pushp >,
+	0 ?all >,
+	<test	?aluop ?condop popp
+-->	<lil	nopb 0 ?? pushp >.
+	0 1 ?? >.
+	<test	2 ?? 3 ?? >.
+endrule
+
+rule <long>[over<binop>]
+	<lil	nopb ?high pushp >,
+	0 ?all >,
+	<alu	?aluop
+2 swapaluop? isconstraint
+-->	<lil	2 ?? 0 ?? pushp >.
+	0 1 ?? >.
+endrule
+
+rule drop<long>
+	<alu	nopb popp >,
+	<lil	nopb ?high pushp >,
+	0 ?all
+-->	<lil	nopb 0 ?? >.
+	0 1 ?? >.
+endrule
+
+rule nip<long>
+	<alu	nopa popp >,
+	<lil	nopb ?high pushp >,
+	0 ?all
+-->	<lil	nopb 0 ?? swapp >.
+	0 1 ?? >.
+endrule
+
+rule drop[drop<long>]
+	<alu	nopb popp >,
+	<lil	nopb ?high >,
+	0 ?all
+-->	<lil	nopb 0 ?? popp >. 
+	0 1 ?? >.
+endrule
+
+\ ------------------------------------------------------------------------
+\ Rules for load/store instructions
+
+rule dup<load>
+	<alu	nopa pushp >,
+	<@	?mem
+-->	<@	0 ?? pushp >.
+endrule
+
+rule [<short>+]<load>
+	<lis	?lit bplusa >,
+	<@	?mem
+-->	<@	0 ?? 1 ?? >.
+endrule
+
+rule [dup<short>+]<load>
+	<lis	?lit bplusa pushp >,
+	<@	?mem
+-->	<@	0 ?? 1 ?? pushp >.
+endrule
+
+\ Note: <short><long><load><binop> and <reg@><long><load><binop> are
+\ possible, but probably too rare to be useful.
+
+rule dup<long><load><binop>
+	<alu	nopa pushp >,
+	<lil	nopb ?high pushp >,
+	0	?all >,
+	<@	?mem >,
+	<alu	?aluop popp
+-->	<lil	nopb 0 ?? pushp >.
+	0	1 ?? >.
+	<@	2 ?? >.
+	<alu	3 ?? >.
+endrule
+
+rule dup<long><load><bincmp>
+	<alu	nopa pushp >,
+	<lil	nopb ?high pushp >,
+	0	?all >,
+	<@	?mem >,
+	<test	?aluop ?condop popp
+-->	<lil	nopb 0 ?? pushp >.
+	0	1 ?? >.
+	<@	2 ?? >.
+	<test	3 ?? 4 ?? >.
+endrule
+
+rule [<short>+]<store>
+	<lis	?lit bplusa >,
+	<!	?mem popp
+-->	<!	0 ?? 1 ?? popp >.
+endrule
+
+\ ------------------------------------------------------------------------
+\ Rules for return instructions
+
+rule <*>return
+	0 ?all >,
+	<alu	nopa return
+0 return?
+0 long? not and isconstraint
+-->	0 0 ??	return >.
+endrule
+
+rule <long>return
+	<lil	?aluop ?high ?stackop >,
+	0 ?all >,
+	<alu	nopa return
+-->	<lil	0 ?? 1 ?? 2 ?? return >.
+	0 3 ?? >.
+endrule
+
+rule <call>return
+	<call	?dest >,
+	<alu	nopa return
+0 nearby? isconstraint
+-->	<br	0 ?? >.
+endrule
+
+\ ------------------------------------------------------------------------
+\ Rules for literal folding
+
+\ Reduces long-op produced below to short-op.  Note: this rule has lower
+\ priority than subsequent rules to avoid spurious changes back and forth
+\ between short and long.  Also, converts some <long> to <short>.
+rule [/dup<long-op>]>to<short-op>
+	<lil	?aluop ?stackop >,
+	0 ?all
+2 short?
+1 /dup? and isconstraint
+-->	<lis	2 ?? 0 ?? 1 ?? >.
+endrule
+
+\ Note: produces <long-op>; earlier rule will reduce back to <short-op>.
+rule [/dup<short-op>]<short-op>
+	<lis	?lit ?aluop ?stackop >,
+	<lis	?lit ?aluop
+1 4 foldable? dup if drop 0 3 1 lit-op-folds? then
+2 /dup? and isconstraint
+-->	<lil	1 ?? 2 ?? >.
+	0 0 ?? >.
+endrule
+
+rule 0+					\ structures can produce 0+ nops
+	<lis	0 +# bplusa
+-->
+endrule
+
+rule [/dup<long-op>]><short-op>
+	<lil	?aluop ?stackop >,
+	0 ?all >,
+	<lis	?lit ?aluop
+0 4 foldable? dup if drop 2 3 0 lit-op-folds? then
+1 /dup? and isconstraint
+-->	<lil	0 ?? 1 ?? >.
+	0 2 ?? >.
+endrule
+
+rule [/dup<short-op>]><long-op>
+	<lis	?lit ?aluop ?stackop >,
+	<lil	?aluop >,
+	0 ?all
+1 3 foldable? dup if drop 0 4 1 lit-op-folds? then
+2 /dup? and isconstraint
+-->	<lil	1 ?? 2 ?? >.
+	0 0 ?? >.
+endrule
+
+\ TBD: could generalize to include <lih (?high).
+rule [/dup<long-op>]><long-op>
+	<lil	?aluop ?stackop >,
+	0 ?all >,
+	<lil	?aluop >,
+	0 ?all
+0 3 foldable? dup if drop 2 4 0 lit-op-folds? then
+1 /dup? and isconstraint
+-->	<lil	0 ?? 1 ?? >.
+	0 2 ?? >.
+endrule
+
+\ Reduces long produced below to short.  Note: this rule has lower
+\ priority than subsequent rules to avoid spurious changes back and forth
+\ between short and long.
+rule <long>to<short>
+	<lil	nopb ?stackop >,
+	0 ?all
+1 short? isconstraint
+-->	<lis	1 ?? nopb 0 ?? >.
+endrule
+
+\ Note: produces <long>; earlier rule will reduce back to <short>.
+rule <short><short-op>
+	<lis	?lit nopb ?stackop >,
+	<lis	?lit ?aluop
+0 2 3 lit-op-melds? isconstraint
+-->	<lil	nopb 1 ?? >.
+	0 0 ?? >.
+endrule
+
+rule <short><long-op>
+	<lis	?lit nopb ?stackop >,
+	<lil	?aluop >,
+	0 ?all
+0 3 2 lit-op-melds? isconstraint
+-->	<lil	nopb 1 ?? >.
+	0 0 ?? >.
+endrule
+
+\ Note: produces <long>; earlier rule will reduce back to <short>.
+rule <short><shifti>
+	<lis	?lit nopb ?stackop >,
+	<shifti	?lit ?shiftop
+0 2 3 shift-op-melds? isconstraint
+-->	<lil	nopb 1 ?? >.
+	0 0 ?? >.
+endrule
+
+rule <long><short-op>
+	<lil	nopb ?stackop >,
+	0 ?all >,
+	<lis	?lit ?aluop
+1 2 3 lit-op-melds? isconstraint
+-->	<lil	nopb 0 ?? >.
+	0 1 ?? >.
+endrule
+
+rule <long><long-op>
+	<lil	nopb ?stackop >,
+	0 ?all >,
+	<lil	?aluop >,
+	0 ?all
+1 3 2 lit-op-melds? isconstraint
+-->	<lil	nopb 0 ?? >.
+	0 1 ?? >.
+endrule
+
+rule <long><shifti>
+	<lil	nopb ?stackop >,
+	0 ?all >,
+	<shifti	?lit ?shiftop
+1 2 3 shift-op-melds? isconstraint
+-->	<lil	nopb 0 ?? >.
+	0 1 ?? >.
+endrule
+
+rule [/dup<shifti>]<shifti>
+	<shifti	?lit ?shiftop ?stackop >,
+	<shifti	?lit ?shiftop
+1 4 shift-foldable? dup if drop 0 3 shift-op-folds? then
+2 /dup? and isconstraint
+-->	<shifti	0 ?? 1 ?? 2 ?? >.
+endrule
+
+\ ------------------------------------------------------------------------
+\ Rules for shift instructions
+\ Note: the shift rules take into account implementation of Forth lshift,
+\ etc. as swap<shift>.
+
+rule overswap<shift>
+	<alu	nopb pushp >,
+	<alu	nopb swapp >,
+	<shift	?shiftop popp
+-->	<shift	0 ?? >.
+endrule
+
+rule <short>swap<shift>
+	<lis	?lit nopb pushp >,
+	<alu	nopb swapp >,
+	<shift	?shiftop popp
+-->	<shifti	0 ?? 1 ?? >.
+endrule
+
+\ Note: other rules will do constant folding.
+rule <short><short><shift>
+	<lis	?lit nopb ?stackop >,
+	<lis	?lit nopb pushp >,
+	<shift	?shiftop popp
+-->	<lis	2 ?? nopb 1 ?? >.
+	<shifti	0 ?? 3 ?? >.
+endrule
+
+rule <move><shifti>
+	<alu	nopa ?stackop >,
+	<shifti	?lit ?shiftop
+-->	<shifti	1 ?? 2 ?? 0 ?? >.
+endrule
+
+
+\ TBD: tests
+\ 10 t-allot
+\ t-here ?code !
+        \ <reg@   popr nopa >.
+        \ <reg@   popr nopb pushp >.
+        \ <reg!   nopa udr popp >.
+	\ <alu	nopb popp >.

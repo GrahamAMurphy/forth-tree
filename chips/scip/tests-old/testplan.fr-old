@@ -1,0 +1,932 @@
+\ (c) 2004 Johns Hopkins University / Applied Physics Laboratory
+hex
+
+\ TBD: missing stack ops; add to one of the tests above.
+\ TBD: interrupts
+
+\ 40 cells allot \ TBD: test
+\ 40 cells allot
+
+\ ------------------------------------------------------------------------
+\ Flow test target area
+
+\ Force this code out of block 0, if necessary.
+400 here - 0 max allot
+
+label callme
+	<lis	2 +# nopb return >.	\ replace with 2 and return
+
+d l:	<lis	d# 2 +# nopb >.		\ replace with 2 and branch back
+	<br	>. d fwd
+
+e l:	<lis	d# 2 +# nopb >.		\ replace with 2 and branch back
+	<br	>. e fwd
+
+f l:	<lis	d# 2 +# nopb >.		\ replace with 2 and branch back
+	<br	>. f fwd
+
+\ Allocate empty space for branch instructions to cross
+400 allot
+
+\ ------------------------------------------------------------------------
+\ Register/stack test with ALU short immediate and register read/write
+\ instruction test
+
+label regtest
+\ Load each register with a different value.  Start with non-stack registers.
+\ TBD: what about PSW?
+	<lis	0 +# nopb pushp >.	\ PC (ignored!)
+	<reg!	nopa pc popp >.
+	<lis	1 +# nopb pushp >.	\ RSP
+	<reg!	nopa rsp popp >.
+	<lis	2 +# nopb pushp >.	\ PSP
+	<reg!	nopa psp popp >.
+	<lis	3 +# nopb pushp >.	\ UDR
+	<reg!	nopa udr popp >.
+	<lis	4 +# nopb pushp >.	\ MD
+	<reg!	nopa md popp >.
+
+\ Continue with return stack.  Include top and cache, i.e. 17 registers.
+	<lis	d# 1 +# nopb pushp >.	\ push values 1 - 17
+	<reg!	nopa pushr popp >.
+	<lis	d# 2 +# nopb pushp >.
+	<reg!	nopa pushr popp >.
+	<lis	d# 3 +# nopb pushp >.
+	<reg!	nopa pushr popp >.
+	<lis	d# 4 +# nopb pushp >.
+	<reg!	nopa pushr popp >.
+	<lis	d# 5 +# nopb pushp >.
+	<reg!	nopa pushr popp >.
+	<lis	d# 6 +# nopb pushp >.
+	<reg!	nopa pushr popp >.
+	<lis	d# 7 +# nopb pushp >.
+	<reg!	nopa pushr popp >.
+	<lis	d# 8 +# nopb pushp >.
+	<reg!	nopa pushr popp >.
+	<lis	d# 9 +# nopb pushp >.
+	<reg!	nopa pushr popp >.
+	<lis	d# 10 +# nopb pushp >.
+	<reg!	nopa pushr popp >.
+	<lis	d# 11 +# nopb pushp >.
+	<reg!	nopa pushr popp >.
+	<lis	d# 12 +# nopb pushp >.
+	<reg!	nopa pushr popp >.
+	<lis	d# 13 +# nopb pushp >.
+	<reg!	nopa pushr popp >.
+	<lis	d# 14 +# nopb pushp >.
+	<reg!	nopa pushr popp >.
+	<lis	d# 15 +# nopb pushp >.
+	<reg!	nopa pushr popp >.
+	<lis	d# 16 +# nopb pushp >.
+	<reg!	nopa pushr popp >.
+	<lis	d# 17 +# nopb pushp >.
+	<reg!	nopa pushr popp >.
+
+\ Continue with parameter stack.  Include top, next, and cache, i.e. 18 regs.
+	<lis	d# 1 +# nopb pushp >.	\ push values 1 - 18
+	<lis	d# 2 +# nopb pushp >.
+	<lis	d# 3 +# nopb pushp >.
+	<lis	d# 4 +# nopb pushp >.
+	<lis	d# 5 +# nopb pushp >.
+	<lis	d# 6 +# nopb pushp >.
+	<lis	d# 7 +# nopb pushp >.
+	<lis	d# 8 +# nopb pushp >.
+	<lis	d# 9 +# nopb pushp >.
+	<lis	d# 10 +# nopb pushp >.
+	<lis	d# 11 +# nopb pushp >.
+	<lis	d# 12 +# nopb pushp >.
+	<lis	d# 13 +# nopb pushp >.
+	<lis	d# 14 +# nopb pushp >.
+	<lis	d# 15 +# nopb pushp >.
+	<lis	d# 16 +# nopb pushp >.
+	<lis	d# 17 +# nopb pushp >.
+	<lis	d# 18 +# nopb pushp >.
+
+\ Now, in the opposite order, check each value.  Note that for the stacks
+\ this also checks their push/pop stackiness.  Start with the parameter
+\ stack, thus clearing it and making it useful for testing others.
+	<lis	d# 18 +# bminusa >.
+	<testx	nopa EQ popp >.
+	<?br	>. 1 fwd
+	<lis	d# 17 +# bminusa >.
+	<testx	nopa EQ popp >.
+	<?br	>. 1 fwd
+	<lis	d# 16 +# bminusa >.
+	<testx	nopa EQ popp >.
+	<?br	>. 1 fwd
+	<lis	d# 15 +# bminusa >.
+	<testx	nopa EQ popp >.
+	<?br	>. 1 fwd
+	<lis	d# 14 +# bminusa >.
+	<testx	nopa EQ popp >.
+	<?br	>. 1 fwd
+	<lis	d# 13 +# bminusa >.
+	<testx	nopa EQ popp >.
+	<?br	>. 1 fwd
+	<lis	d# 12 +# bminusa >.
+	<testx	nopa EQ popp >.
+	<?br	>. 1 fwd
+	<lis	d# 11 +# bminusa >.
+	<testx	nopa EQ popp >.
+	<?br	>. 1 fwd
+	<lis	d# 10 +# bminusa >.
+	<testx	nopa EQ popp >.
+	<?br	>. 1 fwd
+	<lis	d# 9 +# bminusa >.
+	<testx	nopa EQ popp >.
+	<?br	>. 1 fwd
+	<lis	d# 8 +# bminusa >.
+	<testx	nopa EQ popp >.
+	<?br	>. 1 fwd
+	<lis	d# 7 +# bminusa >.
+	<testx	nopa EQ popp >.
+	<?br	>. 1 fwd
+	<lis	d# 6 +# bminusa >.
+	<testx	nopa EQ popp >.
+	<?br	>. 1 fwd
+	<lis	d# 5 +# bminusa >.
+	<testx	nopa EQ popp >.
+	<?br	>. 1 fwd
+	<lis	d# 4 +# bminusa >.
+	<testx	nopa EQ popp >.
+	<?br	>. 1 fwd
+	<lis	d# 3 +# bminusa >.
+	<testx	nopa EQ popp >.
+	<?br	>. 1 fwd
+	<lis	d# 2 +# bminusa >.
+	<testx	nopa EQ popp >.
+	<?br	>. 1 fwd
+	<lis	d# 1 +# bminusa >.
+	<testx	nopa EQ popp >.
+	<?br	>. 1 fwd		\ parameter stack is empty now
+
+\ Continue with the return stack.
+	<reg@	popr nopb pushp >.
+	<lis	d# 17 +# bminusa >.
+	<testx	nopa EQ popp >.
+	<?br	>. 1 fwd
+	<reg@	popr nopb pushp >.
+	<lis	d# 16 +# bminusa >.
+	<testx	nopa EQ popp >.
+	<?br	>. 1 fwd
+	<reg@	popr nopb pushp >.
+	<lis	d# 15 +# bminusa >.
+	<testx	nopa EQ popp >.
+	<?br	>. 1 fwd
+	<reg@	popr nopb pushp >.
+	<lis	d# 14 +# bminusa >.
+	<testx	nopa EQ popp >.
+	<?br	>. 1 fwd
+	<reg@	popr nopb pushp >.
+	<lis	d# 13 +# bminusa >.
+	<testx	nopa EQ popp >.
+	<?br	>. 1 fwd
+	<reg@	popr nopb pushp >.
+	<lis	d# 12 +# bminusa >.
+	<testx	nopa EQ popp >.
+	<?br	>. 1 fwd
+	<reg@	popr nopb pushp >.
+	<lis	d# 11 +# bminusa >.
+	<testx	nopa EQ popp >.
+	<?br	>. 1 fwd
+	<reg@	popr nopb pushp >.
+	<lis	d# 10 +# bminusa >.
+	<testx	nopa EQ popp >.
+	<?br	>. 1 fwd
+	<reg@	popr nopb pushp >.
+	<lis	d# 9 +# bminusa >.
+	<testx	nopa EQ popp >.
+	<?br	>. 1 fwd
+	<reg@	popr nopb pushp >.
+	<lis	d# 8 +# bminusa >.
+	<testx	nopa EQ popp >.
+	<?br	>. 1 fwd
+	<reg@	popr nopb pushp >.
+	<lis	d# 7 +# bminusa >.
+	<testx	nopa EQ popp >.
+	<?br	>. 1 fwd
+	<reg@	popr nopb pushp >.
+	<lis	d# 6 +# bminusa >.
+	<testx	nopa EQ popp >.
+	<?br	>. 1 fwd
+	<reg@	popr nopb pushp >.
+	<lis	d# 5 +# bminusa >.
+	<testx	nopa EQ popp >.
+	<?br	>. 1 fwd
+	<reg@	popr nopb pushp >.
+	<lis	d# 4 +# bminusa >.
+	<testx	nopa EQ popp >.
+	<?br	>. 1 fwd
+	<reg@	popr nopb pushp >.
+	<lis	d# 3 +# bminusa >.
+	<testx	nopa EQ popp >.
+	<?br	>. 1 fwd
+	<reg@	popr nopb pushp >.
+	<lis	d# 2 +# bminusa >.
+	<testx	nopa EQ popp >.
+	<?br	>. 1 fwd
+	<reg@	popr nopb pushp >.
+	<lis	d# 1 +# bminusa >.
+	<testx	nopa EQ popp >.
+	<?br	>. 1 fwd		\ return stack is now empty too
+
+\ Conclude with the non-stack registers.
+	<reg@	md nopb pushp >.
+	<lis	d# 4 +# bminusa >.
+	<testx	nopa EQ popp >.
+	<?br	>. 1 fwd
+	<reg@	udr nopb pushp >.
+	<lis	d# 3 +# bminusa >.
+	<testx	nopa EQ popp >.
+	<?br	>. 1 fwd
+	<reg@	psp nopb pushp >.
+	<lis	d# 2 +# bminusa >.
+	<testx	nopa EQ popp >.
+	<?br	>. 1 fwd
+	<reg@	rsp nopb pushp >.
+	<lis	d# 1 +# bminusa >.
+	<testx	nopa EQ popp >.
+	<?br	>. 1 fwd
+	<reg@	pc nopb pushp >.
+	<lis	d# 1 +# bminusa >.
+	<testx	nopa NE popp >.		\ PC write was ignored
+	<?br	>. 1 fwd
+
+\ ------------------------------------------------------------------------
+\ Flow instruction test
+
+label flowtest
+\ Call test.  Place a number on the stack.  The called function replaces
+\ the number with a different number to show that function was reached.
+\ First, call.
+\ TBD: doesn't test call within page feature
+	<lis	1 +# nopb pushp >.	\ push 1
+	callme *call*
+	<lis	d# 2 +# bminusa >.	\ called function should change 1 to 2
+	<testx	nopa EQ popp >.
+	<?br	>. 1 fwd
+
+\ Then, long call.
+	<lis	1 +# nopb pushp >.	\ push 1
+	callme *longcall*
+	<lis	d# 2 +# bminusa >.	\ called function should change 1 to 2
+	<testx	nopa EQ popp >.
+	<?br	>. 1 fwd
+
+\ Do an equivalent test, now with branches.  The target functions branch
+\ back to this test.  First, unconditional branches.
+	<lis	1 +# nopb pushp >.	\ push 1
+	<br	>. d back
+d l:	<lis	d# 2 +# bminusa >.	\ change 1 to 2, then branch back here
+	<testx	nopa EQ popp >.
+	<?br	>. 1 fwd
+
+\ Then, conditional branches.
+	<lis	1 +# nopb pushp >.	\ push 1
+	<testx	nopa Tru >.
+	<?br	>. e back		\ don't take this branch
+e l:	<lis	d# 1 +# bminusa >.	\ should still be 1
+	<testx	nopa EQ popp >.
+	<?br	>. 1 fwd
+	<lis	1 +# nopb pushp >.	\ push 1
+	<testx	nopa Fls >.
+	<?br	>. f back		\ take this branch
+f l:	<lis	d# 2 +# bminusa >.	\ change 1 to 2, then branch back here
+	<testx	nopa EQ popp >.
+	<?br	>. 1 fwd
+
+\ ------------------------------------------------------------------------
+\ ALU long immediate instruction test
+
+label longimmtest
+\ First, push small positive constants that are within the reach of embedded
+\ small literals, which have already been tested.
+	<lil	nopb pushp >.	1 >.	\ 1
+	<lis	1 +# bminusa >.
+	<testx	nopa EQ popp >.
+	<?br	>. 1 fwd
+	<lil	nopb pushp >.	f >.	\ 15
+	<lis	f +# bminusa >.
+	<testx	nopa EQ popp >.
+	<?br	>. 1 fwd
+	<lil	nopb pushp >.	1f >.	\ 31
+	<lis	1f +# bminusa >.
+	<testx	nopa EQ popp >.
+	<?br	>. 1 fwd
+\ Then, create small negative constants.
+	<lih	nopb pushp >.	ffff >.	\ -1
+	<lil	bplusa >.	ffff >.
+	<lis	1 +# bplusa >.
+	<testx	nopa EQ popp >.
+	<?br	>. 1 fwd
+	<lih	nopb pushp >.	ffff >.	\ -15
+	<lil	bplusa >.	fff1 >.
+	<lis	f +# bplusa >.
+	<testx	nopa EQ popp >.
+	<?br	>. 1 fwd
+	<lih	nopb pushp >.	ffff >.	\ -31
+	<lil	bplusa >.	ffe1 >.
+	<lis	1f +# bplusa >.
+	<testx	nopa EQ popp >.
+	<?br	>. 1 fwd
+\ TBD: only tested lih with ffff
+
+\ ------------------------------------------------------------------------
+\ ALU step instruction test
+
+\ TBD
+
+\ ------------------------------------------------------------------------
+\ ALU op, ALU op extended, ALU test, and ALU test extended instruction test
+
+label alutest
+\ First, test logical operations
+	<lih	nopb pushp >.	cccc >.	\ test patterns
+	<lil	bplusa >.	cccc >.
+	<lih	nopb pushp >.	aaaa >.
+	<lil	bplusa >.	aaaa >.
+	<alu	nopb pushp >.		\ nopb
+	<lih	aminusb >.	cccc >.
+	<lil	aminusb >.	cccc >.
+	<testx	nopa EQ popp >.
+	<?br	>. 3 fwd
+	<alu	nopa pushp >.		\ nopa
+	<lih	aminusb >.	aaaa >.
+	<lil	aminusb >.	aaaa >.
+	<testx	nopa EQ popp >.
+	<?br	>. 3 fwd
+	<alu	notb pushp >.		\ notb
+	<lih	aminusb >.	3333 >.
+	<lil	aminusb >.	3333 >.
+	<testx	nopa EQ popp >.
+	<?br	>. 3 fwd
+	<alu	nota pushp >.		\ nota
+	<lih	aminusb >.	5555 >.
+	<lil	aminusb >.	5555 >.
+	<testx	nopa EQ popp >.
+	<?br	>. 3 fwd
+	<alu	banda pushp >.		\ banda
+	<lih	aminusb >.	8888 >.
+	<lil	aminusb >.	8888 >.
+	<testx	nopa EQ popp >.
+	<?br	>. 3 fwd
+	<alu	bora pushp >.		\ bora
+	<lih	aminusb >.	eeee >.
+	<lil	aminusb >.	eeee >.
+	<testx	nopa EQ popp >.
+	<?br	>. 3 fwd
+	<alu	bxora pushp >.		\ bxora
+	<lih	aminusb >.	6666 >.
+	<lil	aminusb >.	6666 >.
+	<testx	nopa EQ popp >.
+	<?br	>. 3 fwd
+
+\ Next, some simple arithmetic
+	<alu	bplusa pushp >.		\ bplusa
+	<lih	aminusb >.	7777 >.
+	<lil	aminusb >.	7776 >.
+	<testx	nopa EQ popp >.
+	<?br	>. 3 fwd
+	<alu	bminusa pushp >.	\ bminusa
+	<lih	aminusb >.	2222 >.
+	<lil	aminusb >.	2222 >.
+	<testx	nopa EQ popp >.
+	<?br	>. 3 fwd
+	<alu	aminusb pushp >.	\ aminusb
+	<lih	aminusb >.	dddd >.
+	<lil	aminusb >.	ddde >.
+	<testx	nopa EQ popp >.
+	<?br	>. 3 fwd
+	<alu	inca pushp >.		\ inca
+	<lih	aminusb >.	aaaa >.
+	<lil	aminusb >.	aaab >.
+	<testx	nopa EQ popp >.
+	<?br	>. 3 fwd
+	<alu	deca pushp >.		\ deca
+	<lih	aminusb >.	aaaa >.
+	<lil	aminusb >.	aaa9 >.
+	<testx	nopa EQ popp >.
+	<?br	>. 3 fwd
+
+\ Next, extended arithmetic
+label foo
+	<testx	Fls >.			\ flag is 0
+	<alu	nopx pushp >.		\ nopx, i.e. flag
+	<lil	aminusb >.	0000 >.
+	<reg!	nopa md popp >.		\ save result (avoid flag/branch)
+	<alu	bplusax pushp >.	\ bplusax
+	<lih	aminusb >.	7777 >.
+	<lil	aminusb >.	7776 >.
+	<reg@	md bora >.
+	<reg!	nopa md popp >.
+	<alu	bminusax pushp >.	\ bminusax
+	<lih	aminusb >.	2222 >.
+	<lil	aminusb >.	2221 >.
+	<reg@	md bora >.
+	<reg!	nopa md popp >.
+	<alu	aminusbx pushp >.	\ aminusbx
+	<lih	aminusb >.	dddd >.
+	<lil	aminusb >.	dddd >.
+	<reg@	md bora >.		\ test 'or' of three results
+	<testx	nopa EQ popp >.
+	<?br	>. 3 fwd
+	<testx	Tru >.			\ flag is 1
+	<alu	nopx pushp >.		\ nopx, i.e. flag
+	<lil	aminusb >.	0001 >.
+	<reg!	nopa md popp >.		\ save result (avoid flag/branch)
+	<alu	bplusax pushp >.	\ bplusax
+	<lih	aminusb >.	7777 >.
+	<lil	aminusb >.	7777 >.
+	<reg@	md bora >.
+	<reg!	nopa md popp >.
+	<alu	bminusax pushp >.	\ bminusax
+	<lih	aminusb >.	2222 >.
+	<lil	aminusb >.	2222 >.
+	<reg@	md bora >.
+	<reg!	nopa md popp >.
+	<alu	aminusbx pushp >.	\ aminusbx
+	<lih	aminusb >.	dddd >.
+	<lil	aminusb >.	ddde >.
+	<reg@	md bora >.		\ test 'or' of three results
+	<testx	nopa EQ popp >.
+	<?br	>. 3 fwd
+
+\ More extended arithmetic, this time setting flag.  Not a very thorough test.
+	<testx	Fls >.			\ flag is 0
+	<alux	bplusax Cry pushp >.	\ bplusax, C -> flag
+	<alu	nopb popp >.		\ add result tested earlier
+	<?br	>. 3 fwd		\ flag should be 1
+	<testx	Fls >.			\ flag is 0
+	<alux	aminusbx Cbar pushp >.	\ aminusbx, Cbar -> flag
+	<alu	nopb popp >.		\ subtract result tested earlier
+	<?br	>. 3 fwd		\ flag should be 1
+
+\ Compare 0 to ffffffff (-1)
+	<lis	0 +# nopb popp >.	\ new test patterns: 0
+	<lis	0 +# notb pushp >.	\   and ffffffff (-1)
+	<test	bminusa LT pushp >.
+	<testx	nopa Z popp >.		\ 0 not < -1
+	<?br	>. 3 fwd
+	<test	bminusa LE pushp >.
+	<testx	nopa Z popp >.		\ 0 not <= -1
+	<?br	>. 3 fwd
+	<test	bminusa GT pushp >.
+	<testx	nota Z popp >.		\ 0 > -1
+	<?br	>. 3 fwd
+	<test	bminusa GE pushp >.
+	<testx	nota Z popp >.		\ 0 >= -1
+	<?br	>. 3 fwd
+	<test	bminusa LO pushp >.
+	<testx	nota Z popp >.		\ 0 < ffffffff
+	<?br	>. 3 fwd
+	<test	bminusa LS pushp >.
+	<testx	nota Z popp >.		\ 0 <= ffffffff
+	<?br	>. 3 fwd
+	<test	bminusa HI pushp >.
+	<testx	nopa Z popp >.		\ 0 not > ffffffff
+	<?br	>. 3 fwd
+	<test	bminusa HS pushp >.
+	<testx	nopa Z popp >.		\ 0 not >= ffffffff
+	<?br	>. 3 fwd
+\ compare -80000000 (80000000) to 7fffffff
+	<lih	nopb popp >.	8000 >.	\ new test patterns: -80000000
+	<alu	deca pushp >.		\   and 7fffffff
+	<test	bminusa LT pushp >.
+	<testx	nota Z popp >.		\ -80000000 < 7fffffff
+	<?br	>. 3 fwd
+	<test	bminusa LE pushp >.
+	<testx	nota Z popp >.		\ -80000000 <= 7fffffff
+	<?br	>. 3 fwd
+	<test	bminusa GT pushp >.
+	<testx	nopa Z popp >.		\ -80000000 not > 7fffffff
+	<?br	>. 3 fwd
+	<test	bminusa GE pushp >.
+	<testx	nopa Z popp >.		\ -80000000 not >= 7fffffff
+	<?br	>. 3 fwd
+	<test	bminusa LO pushp >.
+	<testx	nopa Z popp >.		\ 80000000 not < 7fffffff
+	<?br	>. 3 fwd
+	<test	bminusa LS pushp >.
+	<testx	nopa Z popp >.		\ 80000000 not <= 7fffffff
+	<?br	>. 3 fwd
+	<test	bminusa HI pushp >.
+	<testx	nota Z popp >.		\ 80000000 > 7fffffff
+	<?br	>. 3 fwd
+	<test	bminusa HS pushp >.
+	<testx	nota Z popp >.		\ 80000000 >= 7fffffff
+	<?br	>. 3 fwd
+	<test	inca V pushp >.
+	<testx	nota Z popp >.		\ 7fffffff + 1 overflows
+	<?br	>. 3 fwd
+	<test	deca Vbar pushp >.
+	<testx	nota Z popp >.		\ 7fffffff - 1 doesn't overflow
+	<?br	>. 3 fwd
+	<test	nopb N pushp >.
+	<testx	nota Z popp >.		\ -80000000 is negative
+	<?br	>. 3 fwd
+	<test	nopa Nbar pushp >.
+	<testx	nota Z popp >.		\ 7fffffff isn't negative
+	<?br	>. 3 fwd
+	<alu	nopb popp >.		\ clean up, and continue
+	<alu	nopb popp >.
+
+\ ------------------------------------------------------------------------
+\ ALU register read/write instruction test
+
+label regtest2
+\ Read/write already tested.  Just test ALU operations with register read.
+\ First, test logical operations
+	<lih	nopb pushp >.	cccc >.	\ test patterns
+	<lil	bplusa >.	cccc >.
+	<reg!	nopa md popp >.
+	<lih	nopb pushp >.	aaaa >.
+	<lil	bplusa >.	aaaa >.
+	<reg@	md nopb pushp >.	\ nopb
+	<lih	aminusb >.	cccc >.
+	<lil	aminusb >.	cccc >.
+	<testx	nopa EQ popp >.
+	<?br	>. 2 fwd
+	<reg@	md nopa pushp >.	\ nopa
+	<lih	aminusb >.	aaaa >.
+	<lil	aminusb >.	aaaa >.
+	<testx	nopa EQ popp >.
+	<?br	>. 2 fwd
+	<reg@	md notb pushp >.	\ notb
+	<lih	aminusb >.	3333 >.
+	<lil	aminusb >.	3333 >.
+	<testx	nopa EQ popp >.
+	<?br	>. 2 fwd
+	<reg@	md nota pushp >.	\ nota
+	<lih	aminusb >.	5555 >.
+	<lil	aminusb >.	5555 >.
+	<testx	nopa EQ popp >.
+	<?br	>. 2 fwd
+	<reg@	md banda pushp >.	\ banda
+	<lih	aminusb >.	8888 >.
+	<lil	aminusb >.	8888 >.
+	<testx	nopa EQ popp >.
+	<?br	>. 2 fwd
+	<reg@	md bora pushp >.	\ bora
+	<lih	aminusb >.	eeee >.
+	<lil	aminusb >.	eeee >.
+	<testx	nopa EQ popp >.
+	<?br	>. 2 fwd
+	<reg@	md bxora pushp >.	\ bxora
+	<lih	aminusb >.	6666 >.
+	<lil	aminusb >.	6666 >.
+	<testx	nopa EQ popp >.
+	<?br	>. 2 fwd
+
+\ Next, test simple arithmetic.
+	<reg@	md bplusa pushp >.	\ bplusa
+	<lih	aminusb >.	7777 >.
+	<lil	aminusb >.	7776 >.
+	<testx	nopa EQ popp >.
+	<?br	>. 2 fwd
+	<reg@	md bminusa pushp >.	\ bminusa
+	<lih	aminusb >.	2222 >.
+	<lil	aminusb >.	2222 >.
+	<testx	nopa EQ popp >.
+	<?br	>. 2 fwd
+	<reg@	md aminusb pushp >.	\ aminusb
+	<lih	aminusb >.	dddd >.
+	<lil	aminusb >.	ddde >.
+	<testx	nopa EQ popp >.
+	<?br	>. 2 fwd
+	<reg@	md inca pushp >.	\ inca
+	<lih	aminusb >.	aaaa >.
+	<lil	aminusb >.	aaab >.
+	<testx	nopa EQ popp >.
+	<?br	>. 2 fwd
+	<reg@	md deca pushp >.	\ deca
+	<lih	aminusb >.	aaaa >.
+	<lil	aminusb >.	aaa9 >.
+	<testx	nopa EQ popp >.
+	<?br	>. 2 fwd
+
+\ Test aluops with register write.  First, logic.
+	<reg@	md nopb pushp >.	\ restore test patterns on stack
+	<alu	nopb swapp >.
+	<reg!	nopb md >.		\ nopb
+	<reg@	md nopb pushp >.
+	<lih	aminusb >.	cccc >.
+	<lil	aminusb >.	cccc >.
+	<testx	nopa EQ popp >.
+	<?br	>. 3 fwd
+	<reg!	nopa md >.		\ nopa
+	<reg@	md nopb pushp >.
+	<lih	aminusb >.	aaaa >.
+	<lil	aminusb >.	aaaa >.
+	<testx	nopa EQ popp >.
+	<?br	>. 3 fwd
+	<reg!	notb md >.		\ notb
+	<reg@	md nopb pushp >.
+	<lih	aminusb >.	3333 >.
+	<lil	aminusb >.	3333 >.
+	<testx	nopa EQ popp >.
+	<?br	>. 3 fwd
+	<reg!	nota md >.		\ nota
+	<reg@	md nopb pushp >.
+	<lih	aminusb >.	5555 >.
+	<lil	aminusb >.	5555 >.
+	<testx	nopa EQ popp >.
+	<?br	>. 3 fwd
+	<reg!	banda md >.		\ banda
+	<reg@	md nopb pushp >.
+	<lih	aminusb >.	8888 >.
+	<lil	aminusb >.	8888 >.
+	<testx	nopa EQ popp >.
+	<?br	>. 3 fwd
+	<reg!	bora md >.		\ bora
+	<reg@	md nopb pushp >.
+	<lih	aminusb >.	eeee >.
+	<lil	aminusb >.	eeee >.
+	<testx	nopa EQ popp >.
+	<?br	>. 3 fwd
+	<reg!	bxora md >.		\ bxora
+	<reg@	md nopb pushp >.
+	<lih	aminusb >.	6666 >.
+	<lil	aminusb >.	6666 >.
+	<testx	nopa EQ popp >.
+	<?br	>. 3 fwd
+
+\ Next, test simple arithmetic.
+	<reg!	bplusa md >.		\ bplusa
+	<reg@	md nopb pushp >.
+	<lih	aminusb >.	7777 >.
+	<lil	aminusb >.	7776 >.
+	<testx	nopa EQ popp >.
+	<?br	>. 3 fwd
+	<reg!	bminusa md >.		\ bminusa
+	<reg@	md nopb pushp >.
+	<lih	aminusb >.	2222 >.
+	<lil	aminusb >.	2222 >.
+	<testx	nopa EQ popp >.
+	<?br	>. 3 fwd
+	<reg!	aminusb md >.		\ aminusb
+	<reg@	md nopb pushp >.
+	<lih	aminusb >.	dddd >.
+	<lil	aminusb >.	ddde >.
+	<testx	nopa EQ popp >.
+	<?br	>. 3 fwd
+	<reg!	inca md >.		\ inca
+	<reg@	md nopb pushp >.
+	<lih	aminusb >.	aaaa >.
+	<lil	aminusb >.	aaab >.
+	<testx	nopa EQ popp >.
+	<?br	>. 3 fwd
+	<reg!	deca md >.		\ deca
+	<reg@	md nopb pushp >.
+	<lih	aminusb >.	aaaa >.
+	<lil	aminusb >.	aaa9 >.
+	<testx	nopa EQ popp >.
+	<?br	>. 2 fwd
+	<alu	nopb popp >.		\ clean up, and continue
+	<alu	nopb popp >.
+
+\ ------------------------------------------------------------------------
+\ shift instruction test
+
+label shifttest
+\ First, test immediate shifts
+	<lih	nopb pushp >.	8765 >.	\ test pattern
+	<lil	bplusa >.	4321 >.
+	<shifti	d# 16 <<# rol pushp >.
+	<lih	aminusb >.	4321 >.
+	<lil	aminusb >.	8765 >.
+	<testx	nopa EQ popp >.
+	<?br	>. 2 fwd
+	<shifti	d# 8 <<# lsl pushp >.
+	<lih	aminusb >.	6543 >.
+	<lil	aminusb >.	2100 >.
+	<testx	nopa EQ popp >.
+	<?br	>. 2 fwd
+	<shifti	4 <<# asr pushp >.
+	<lih	aminusb >.	f876 >.
+	<lil	aminusb >.	5432 >.
+	<testx	nopa EQ popp >.
+	<?br	>. 2 fwd
+	<shifti	4 <<# lsr pushp >.
+	<lih	aminusb >.	0876 >.
+	<lil	aminusb >.	5432 >.
+	<testx	nopa EQ popp >.
+	<?br	>. 2 fwd
+
+\ Next, test with shift length in N
+	<lis	4 +# nopb pushp >.	\ shift value
+	<alu	nopb swapp >.
+	<shift	rol pushp >.
+	<lih	aminusb >.	7654 >.
+	<lil	aminusb >.	3218 >.
+	<testx	nopa EQ popp >.
+	<?br	>. 3 fwd
+	<shift	lsl pushp >.
+	<lih	aminusb >.	7654 >.
+	<lil	aminusb >.	3210 >.
+	<testx	nopa EQ popp >.
+	<?br	asr >. 3 fwd
+	<shift	asr pushp >.
+	<lih	aminusb >.	f876 >.
+	<lil	aminusb >.	5432 >.
+	<testx	nopa EQ popp >.
+	<?br	>. 3 fwd
+	<shift	lsr pushp >.
+	<lih	aminusb >.	0876 >.
+	<lil	aminusb >.	5432 >.
+	<testx	nopa EQ popp >.
+	<?br	>. 3 fwd
+	<alu	nopb popp >.		\ clean up, and continue
+	<alu	nopb popp >.
+
+\ ------------------------------------------------------------------------
+\ load/store instruction test
+
+\ TBD
+
+\ ------------------------------------------------------------------------
+\ Stack cache
+
+\ Test stack caches.  Initialize, then load up parameter stack.
+label stacktest
+	pstack cell/ *literal*		\ initialize
+	<reg!	nopa psp popp >.
+	rstack cell/ *literal*
+	<reg!	nopa rsp popp >.
+	<lih	nopb pushp >.	0001 >.
+	<lil	bplusa >.	fdfd >.
+	<reg!	nopa psw >.
+	<lis	d# 1 +# nopb pushp >.	\ push parameter stack values 1 - 31
+	<lis	d# 2 +# nopb pushp >.
+	<lis	d# 3 +# nopb pushp >.
+	<lis	d# 4 +# nopb pushp >.
+	<lis	d# 5 +# nopb pushp >.
+	<lis	d# 6 +# nopb pushp >.
+	<lis	d# 7 +# nopb pushp >.
+	<lis	d# 8 +# nopb pushp >.
+	<lis	d# 9 +# nopb pushp >.
+	<lis	d# 10 +# nopb pushp >.
+	<lis	d# 11 +# nopb pushp >.
+	<lis	d# 12 +# nopb pushp >.
+	<lis	d# 13 +# nopb pushp >.
+	<lis	d# 14 +# nopb pushp >.
+	<lis	d# 15 +# nopb pushp >.
+	<lis	d# 16 +# nopb pushp >.
+	<lis	d# 17 +# nopb pushp >.
+	<lis	d# 18 +# nopb pushp >.
+	<lis	d# 19 +# nopb pushp >.
+	<lis	d# 20 +# nopb pushp >.
+	<lis	d# 21 +# nopb pushp >.
+	<lis	d# 22 +# nopb pushp >.
+	<lis	d# 23 +# nopb pushp >.
+	<lis	d# 24 +# nopb pushp >.
+	<lis	d# 25 +# nopb pushp >.
+	<lis	d# 26 +# nopb pushp >.
+	<lis	d# 27 +# nopb pushp >.
+	<lis	d# 28 +# nopb pushp >.
+	<lis	d# 29 +# nopb pushp >.
+	<lis	d# 30 +# nopb pushp >.
+	<lis	d# 31 +# nopb pushp >.
+	<alu	bplusa popp >.		\ accumulate sum of values pushed
+	<alu	bplusa popp >.
+	<alu	bplusa popp >.
+	<alu	bplusa popp >.
+	<alu	bplusa popp >.
+	<alu	bplusa popp >.
+	<alu	bplusa popp >.
+	<alu	bplusa popp >.
+	<alu	bplusa popp >.
+	<alu	bplusa popp >.
+	<alu	bplusa popp >.
+	<alu	bplusa popp >.
+	<alu	bplusa popp >.
+	<alu	bplusa popp >.
+	<alu	bplusa popp >.
+	<alu	bplusa popp >.
+	<alu	bplusa popp >.
+	<alu	bplusa popp >.
+	<alu	bplusa popp >.
+	<alu	bplusa popp >.
+	<alu	bplusa popp >.
+	<alu	bplusa popp >.
+	<alu	bplusa popp >.
+	<alu	bplusa popp >.
+	<alu	bplusa popp >.
+	<alu	bplusa popp >.
+	<alu	bplusa popp >.
+	<alu	bplusa popp >.
+	<alu	bplusa popp >.
+	<alu	bplusa popp >.
+	<lil	aminusb >.	d# 496 >.
+	<testx	nopa EQ popp >.
+	<?br	>. 1 fwd
+\ Now do same test to return stack cache.
+label rstacktest
+	<lis	d# 1 +# nopb pushp >.	\ push return stack values 1 - 31
+	<reg!	nopa pushr popp >.
+	<lis	d# 2 +# nopb pushp >.
+	<reg!	nopa pushr popp >.
+	<lis	d# 3 +# nopb pushp >.
+	<reg!	nopa pushr popp >.
+	<lis	d# 4 +# nopb pushp >.
+	<reg!	nopa pushr popp >.
+	<lis	d# 5 +# nopb pushp >.
+	<reg!	nopa pushr popp >.
+	<lis	d# 6 +# nopb pushp >.
+	<reg!	nopa pushr popp >.
+	<lis	d# 7 +# nopb pushp >.
+	<reg!	nopa pushr popp >.
+	<lis	d# 8 +# nopb pushp >.
+	<reg!	nopa pushr popp >.
+	<lis	d# 9 +# nopb pushp >.
+	<reg!	nopa pushr popp >.
+	<lis	d# 10 +# nopb pushp >.
+	<reg!	nopa pushr popp >.
+	<lis	d# 11 +# nopb pushp >.
+	<reg!	nopa pushr popp >.
+	<lis	d# 12 +# nopb pushp >.
+	<reg!	nopa pushr popp >.
+	<lis	d# 13 +# nopb pushp >.
+	<reg!	nopa pushr popp >.
+	<lis	d# 14 +# nopb pushp >.
+	<reg!	nopa pushr popp >.
+	<lis	d# 15 +# nopb pushp >.
+	<reg!	nopa pushr popp >.
+	<lis	d# 16 +# nopb pushp >.
+	<reg!	nopa pushr popp >.
+	<lis	d# 17 +# nopb pushp >.
+	<reg!	nopa pushr popp >.
+	<lis	d# 18 +# nopb pushp >.
+	<reg!	nopa pushr popp >.
+	<lis	d# 19 +# nopb pushp >.
+	<reg!	nopa pushr popp >.
+	<lis	d# 20 +# nopb pushp >.
+	<reg!	nopa pushr popp >.
+	<lis	d# 21 +# nopb pushp >.
+	<reg!	nopa pushr popp >.
+	<lis	d# 22 +# nopb pushp >.
+	<reg!	nopa pushr popp >.
+	<lis	d# 23 +# nopb pushp >.
+	<reg!	nopa pushr popp >.
+	<lis	d# 24 +# nopb pushp >.
+	<reg!	nopa pushr popp >.
+	<lis	d# 25 +# nopb pushp >.
+	<reg!	nopa pushr popp >.
+	<lis	d# 26 +# nopb pushp >.
+	<reg!	nopa pushr popp >.
+	<lis	d# 27 +# nopb pushp >.
+	<reg!	nopa pushr popp >.
+	<lis	d# 28 +# nopb pushp >.
+	<reg!	nopa pushr popp >.
+	<lis	d# 29 +# nopb pushp >.
+	<reg!	nopa pushr popp >.
+	<lis	d# 30 +# nopb pushp >.
+	<reg!	nopa pushr popp >.
+	<lis	d# 31 +# nopb pushp >.
+	<reg!	nopa pushr popp >.
+	<reg@	popr nopb pushp >.	\ read back first
+	<reg@	popr bplusa >.		\   and accumulate sum of remaining
+	<reg@	popr bplusa >.
+	<reg@	popr bplusa >.
+	<reg@	popr bplusa >.
+	<reg@	popr bplusa >.
+	<reg@	popr bplusa >.
+	<reg@	popr bplusa >.
+	<reg@	popr bplusa >.
+	<reg@	popr bplusa >.
+	<reg@	popr bplusa >.
+	<reg@	popr bplusa >.
+	<reg@	popr bplusa >.
+	<reg@	popr bplusa >.
+	<reg@	popr bplusa >.
+	<reg@	popr bplusa >.
+	<reg@	popr bplusa >.
+	<reg@	popr bplusa >.
+	<reg@	popr bplusa >.
+	<reg@	popr bplusa >.
+	<reg@	popr bplusa >.
+	<reg@	popr bplusa >.
+	<reg@	popr bplusa >.
+	<reg@	popr bplusa >.
+	<reg@	popr bplusa >.
+	<reg@	popr bplusa >.
+	<reg@	popr bplusa >.
+	<reg@	popr bplusa >.
+	<reg@	popr bplusa >.
+	<reg@	popr bplusa >.
+	<reg@	popr bplusa >.
+	<lil	aminusb >.	d# 496 >.
+	<testx	nopa EQ popp >.
+	<?br	>. 1 fwd
+
+\ ------------------------------------------------------------------------
+\ Finish
+
+\ Good test
+	<lis	d# 0 +# nopb pushp >.		\ leave good=0
+	<br	>. 0 fwd
+\ Error occurred
+3 l:	<alu	nopb popp >.			\ clean up stack
+2 l:	<alu	nopb popp >.
+1 l:	<lis	d# 1 +# nopb pushp >.		\ leave error=1
+0 l:	<alu	nopa >.
+label done

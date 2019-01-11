@@ -1,0 +1,6 @@
+hex
+
+variable counter
+3 int:		\ ( -- )
+   1 counter +!
+;int

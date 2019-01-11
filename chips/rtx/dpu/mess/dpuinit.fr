@@ -1,0 +1,8 @@
+\ (c) 2002 Johns Hopkins University / Applied Physics Laboratory
+\ MESSENGER DPU/EPU specific initializations, etc.
+hex
+
+every-boot:	\ ( -- ) Initialize DPU hardware.
+   ffff dpu-icr!  0000 dpu-icr!		\ reset all interrupt flip-flops
+   RXRDYMASK TXRDYMASK or dpu-mask!	\ enable UART interrupts
+;boot

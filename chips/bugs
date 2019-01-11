@@ -1,0 +1,43 @@
+		Known Bugs and Limitations
+
+Forth system:
+   The system is case sensitive and all Forth words are lower case.
+   However, input number conversion is case insensitive (0a = 0A).
+
+   Strings passed to find must be greater than `namesize' characters
+or padded out with blanks.
+
+   : foo [ :noname ; ( foo is now findable)
+
+   last-colon is not initialized.
+
+   :noname does not align the dictionary pointer before compiling.
+Similarly, variable does not align dictionary pointer before laying down
+initial value.
+
+Cross-compiler:
+	In ROM-based system, RAM address must be higher than ROM address
+or the cross-compiler will crash.
+
+	push-stream and pop-stream (and unloop on RTX) are subroutines
+that do things with the return stack.  Therefore, the optimizer should
+not convert a call/return to a branch.  push-stream and pop-stream
+are handled with explicit || statements in os.fr.  meta2.fr handles
+the unloop case compiled automatically by loop.  An explicit unloop
+is not handled however.  A general solution is needed here.
+
+	There are several problems compiling next-boot:/every-boot:
+for ROM.  See bootdata.fr.
+
+	Cross-compiling word abort" is missing.
+
+	When using modules3.fr, private constants, etc. can leak out
+of their respective modules.  This is because the \constant is put
+in a separate wordlist.
+
+	When using modules3.fr, structure names cannot be made public, e.g.,
+public:
+structure my-struct
+private:
+This is because the structure name doesn't actually get compiled until
+endstructure (to work around another bug).

@@ -1,0 +1,5 @@
+\ (c) 1995 Johns Hopkins University / Applied Physics Laboratory
+\ Warm reset NLR
+
+: warm-boot	\ ( ... -- ) Jump back to boot ROM.
+   disable 0 0018 cr! execute ;		\ map in boot ROM, jump to reset vector

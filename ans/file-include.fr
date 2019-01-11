@@ -1,0 +1,140 @@
+\ (c) 1991 Johns Hopkins University / Applied Physics Laboratory
+\ This file contain the ANS File words (most of the code is actually
+\ in assembly language and C in other files) and Memory Allocation words.
+hex
+
+\ I/O helpers
+
+  : ?error	\ ( ior -- ) Error handler.  If ior indicates an error
+		\ has occurred an error message is displayed and the
+		\ program exits.
+     if perror 1 terminate then ;
+
+\ Line buffer management
+
+~ variable line-buffer-freelist		\ Free buffers are cached in list
+
+  : get-line-buffer \ ( -- buffer ) Allocate a line-sized buffer.
+     line-buffer-freelist @ dup if	\ if there is already one in free list
+        dup @ line-buffer-freelist !	\ unlink and return it
+     else
+        drop 80 allocate ?error		\ otherwise, call storage allocator
+     then ;
+
+  : free-line-buffer \ ( buffer -- ) Return line-sized buffer.
+     line-buffer-freelist @ over !	\ add to free list
+     line-buffer-freelist ! ;
+
+\ Code for loading Forth source into a running system.
+
+  : open-error	\ ( c-addr u -- ) Error handler.  Display error message
+		\ with the given string in quotes and terminate.
+		\ Note: does not use perror because in clients of
+		\ this routine sometimes obliterate errno before calling.
+		\ BUG: should use stderr.
+\ TBD: combine with ?error?
+   ." forth: can't open " [char] " emit type [char] " emit cr
+   1 terminate ;			\ and exit
+
+  : include-file \ ( fileid -- ) Interpret indicated file from its current
+		\ position.  Close the file when finished.
+     >r get-line-buffer dup 0 r> push-stream
+     >r begin
+        r@ 80 source-id read-line ?error while \ while not end of file
+        reset-stream interpret
+     repeat drop source-id close-file ?error
+     r> free-line-buffer
+     pop-stream ;
+
+  : open-include \ ( c-addr u -- fp ) Attempt to open the named file.
+		\ If unsuccessful, display error message and exit.
+		\ Otherwise, return file pointer.
+   2dup r/o open-file			\ attempt to open file
+   if drop open-error ( never returns)	\ if failure, terminate with message
+   then nip nip ;
+
+  : included	\ ( c-addr u -- ) Open the named file and interpret its
+		\ contents.
+     open-include include-file ;
+
+  : fload	\ ( c-addr u -- ) Alias for included ;
+     included ;
+
+\ ------------------------------------------------------------------------
+\ Source maintainence utility
+
+  : open-up	\ ( addr u -- fp ) Attempt to open a file named
+		\ by input string and return file pointer.
+		\ If the file cannot be found in the current directory,
+		\ parental directories are searched.  If a directory
+		\ contains a file named "ROOT", no further searching
+		\ is performed and a null is returned.  If the file cannot
+		\ be found, an error message is displayed and the program
+		\ exits.
+		\ Bugs: only ten levels are allowed and the input file
+		\ name is limited in size.
+     "" ../../../../../../../../../../XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+	1e /string
+     drop swap 2dup 2>r cmove 2r>
+     "" ../../../../../../../../../../ROOT" 1e /string
+     begin
+	2over r/o open-file while	\ while file not found
+	drop 2dup r/o open-file while	\ while ROOT not found
+	drop 2>r -3 /string 2r> -3 /string \  go to parent
+     repeat				\ ROOT found; error
+	close-file ?error		\ close ROOT
+	2drop open-error ( never return) \ display error message and exit
+     then
+     >r 2drop 2drop r> ;		\ return file
+
+  : sload	\ ( c-addr u -- ) Open the named file and interpret its
+		\ contents.
+     open-up include-file ;
+
+\ ------------------------------------------------------------------------
+\ Fancy include utility: searches directories listed in FPATH for a file.
+
+\ Note: these are generally useful string words.
+  : strsave	\ ( c-addr1 u1 c-addr2 -- c-addr2 u1 ) Save string c-addr1
+		\ u1 at c-addr2.  Return c-addr2 and the length of the string.
+     swap 2dup 2>r cmove 2r> ;
+
+  : strcat	\ ( c-addr1 u1 c-addr2 u2 -- c-addr1 u3 ) Concatenate
+		\ strings c-addr1 u1 and c-addr2 u2; the resulting string
+		\ is stored at c-addr1 (which better have sufficient space).
+		\ c-addr1 is returned along with the length of the new string.
+     >r >r 2dup + r> swap r@ cmove r> + ;
+
+~ create file-name-buffer 100 allot	\ file names are constructed here
+
+  : open-path	\ ( c-addr1 u1 c-addr2 u2 -- fp ) Attempt to open given file
+		\ (c-addr1 u1) in each directory appearing in the given
+		\ environment variable (c-addr2 u2).  If file cannot be
+		\ found, display error message and exit.
+   2swap 2>r
+   get-env				\ search path environment var.
+   begin
+      dup while				\ while directories not searched
+      bl split				\ split out next directory
+      file-name-buffer strsave		\ save directory name
+      "" /" strcat  2r@ strcat		\ ... and append "/<filename>"
+      r/o open-file while		\ while file can't be opened
+      drop
+   repeat
+      nip nip rdrop rdrop		\ return fp
+   else					\ end of search path
+      2r> open-error ( never returns)	\ display error message and exit
+   then ;
+
+: used		\ ( c-addr u -- ) Load the given file from a directory
+		\ listed in FPATH.
+   "" FPATH" open-path include-file ;
+
+\ ------------------------------------------------------------------------
+\ Forth scripts idea by Ulrich Hoffman.  Experimental.
+forthscript postpone \ ;
+
+\ ------------------------------------------------------------------------
+\ Say goodbye.
+: bye 0 terminate ;
+

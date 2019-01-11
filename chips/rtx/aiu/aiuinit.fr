@@ -1,0 +1,7 @@
+\ (c) 1993 Johns Hopkins University / Applied Physics Laboratory
+\ AIU specific initializations, etc.
+hex
+
+every-boot:	\ load interrupt mask
+   UARTINTMASK imr!			\ enable UART
+;boot

@@ -1,0 +1,38 @@
+\ (c) 1997 Johns Hopkins University / Applied Physics Laboratory
+hex
+
+\ Useful G-bus interfaces; read:
+\ TBD: invented W,S,I addresses ...
+be18 ucode wedge@	\ ( -- x ) Read wedge A/D.
+be19 ucode strip@	\ ( -- x ) Read strip A/D.
+be1a ucode inter@	\ ( -- x ) Read interstitial A/D.
+be1b ucode status@	\ ( -- x ) Read status.
+be1c ucode event@	\ ( -- 0/1 ) Return 1 if event is present.
+b01d ucode a/d-rst	\ ( -- ) Clear event.
+be1e ucode tlm-data@	\ ( -- x ) Read word from telemetry processor.
+b01f ucode tlm-ack	\ ( -- ) Acknowledge telemetry word read.
+
+\ Write:
+be98 ucode control-data! \ ( x -- ) Write control data.
+be99 ucode control-addr! \ ( x -- ) Write control address.
+be9a ucode control-strobe! \ ( x -- ) Write control strobes.
+be9b ucode tlm-data!	\ ( x -- ) Write word to telemetry processor.
+be9c ucode count0!	\ ( x -- ) Pulse counter 0. (x is ignored.)
+be9d ucode count1!	\ ( x -- ) Pulse counter 1. (x is ignored.)
+be9e ucode test-data!	\ ( x -- ) Write word to test interface.
+be9f ucode test-req!	\ ( x -- ) Write request lines to test interface
+
+\ Memory bank switching abstraction.  Alias for get/set-page on this hardware.
+: get-code	\ ( -- memid ) Return a memory id for the currently
+		\ executing code.
+   cpr@ || ; inline
+
+: get-mem	\ ( -- memid ) Return the memory id for the current far
+		\ address space.
+   get-page || ; inline
+
+: set-mem	\ ( memid -- ) Set the memory id for the far address space.
+   set-page || ; inline
+
+\ Tty device driver parameters
+100 define FIFOSIZE			\ TTY input buffer, output buffer sizes

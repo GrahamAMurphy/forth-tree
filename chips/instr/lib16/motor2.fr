@@ -1,0 +1,102 @@
+\ (c) 2001 Johns Hopkins University / Applied Physics Laboratory
+\ Motorola S-record loader; this one is RTX specific
+\ This is intended to be a component for a boot ROM and consequently
+\ does little error reporting.
+\ Note: in an attempt to make this more portable, a target memory abstraction
+\ layer is assumed.
+hex
+
+\ ------------------------------------------------------------------------
+\ Low-level input
+
+: tolower	\ ( char1 -- char2 ) Convert character to lower case.
+   dup [char] A [char] Z between if 20 + then ;
+
+: hexdigit      \ ( chr --- n[0-f] true  <or>  false ) Attempts to convert
+		\ 1 ascii hex digit to binary.  If chr is a valid ascii
+		\ hex digit, returns result and true.  Otherwise, returns
+		\ only false.
+   dup
+   sel
+      << [char] 0 [char] 9 between =>	\ 0-9: valid
+		[char] 0 - true >>
+      << [char] a [char] f between =>	\ a-f: valid
+		[char] a - 0a + true >>
+      drop false swap			\ otherwise: invalid
+   endsel ;
+
+: read-digit	\ ( -- digit ) Read and convert a hex digit.  A bad character
+		\ is converted to zero; presumably the checksum will detect.
+   key tolower hexdigit not if 0 then ;
+
+\ ------------------------------------------------------------------------
+\ Read S-records
+
+create rbuffer 100 allot		\ receive buffer
+variable rchecksum			\ checksum of a record
+
+: read-byte	\ ( -- byte ) Read two hex characters from the tty and convert
+		\ them to a byte.
+   read-digit 4 rotate read-digit or dup rchecksum +! ;
+
+: search-for-record \ ( --- n ) Search for an S record.  Return record type.
+   begin key tolower [char] s = until
+   read-digit ;
+
+: read-record	\ ( -- t/f ) Read in next record and save.  Return true
+		\ if checksum is good.
+   0 rchecksum !			\ reset checksum
+   read-byte 1- dup rbuffer c!		\ read and save length of remaining data
+   rbuffer 1+ swap 0 do			\ for each payload byte in record
+      read-byte over c! 1+		\ read and save
+   loop drop
+   read-byte drop rchecksum @ 1+ ff and 0= ;
+
+\ ------------------------------------------------------------------------
+\ Process loaded S-records
+
+: get-8bits	\ ( addr len -- addr' len' 8bits ) Get the 8-bit value at the
+		\ given location.  Return the value with the remaining string.
+   swap dup >r 1+ swap 1-
+   r> c@ ;
+
+: get-16bits	\ ( addr len -- addr' len' 16bits ) Get the 16-bit value at the
+		\ given location.  Return the value with the remaining string.
+   swap dup >r 2 + swap 2 -
+   r@ c@ 8 lshift r> 1+ c@ or ;
+
+: save-data	\ ( addr count -- ) Save data into target memory.
+   ?dup if 0 do dup c@ >mem 1+ loop then drop ;
+
+: s1		\ ( -- ) S1 record has a 16-bit address and data.
+   rbuffer count 0 seek-memid get-16bits seek-memaddr save-data ;
+
+: s2		\ ( -- ) S2 record has a 24-bit address and data.
+   rbuffer count get-8bits seek-memid get-16bits seek-memaddr save-data ;
+
+: s3		\ ( -- ) S3 record has a 32-bit address and data.
+   rbuffer count get-16bits seek-memid get-16bits seek-memaddr save-data ;
+
+: s-recs	\ ( -- ) Load a Motorola S record file.
+   begin
+      search-for-record			\ find next S record
+      read-record if			\ if record has good checksum
+	 sel				\ process based on record type
+	    << 1 ==> s1 false >>	\ S1 - S3 are data records
+	    << 2 ==> s2 false >>
+	    << 3 ==> s3 false >>
+	    << 7 ==> true >>		\ S7 - S9 are end-of-file records
+	    << 8 ==> true >>
+	    << 9 ==> true >>
+	    false swap			\ ignore unknown record types
+	 endsel
+      else
+	 drop [char] ? emit false	\ bad checksum: error
+      then
+   until ;
+
+: download	\ ( -- ) Load a Motorola S record file.
+   open-mem				\ open memory file
+   s-recs				\ load S records
+   close-mem ;
+

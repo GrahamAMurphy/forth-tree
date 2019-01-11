@@ -1,0 +1,15 @@
+\ (c) 1995 Johns Hopkins University / Applied Physics Laboratory
+\ Timers (cross-compiler)
+hex
+
+forth : do:	\ ( -- addr xt )  Create a doer with a built-in piece of code.
+   [host]
+   ram-create
+   ram-here waiter ram-allot
+   s" do:" add-log-string
+   t-here [meta] || [host] ] ;
+
+only forth also host also meta definitions
+forth : ;do
+   [meta] ; [host] swap .value ! ;
+hostinterp

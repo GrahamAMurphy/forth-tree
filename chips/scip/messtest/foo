@@ -1,0 +1,2815 @@
+hex 
+variable md 
+: md@ md @ ; 
+: sq! 8 lshift md ! ; 
+: ucode drop bl word drop ; 
+variable dpu-cfg 
+: dpu-cfg@ dpu-cfg @ ; 
+: dpu-cfg! dpu-cfg ! ; 
+variable dpu-mask 
+: dpu-mask! dpu-mask ! ; 
+: i2c-data! drop ; 
+: i2c-data@ 0 ; 
+: i2c-cntl! drop ; 
+: i2c-status@ 0 ; 
+: i2c-timer! drop ; 
+: get-mask ; 
+: unmask-int drop ; 
+: reset-watchdog ; 
+: check-stack ; 
+hex 
+: @+ 
+dup @ swap cell+ || ; inline 
+: cpr! 
+set-code || ; inline 
+hex 
+1 constant #boot/app 
+d# 184 constant #tlm-msgs 
+1 constant #struct 
+05 constant #status-pkt 
+10 constant #n-data-id 
+d# 128 constant #too-low-alm 
+d# 192 constant #too-high-alm 
+0 constant #max-macro-addr 
+0 constant #max-tlm-addr 
+d# 3 constant #monitors 
+d# 12000 constant #i2c-clocks 
+3 constant #i2c-slots 
+: structure 
+h# 1234 constant 
+here cell- cell- 0 ; 
+: aus: 
+over offset: + ; 
+: chars: 
+chars aus: ; 
+: char: 
+1 chars: ; 
+: cells: 
+cells >r aligned r> aus: ; 
+: cell: 
+1 cells: ; 
+: struct: 
+>r aligned r> aus: ; 
+: struct[]: 
+* struct: ; 
+: endstructure 
+swap ! ; 
+: makestruct 
+create allot ; 
+: module> 
+0 constant ; 
+: extendmodule> 
+drop ; 
+: public: 
+; 
+: private: 
+; 
+: endmodule> 
+; 
+hex 
+: ram ; 
+: rom ; 
+: || ; 
+hex 
+structure waiter 
+cell: .next 
+cell: .value 
+cell: .init 
+cell: .counter 
+endstructure 
+0 constant every 
+1 constant in 
+create tailtimer 0 , 0 , 0 , -1 , 
+: deltainsert 
+swap >r 
+begin 
+2dup @ .counter @ u> 
+while 
+@ dup >r .counter @ - r> 
+repeat 
+dup @ r@ ! 
+r@ swap ! 
+r@ @ @ if 
+dup negate r@ @ .counter +! 
+then 
+r> .counter ! ; 
+: deltadelete 
+swap >r 
+begin 
+dup @ 
+dup r@ <> over and while 
+nip 
+repeat 
+if 
+r@ @ dup @ if 
+r@ .counter @ over .counter +! 
+then 
+over ! 
+then rdrop drop ; 
+: countdown 
+@ dup >r tailtimer <> if 
+r@ .counter @ 1- dup 
+r> .counter ! 0= 
+else 
+rdrop false 
+then ; 
+: processwaiter 
+dup >r @ dup .counter @ 0= if 
+dup @ r@ ! 
+dup .init @ 
+?dup if over r@ deltainsert then 
+rdrop 
+else 
+rdrop drop 0 
+then ; 
+variable timeraccess 
+variable timerlist 
+tailtimer timerlist ! 
+1 timeraccess ! 
+: starttimer 
+timeraccess wait 
+timerlist deltainsert 
+timeraccess signal ; 
+: signaltimers 
+timeraccess wait 
+timerlist countdown 
+timeraccess signal 
+if 
+begin 
+timeraccess wait 
+timerlist processwaiter 
+timeraccess signal 
+dup while 
+.value signal 
+repeat drop 
+then ; 
+: wake 
+>r swap cell- swap 
+every = if 
+r@ over .init ! 
+else 
+0 over .init ! 
+then 
+0 over .value ! 
+r> swap starttimer ; 
+: canceltimer 
+cell- 
+timeraccess wait 
+timerlist deltadelete 
+timeraccess signal ; 
+: timer 
+create waiter allot 
+does> .value ; 
+variable doeraccess 
+variable doerlist 
+tailtimer doerlist ! 
+1 doeraccess ! 
+: startdoer 
+doeraccess wait 
+doerlist deltainsert 
+doeraccess signal ; 
+: executedoers 
+doeraccess wait 
+doerlist countdown 
+doeraccess signal 
+if 
+begin 
+doeraccess wait 
+doerlist processwaiter 
+doeraccess signal 
+dup while 
+.value @ execute 
+repeat drop 
+then ; 
+: doit 
+>r every = if 
+r@ over .init ! 
+else 
+0 over .init ! 
+then 
+r> swap startdoer ; 
+: canceldoer 
+doeraccess wait 
+doerlist deltadelete 
+doeraccess signal ; 
+: do: 
+create 
+here waiter allot 
+:noname ; 
+: ;do 
+postpone ; swap .value ! ; immediate 
+decimal 
+: far@ far @ ; 
+: far! far ! ; 
+: farc@ far c@ ; 
+: farc! far c! ; 
+: far2! 
+far dup >r ! r> cell+ ! ; 
+: far2@ 
+far dup >r cell+ @ r> @ ; 
+: bytes-out 
+for >r dup c@ r@ far c! near 1+ r> 1+ next 2drop ; 
+: bytes-in 
+for >r far dup c@ near r@ c! 1+ r> 1+ next 2drop ; 
+: words-out 
+for >r dup @ r@ far ! near cell+ r> cell+ next 2drop ; 
+: words-in 
+for >r far dup @ near r@ ! cell+ r> cell+ next 2drop ; 
+hex 
+create far-page-set 
+0 , 0 , 0 , 0 , 0 , 0 , 0 , 0 , 
+0 , 0 , 0 , 0 , 0 , 0 , 0 , 0 , 
+: far-h 
+f and cells far-page-set + ; 
+: far-here 
+far-h @ ; 
+: far-allot 
+far-h dup >r @ swap over + r> ! ; 
+hex 
+structure farq-struct 
+cell: .tail 
+cell: .head 
+endstructure 
+: farq-get-i 
+dup >r .head @ 
+dup if dup far@ r@ .head ! then 
+rdrop ; 
+: farq-put-i 
+>r 0 over far! 
+r@ .head @ 
+if 
+dup r@ .tail @ far! 
+else 
+dup r@ .head ! 
+then 
+r> .tail ! ; 
+: farq-append-i 
+dup .head @ if 
+dup .tail @ >r .tail ! r> far! 
+else 
+dup >r .tail ! r> .head ! 
+then ; 
+: farq-empty 
+0 swap .head ! ; 
+: farq-get 
+disable farq-get-i enable ; 
+: farq-put 
+disable farq-put-i enable ; 
+: farq-append 
+disable farq-append-i enable ; 
+: farq-peek 
+.head @ ; 
+hex 
+: far-dump 
+cr 
+-1 0 <# #s #> nip -rot 
+ff 0 <# #s #> nip -rot 
+over + swap do 
+i 2pick u.lz ." :" space 
+i 8 + i do 
+i far c@ near over u.lz space 
+loop 4 spaces 
+i 8 + i do 
+i far c@ near dup bl < over 7e > or 
+if drop [char] . then 
+emit 
+loop 
+cr 8 +loop 2drop ; 
+hex 
+: erase 
+0 fill ; 
+: | 
+over ! cell+ ; 
+: c| 
+over c! 1+ ; 
+: 2| 
+2pick cell+ ! over ! 2 cells + ; 
+: here-allot 
+here swap allot ; 
+: reserved 
++ ; 
+: between 
+over - >r - r> u> not ; 
+: u<= 
+u> not ; 
+: u>= 
+u< not ; 
+: du< 
+>r over r@ - if drop nip r> u< else r> drop nip u< then ; 
+: u/ 
+0 swap um/mod nip ; 
+: u/^ 
+0 swap um/mod swap if 1+ then ; 
+: 8<< 
+sq! md@ || ; inline 
+: split 
+dup ff and swap 8 rshift ; 
+: join 
+8<< or ; 
+: una! 
+over 8 rshift over c! 
+1+ c! ; 
+: pow2 
+1 swap lshift ; 
+: mask 
+1 swap lshift 1- ; 
+: */- 
+>r m* r> sm/rem nip ; 
+hex 
+module> bits 
+public: 
+: get 
+dup @ @ execute ; 
+: set-i 
+dup @ cell+ @ execute ; 
+: set 
+disable set-i enable ; 
+: refresh 
+disable dup get swap set-i enable ; 
+private: 
+: insert-bit 
+>r swap if cell+ @ r> or else cell+ @ invert r> and then ; 
+: extract-bit 
+swap cell+ @ and if 1 else 0 then ; 
+: insert-field 
+>r dup cell+ @ >r cell+ cell+ @ lshift 
+r@ and r> invert r> and or ; 
+: extract-field 
+over cell+ @ and swap cell+ cell+ @ rshift ; 
+: port-w! 
+2dup cell+ @ ! dup 3 cells + swap 2 cells + @ execute ; 
+: port-w@ 
+cell+ @ @ ; 
+public: 
+here 
+' port-w@ , ' port-w! , 
+constant port-word-access 
+: port-word: 
+create port-word-access , , ; 
+private: 
+: port-b! 
+2dup cell+ @ c! dup 3 cells + swap 2 cells + @ execute ; 
+: port-b@ 
+cell+ @ c@ ; 
+public: 
+here 
+' port-b@ , ' port-b! , 
+constant port-byte-access 
+: port-byte: 
+create port-byte-access , , ; 
+private: 
+: port-bit! 
+cell+ dup @ dup >r get insert-bit r> set-i ; 
+: port-bit@ 
+cell+ dup @ get extract-bit ; 
+here 
+' port-bit@ , ' port-bit! , 
+constant port-bit-access 
+public: 
+: port-bit: 
+create port-bit-access , 
+swap , pow2 , ; 
+private: 
+: port-field! 
+cell+ dup @ dup >r get insert-field r> set-i ; 
+: port-field@ 
+cell+ dup @ get extract-field ; 
+here 
+' port-field@ , ' port-field! , 
+constant port-field-access 
+public: 
+: port-field: 
+create port-field-access , 
+rot , mask over lshift , , ; 
+private: 
+: mem-w! 
+cell+ @ ! ; 
+: mem-w@ 
+cell+ @ @ ; 
+here 
+' mem-w@ , ' mem-w! , 
+constant mem-word-access 
+public: 
+: mem-word: 
+create mem-word-access , , ; 
+private: 
+: mem-b! 
+cell+ @ c! ; 
+: mem-b@ 
+cell+ @ c@ ; 
+here 
+' mem-b@ , ' mem-b! , 
+constant mem-byte-access 
+public: 
+: mem-byte: 
+create mem-byte-access , , ; 
+private: 
+: mem-bit! 
+cell+ dup @ dup >r c@ insert-bit r> c! ; 
+: mem-bit@ 
+cell+ dup @ c@ extract-bit ; 
+here 
+' mem-bit@ , ' mem-bit! , 
+constant mem-bit-access 
+public: 
+: mem-bit: 
+create mem-bit-access , 
+swap , pow2 , ; 
+private: 
+: mem-field! 
+cell+ dup @ dup >r c@ insert-field r> c! ; 
+: mem-field@ 
+cell+ dup @ c@ extract-field ; 
+here 
+' mem-field@ , ' mem-field! , 
+constant mem-field-access 
+public: 
+: mem-field: 
+create mem-field-access , 
+rot , mask over lshift , , ; 
+private: 
+endmodule> 
+hex 
+0 constant #limits-str 
+01 constant #echo-pkt 
+02 constant #alarm-pkt 
+03 constant #checksum-pkt 
+04 constant #dump-pkt 
+06 constant #limits-pkt 
+08 constant #mac-dump-pkt 
+09 constant #mac-check-pkt 
+02 constant #cmd-null 
+03 constant #cmd-wrap 
+01 constant #cnt-clr 
+1a constant #mac-check 
+10 constant #mac-def 
+11 constant #mac-delay 
+12 constant #mac-end 
+13 constant #mac-enddef 
+14 constant #mac-halt 
+18 constant #mac-loop-begin 
+19 constant #mac-loop-end 
+15 constant #mac-nest 
+16 constant #mac-pause 
+25 constant #mac-read 
+1c constant #mac-restore 
+17 constant #mac-run 
+1f constant #mac-run-silent 
+1b constant #mac-save 
+04 constant #mem-check 
+05 constant #mem-copy 
+06 constant #mem-load 
+07 constant #mem-read 
+08 constant #mem-read-abrt 
+24 constant #mem-read-int 
+09 constant #mem-run 
+0a constant #mem-str-load 
+0b constant #mem-str-read 
+23 constant #mem-write 
+0c constant #mon-cntrl 
+20 constant #pwr-off 
+1d constant #saf-safe 
+1e constant #saf-shut 
+22 constant #soft-reset 
+0d constant #stat-int 
+21 constant #stat-mem 
+00 constant #ok-cmd 
+01 constant #ok-macro-cmd 
+02 constant #unknown-cmd 
+03 constant #badarg-cmd 
+04 constant #macro-run-cmd 
+05 constant #need-macro-cmd 
+06 constant #macro-comp-cmd 
+07 constant #macro-kill-cmd 
+09 constant #macro-check-cmd 
+0a constant #mem-write-cmd 
+d# 1 constant #bad-msg-alm 
+d# 2 constant #no-contexts-alm 
+d# 3 constant #bad-dst-alm 
+d# 264 constant #max-args 
+d# 256 2/ cell/ constant #dump-words 
+1021 constant #crc-poly 
+ffff constant #crc-seed 
+hex 
+01 constant macro-mem# 
+09 constant macro-arch-mem# 
+100 constant m-size 
+be95 ucode i2c-timer! 
+1 1 lshift constant dog-enb-mask# 
+: dpu-config 
+dpu-cfg@ fffc and ; 
+: set-dpu-cfg 
+disable dpu-config or dpu-cfg! enable ; 
+: clr-dpu-cfg 
+invert disable dpu-config and dpu-cfg! enable ; 
+: refresh-regs 
+disable 
+dpu-config dpu-cfg! 
+enable 
+30 dpu-mask! ; 
+d# 6 constant i2c-int# 
+: seconds 
+|| ; inline 
+: seconds-d 
+0 ; 
+hex 
+02 constant tlm-mem# 
+d# 4 constant host-int# 
+: init-gen-hw 
+0 dpu-cfg! 
+; 
+decimal 
+module> status 
+20 constant #config/status 
+create config/status 
+#config/status allot 
+public: 
+config/status 0 + mem-word: status-int 
+config/status 2 + mem-word: mac-free-blocks 
+config/status 4 + mem-word: tlm-volume 
+config/status 6 + mem-word: watch-addr 
+config/status 8 + mem-byte: watch-mem 
+config/status 9 + mem-byte: watch-byte1 
+config/status 10 + mem-byte: watch-byte2 
+config/status 11 + mem-byte: sw-version 
+config/status 12 + mem-byte: alarm-id 
+config/status 13 + 7 mem-bit: alarm-type 
+config/status 13 + 0 7 mem-field: alarm-count 
+config/status 14 + mem-byte: cmds-executed 
+config/status 15 + mem-byte: cmds-rejected 
+config/status 16 + mem-byte: macro-cmds-exec 
+config/status 17 + mem-byte: macro-cmds-rej 
+config/status 18 + mem-byte: macro-id 
+config/status 19 + 7 mem-bit: macro-learn 
+config/status 19 + 6 mem-bit: mon-response 
+config/status 19 + 5 mem-bit: mem-write-enb 
+private: 
+public: 
+create critical-instr 
+0 c, 0 c, 0 c, 0 c, 
+private: 
+config/status #config/status 0 fill 
+2 status-int set 
+1 sw-version set 
+endmodule> 
+hex 
+m-size 1- constant m-lo-mask 
+m-size 1- invert constant m-hi-mask 
+variable m-memid 
+variable m-addr 
+variable m-buf-memid 
+variable m-buf-addr 
+variable m-state 
+0 constant m-empty 
+1 constant m-clean 
+2 constant m-dirty 
+ram 
+create m-buffer m-size allot 
+rom 
+: block-out 
+m-size 2/ words-out ; 
+: block-in 
+m-size 2/ words-in ; 
+: m-read 
+get-mem 
+m-memid @ dup set-mem m-buf-memid ! 
+m-addr @ m-hi-mask and 
+dup m-buf-addr ! 
+m-buffer block-in 
+m-clean m-state ! 
+set-mem ; 
+: wait-for-eeprom 
+far begin over @ over = until 2drop ; 
+: m-write 
+get-mem 
+m-buf-memid @ set-mem 
+m-buf-addr @ m-size + cell- 
+m-buffer m-size + cell- @ 
+disable 
+m-buffer m-buf-addr @ block-out 
+enable 
+wait-for-eeprom 
+m-clean m-state ! 
+set-mem ; 
+: m-flush 
+m-state @ m-dirty = 
+if m-write then ; 
+: m-addr-in-buffer 
+m-state @ m-empty = 
+m-addr @ m-hi-mask and 
+m-buf-addr @ <> or 
+m-memid @ m-buf-memid @ <> or 
+if m-flush m-read then 
+m-buffer m-addr @ m-lo-mask and + ; 
+: open-mem 
+get-code m-memid ! 0 m-addr ! 
+m-empty m-state ! ; 
+: seek-memid 
+m-memid ! ; 
+: seek-memaddr 
+m-addr ! ; 
+: step-mem 
+m-addr +! ; 
+: mem-pos 
+m-addr @ m-memid @ ; 
+: mem-peek 
+m-addr-in-buffer c@ ; 
+: >mem 
+m-addr-in-buffer c! 
+m-dirty m-state ! 
+1 step-mem ; 
+: close-mem 
+m-flush 
+m-empty m-state ! ; 
+hex 
+: copy 
+get-mem >r 
+open-mem 
+>r seek-memid seek-memaddr 
+set-mem 
+r> 0 do 
+dup far c@ near >mem 
+1+ 
+loop drop 
+close-mem 
+r> set-mem ; 
+hex 
+module> time 
+2variable future-time 
+2variable curr-time 
+variable delta-time 
+public: 
+: set-time 
+disable future-time 2! enable ; 
+: sync-time 
+future-time 2@ 2dup curr-time 2! 
+0 delta-time ! 
+1 0 d+ future-time 2! ; 
+: get-time 
+disable curr-time 2@ enable ; 
+: step-delta 
+1 delta-time +! ; 
+: get-time+delta 
+delta-time disable @ curr-time 2@ enable ; 
+private: 
+endmodule> 
+decimal 
+module> host 
+variable epu-id 
+8 epu-id ! 
+public: 
+: #instr-id 
+epu-id @ ; 
+0 constant #instance-id 
+private: 
+variable 1hz-sem 
+variable dt-sem 
+public: 
+: sync-1hz 
+0 1hz-sem ! 
+1hz-sem wait 
+0 dt-sem ! ; 
+: sync-dead-time 
+dt-sem wait ; 
+: single-step 
+dt-sem signal sync-time 1hz-sem signal ; 
+: trace-itf 
+hex 0 do 
+cr ." 1PPS 80" 
+single-step 
+loop ; 
+private: 
+create rcv-buffer 300 allot 
+here constant rcv-buffer-end 
+variable rcv-scan-get 
+variable rcv-scan-put 
+variable rcv-count 
+variable rcv-event 
+: rcv-empty? 
+rcv-count @ 0= ; 
+: rcv-byte 
+disable 
+rcv-scan-get @ dup c@ swap 
+1+ dup rcv-buffer-end = if drop rcv-buffer then 
+rcv-scan-get ! 
+-1 rcv-count +! 
+enable ; 
+: rcv-wait 
+rcv-event wait ; 
+do: timeout-event 
+rcv-event signal ;do 
+: init-host-input 
+rcv-buffer rcv-scan-put ! rcv-buffer rcv-scan-get ! 
+timeout-event every 1 seconds doit ; 
+: xmit-prep 
+; 
+: xmit-data 
+get-mem >r swap set-mem 
+begin ?dup while 
+dup 32 umin swap over - >r 
+cr 0 do dup farc@ 2 u.lz 1+ loop 
+r> repeat drop 
+r> set-mem ; 
+: xmit-start 
+; 
+: rcv-put 
+disable 
+rcv-scan-put @ dup 1+ dup rcv-buffer-end = if drop rcv-buffer then 
+rcv-scan-put ! 
+c! 
+1 rcv-count +! 
+enable 
+rcv-event signal ; 
+: p 
+rcv-put ; 
+: xor-block 
+0 -rot over + swap do i c@ xor loop ; 
+: put-message 
+h# fe p h# fa p h# 30 p p 
+2dup xor-block 
+over 8 rshift xor over h# ff and xor p 
+dup 8 rshift p dup h# ff and p 
+?dup if 0 do dup c@ p 1+ loop then 
+drop ; 
+: cmd-len 
+cell+ @ h# 3fff and ; 
+: checksum-cmd 
+>r 0 0 
+r@ cmd-len 1- 2* cells 
+r@ + r@ do i @ xor swap cell +loop 
+r@ cmd-len 1- 2* cells 
+r> + 2! ; 
+: send-instr-cmd 
+over c! 
+dup checksum-cmd 
+dup cmd-len 2* cells h# 02 put-message ; 
+public: 
+: send-cmd 
+#instr-id send-instr-cmd ; 
+private: 
+create time-msg-buf 4 allot 
+public: 
+: send-time 
+time-msg-buf 2! time-msg-buf 4 h# 01 put-message ; 
+private: 
+: reinit-host-io 
+; 
+: init-host-io 
+init-host-input 
+; 
+endmodule> 
+hex 
+module> ccsds 
+public: 
+structure ccsds-primary 
+private: 
+cell: .ccsds-format 
+0800 constant #ccsds-pkt-ver 
+1000 constant #ccsds-cmd-ver 
+cell: .ccsds-sequence 
+cell: .ccsds-length 
+endstructure 
+public: 
+structure ccsds-secondary 
+private: 
+2 cells: .ccsds-time 
+endstructure 
+public: 
+structure pkt-head-struct 
+private: 
+ccsds-primary struct: .pkt-primary 
+ccsds-secondary struct: .pkt-2ndary 
+endstructure 
+create packet-counters 
+#n-data-id cells allot 
+: reset-packet-counters 
+packet-counters #n-data-id cells 0 fill ; 
+: next-packet-count 
+cells packet-counters + dup @ dup >r 
+1+ 3fff and swap ! r> ; 
+public: 
+: prep-pkt-hdr 
+>r #ccsds-pkt-ver or 
+#instr-id 2* 
+#instance-id or 5 lshift or 
+r> .ccsds-format ! ; 
+: init-pkt-hdr 
+>r next-packet-count or 
+r@ .ccsds-sequence ! 
+ccsds-secondary + 1- 
+r> .ccsds-length ! ; 
+: tag-pkt-hdr 
+ccsds-primary + .ccsds-time 2! ; 
+: ccsds-pkt-len 
+.ccsds-length far@ 1+ ; 
+: ccsds-telecmd? 
+.ccsds-format far@ ffc0 and 
+#ccsds-cmd-ver #instr-id 6 lshift or = ; 
+: ccsds-telemetry? 
+.ccsds-format far@ ffc0 and 
+swap 6 lshift #ccsds-pkt-ver or = ; 
+private: 
+public: 
+: init-ccsds 
+reset-packet-counters ; 
+private: 
+endmodule> 
+hex 
+host extendmodule> 
+fe constant #sync1-msg 
+fa constant #sync2-msg 
+30 constant #sync3-msg 
+public: 
+01 constant #tim-msg 
+02 constant #cmd-msg 
+04 constant #tlm-msg 
+private: 
+structure state-struct 
+char: .state-flags 
+5 chars: .state-cri-common 
+4 chars: .state-cri-instr 
+endstructure 
+state-struct makestruct state-vector 
+state-vector state-struct 0 fill 
+#boot/app 6 lshift 
+state-vector .state-flags c! 
+: beat-heart 
+disable 
+state-vector .state-flags c@ 80 xor state-vector .state-flags c! 
+enable ; 
+public: 
+: req-power-off 
+disable 
+state-vector .state-flags c@ 20 or state-vector .state-flags c! 
+enable ; 
+: send-crit-com 
+state-vector .state-cri-common 
+dup >r 4 + c! 
+r@ 3 + c! 
+r@ 2 + c! 
+r@ 1+ c! 
+r> c! ; 
+: send-crit-inst 
+state-vector .state-cri-instr 4 move ; 
+private: 
+variable msg-checksum 
+variable 'mac-rdy 
+variable 'mac-run 
+: get-msg-byte 
+begin 
+rcv-empty? while 
+'mac-rdy @ execute if 
+'mac-run @ execute 
+else 
+rcv-wait 
+then 
+repeat 
+rcv-byte ; 
+: get-sync-header 
+begin 
+begin 
+begin 
+get-msg-byte #sync1-msg = 
+until 
+get-msg-byte #sync2-msg = 
+until 
+get-msg-byte #sync3-msg = 
+until ; 
+: get-check-byte 
+get-msg-byte msg-checksum ! ; 
+: get-next-byte 
+get-msg-byte dup msg-checksum @ xor msg-checksum ! ; 
+: check-msg-sum 
+msg-checksum @ 0= ; 
+: get-msg-body 
+get-check-byte 
+get-next-byte get-next-byte 
+swap join umin 
+?dup if 0 do 
+get-next-byte over c! 1+ 
+loop then drop 
+check-msg-sum ; 
+public: 
+: get-message 
+get-sync-header 
+get-msg-byte -rot 
+get-msg-body ; 
+: macro-callbacks 
+'mac-run ! 'mac-rdy ! ; 
+private: 
+public: 
+d# 1231 constant #n-out-frame 
+private: 
+structure frame-struct 
+cell: .next 
+cell: .frm-length 
+cell: .frm-offset 
+fffe constant #no-data 
+ffff constant #no-first 
+#n-out-frame 
+chars: .frm-data 
+aligned 
+endstructure 
+cell tlm-mem# far-allot drop 
+#max-tlm-addr tlm-mem# far-here - 
+h# ffff and ( for 32-bit cross environment ) 
+frame-struct u/ constant #frames 
+#frames frame-struct * 
+tlm-mem# far-allot constant telemetry-frames 
+farq-struct makestruct free-frame-q 
+farq-struct makestruct down-frame-q 
+farq-struct makestruct allo-frame-q 
+variable alloc-count 
+public: 
+: reserve-frames 
+get-mem swap tlm-mem# set-mem 
+alloc-count @ begin 
+2dup u> while 
+free-frame-q farq-get ?dup while 
+allo-frame-q farq-put 
+1+ 
+repeat false else true then 
+swap alloc-count ! nip 
+swap set-mem ; 
+: send-frame 
+get-mem >r tlm-mem# set-mem 
+allo-frame-q farq-get ?dup if 
+>r -1 alloc-count +! 
+?dup if 
+2pick - 
+else 
+#no-first 
+then 
+r@ .frm-offset far! 
+dup r@ .frm-length far! 
+r@ .frm-data swap bytes-out 
+r> down-frame-q farq-put 
+else 
+drop drop drop 
+then 
+r> set-mem ; 
+private: 
+structure frame-head-struct 
+3 chars: .frm-head-sync 
+char: .frm-head-type 
+char: .frm-head-sum 
+2 chars: .frm-head-length 
+state-struct 
+chars: .frm-head-state 
+2 chars: .frm-head-offset 
+endstructure 
+frame-head-struct makestruct frame-header 
+variable curr-frame 
+variable pend-frame 
+: xor-sum 
+over + swap do i c@ xor loop ; 
+: init-frame-header 
+#sync1-msg frame-header .frm-head-sync c! 
+#sync2-msg frame-header .frm-head-sync 1+ c! 
+#sync3-msg frame-header .frm-head-sync 2 + c! 
+#tlm-msg frame-header .frm-head-type c! 
+state-struct + cell + 
+frame-header .frm-head-length una! 
+state-vector frame-header .frm-head-state 
+state-struct move 
+frame-header .frm-head-offset una! 
+frame-header .frm-head-length cell state-struct + cell + xor-sum 
+frame-header .frm-head-sum c! ; 
+: prep-downlink 
+get-mem tlm-mem# set-mem 
+pend-frame @ ?dup if 
+>r 0 r@ .frm-data 
+r@ .frm-length far @ xor-sum 
+r@ .frm-offset @ 
+r> .frm-length @ near 
+else 
+0 #no-data 0 
+then 
+init-frame-header 
+set-mem ; 
+public: 
+: more-downlink? 
+get-mem tlm-mem# set-mem 
+down-frame-q farq-get ?dup if 
+pend-frame ! 
+false 
+else 
+true 
+then 
+swap set-mem ; 
+: proc-dead-time 
+beat-heart 
+reinit-host-io 
+refresh-regs 
+prep-downlink ; 
+: start-downlink 
+get-mem tlm-mem# set-mem 
+curr-frame @ ?dup if 
+free-frame-q farq-put 
+then 
+pend-frame @ dup curr-frame ! 
+0 pend-frame ! 
+xmit-prep 
+frame-header get-code 
+frame-head-struct xmit-data 
+?dup if 
+dup .frm-data tlm-mem# 
+rot .frm-length far@ xmit-data 
+then 
+set-mem 
+xmit-start ; 
+private: 
+: init-frames 
+get-mem tlm-mem# set-mem 
+free-frame-q farq-empty 
+down-frame-q farq-empty 
+allo-frame-q farq-empty 
+telemetry-frames #frames 0 do 
+dup free-frame-q farq-put 
+frame-struct + 
+loop drop 
+set-mem ; 
+2variable range&angle-data 
+public: 
+: set-range&angle 
+range&angle-data disable 2! enable ; 
+: range&angle 
+range&angle-data disable 2@ enable ; 
+private: 
+public: 
+: init-host 
+init-host-io 
+init-frames 
+prep-downlink ; 
+private: 
+endmodule> 
+hex 
+module> i2c 
+create i2c-vectors 
+#i2c-slots cells allot 
+variable i2c-free 
+i2c-vectors i2c-free ! 
+variable i2c-slot 
+i2c-int# int: 
+i2c-slot @ 1+ dup #i2c-slots = 
+if drop 0 then dup i2c-slot ! 
+cells i2c-vectors + @ execute ;int 
+public: 
+: i2c-active 
+i2c-free @ dup cell+ i2c-free ! 
+! ; 
+private: 
+public: 
+: i2c!s 
+swap i2c-data! i2c-cntl! ; 
+: i2c@s 
+1+ i2c-cntl! ; 
+: i2c@r 
+i2c-data@ || ; inline 
+private: 
+public: 
+: init-i2c 
+i2c-vectors #i2c-slots 0 do 
+['] nop over ! cell+ 
+loop drop 
+#i2c-clocks 1- i2c-timer! 
+i2c-int# get-mask unmask-int ; 
+private: 
+endmodule> 
+decimal 
+module> i2c-user 
+variable i2c-v-device 
+variable i2c-v-value16 
+variable i2c-v-cmd 
+0 constant #i2c-nop 
+1 constant #i2c-read 
+2 constant #i2c-write 
+#i2c-nop i2c-v-cmd ! 
+variable i2c-pending 
+variable i2c-done 
+: i2c-start-trans 
+#i2c-nop i2c-v-cmd ! 
+true i2c-pending ! ; 
+: i2c-trans 
+i2c-v-cmd @ #i2c-write = if 
+i2c-v-value16 @ i2c-v-device @ i2c!s 
+i2c-start-trans 
+else i2c-v-cmd @ #i2c-read = if 
+i2c-v-device @ i2c@s 
+i2c-start-trans 
+then then ; 
+variable i2c-errors 
+: i2c-complete 
+i2c-pending @ if 
+i2c-status@ if 1 i2c-errors +! then 
+false i2c-pending ! 
+i2c-done signal 
+then ; 
+public: 
+: i2c@ 
+i2c-v-device ! 
+#i2c-read i2c-v-cmd ! 
+i2c-done wait 
+i2c@r ; 
+: i2c! 
+i2c-v-device ! i2c-v-value16 ! 
+#i2c-write i2c-v-cmd ! 
+i2c-done wait ; 
+private: 
+public: 
+: init-i2c-user 
+['] i2c-trans i2c-active 
+['] i2c-complete i2c-active ; 
+private: 
+endmodule> 
+decimal 
+i2c-user extendmodule> 
+public: 
+: i2c!24 
+swap 8<< or i2c! ; 
+private: 
+endmodule> 
+hex 
+module> power 
+private: 
+: set-read-src 
+( 0000 or ) swap i2c! ; 
+public: 
+: select-a/d 
+0 set-read-src ; 
+: read-analog 
+swap 0100 or over i2c! 
+0200 over i2c! 
+i2c@ ; 
+: read-sel-analogs 
+>r >r 
+dup select-a/d 
+swap r> r> do 
+i 2pick read-analog over ! cell+ 
+loop nip ; 
+: read-device-analogs 
+0 read-sel-analogs ; 
+: set-power 
+swap 0300 or swap i2c! ; 
+endmodule> 
+hex 
+module> commands 
+structure command-struct 
+cell: .cmd-opcode 
+#max-args 
+chars: .cmd-args 
+cell: .cmd-nargs 
+endstructure 
+command-struct makestruct command-buffer 
+variable command-result 
+variable in-macro 
+: set-opcode 
+command-buffer .cmd-opcode ! ; 
+: load-args 
+>r command-buffer .cmd-args r@ move 
+r> command-buffer .cmd-nargs ! ; 
+: set-cmd-length 
+cell- command-buffer .cmd-nargs ! ; 
+: get-command 
+command-buffer dup .cmd-nargs @ cell+ ; 
+: n-args 
+command-buffer .cmd-nargs @ ; 
+public: 
+: opcode 
+command-buffer .cmd-opcode @ ; 
+: args 
+command-buffer .cmd-args n-args ; 
+: arg0 command-buffer .cmd-args c@ ; 
+: arg1 command-buffer .cmd-args 1+ c@ ; 
+: arg2 command-buffer .cmd-args 2 + c@ ; 
+: arg3 command-buffer .cmd-args 3 + c@ ; 
+: arg4 command-buffer .cmd-args 4 + c@ ; 
+: arg5 command-buffer .cmd-args 5 + c@ ; 
+: arg6 command-buffer .cmd-args 6 + c@ ; 
+: arg7 command-buffer .cmd-args 7 + c@ ; 
+: th-arg 
+command-buffer .cmd-args + c@ ; 
+private: 
+public: 
+: cmd-error 
+command-result ! ; 
+private: 
+structure hash-command-struct 
+cell: .next 
+cell: .opcode 
+cell: .nargs 
+cell: .vector 
+endstructure 
+variable hash-access 
+create hash-table 10 cells allot 
+: hash-opcode 
+f and cells hash-table + ; 
+: check-cmd 
+dup .nargs @ n-args > 
+if drop 0 then ; 
+: lookup-cmd 
+opcode dup hash-opcode 
+begin @ dup while 
+2dup .opcode @ = 
+until 
+nip check-cmd 
+else 
+nip 
+then ; 
+: trim-args 
+.nargs @ dup -1 <> if 
+command-buffer .cmd-nargs ! 
+else 
+drop 
+then ; 
+: exec-cmd 
+#ok-cmd cmd-error 
+.vector @ execute 
+command-result @ ; 
+: rt-cmd 
+false in-macro ! exec-cmd ; 
+: macro-cmd 
+true in-macro ! exec-cmd ; 
+: init-cmd-table 
+1 hash-access ! 
+hash-table 10 cells erase ; 
+public: 
+: in-macro? 
+in-macro @ ; 
+: register-cmd/args 
+hash-command-struct here-allot 
+dup >r .nargs ! 
+r@ .opcode ! r@ .vector ! 
+r@ .opcode @ hash-opcode 
+hash-access wait 
+dup @ r@ .next ! 
+r> swap ! 
+hash-access signal ; 
+: register-cmd 
+-1 register-cmd/args ; 
+private: 
+endmodule> 
+hex 
+module> packet 
+variable tlm-sem 
+1 tlm-sem ! 
+: get-tlm 
+tlm-sem wait ; 
+: release-tlm 
+tlm-sem signal ; 
+variable frac-volume 
+public: 
+: clear-tlm-volume 
+get-tlm 
+0 frac-volume ! 0 tlm-volume set 
+release-tlm ; 
+private: 
+: cnt-tlm-volume 
+40 um* 
+frac-volume @ tlm-volume get d+ tlm-volume set frac-volume ! ; 
+structure pkt-struct 
+pkt-head-struct 
+struct: .pkt-header 
+cell: .pkt-id 
+cell: .pkt-group 
+2 cells: .pkt-src 
+cell: .pkt-len 
+2 cells: .pkt-src2 
+cell: .pkt-len2 
+endstructure 
+public: 
+pkt-struct 
+constant pkt-desc-size 
+: time-tag-pkt 
+.pkt-header tag-pkt-hdr ; 
+: tag-pkt 
+>r get-time r> time-tag-pkt ; 
+: pkt-id! 
+2dup .pkt-id ! 
+.pkt-header prep-pkt-hdr ; 
+: pkt-group! 
+.pkt-group ! ; 
+1 d# 14 lshift constant #first-pkt 
+0 d# 14 lshift constant #cont-pkt 
+2 d# 14 lshift constant #last-pkt 
+3 d# 14 lshift constant #none-pkt 
+: pkt-src! 
+dup >r .pkt-len ! 
+r> .pkt-src 2! ; 
+: pkt-src-more! 
+dup >r .pkt-len2 ! 
+r> .pkt-src2 2! ; 
+: init-pkt 
+dup >r pkt-id! 
+r@ pkt-src! 
+0 0 0 r@ pkt-src-more! 
+#none-pkt r> pkt-group! ; 
+private: 
+0 constant #nopkt 
+#n-out-frame makestruct frame-buffer 
+variable frame-fhp 
+variable frame-scan 
+variable frame-free 
+: empty-frame 
+frame-buffer frame-scan ! 
+#n-out-frame frame-free ! 
+#nopkt frame-fhp ! ; 
+: first-pkt 
+frame-fhp @ #nopkt = if 
+frame-scan @ frame-fhp ! 
+then ; 
+: send-frame-buf 
+frame-buffer frame-scan @ over - frame-fhp @ send-frame 
+empty-frame ; 
+: fill-pkt 
+get-mem >r swap set-mem 
+begin dup while 
+dup frame-free @ umin >r 
+over frame-scan @ r@ bytes-in 
+swap r@ + swap r@ - 
+r@ frame-scan +! 
+r> negate frame-free +! 
+frame-free @ 0= if 
+send-frame-buf 
+then 
+repeat drop drop 
+r> set-mem ; 
+: build-pkt-hdr 
+dup >r .pkt-len @ r@ .pkt-len2 @ + 
+r@ .pkt-group @ 
+r@ .pkt-id @ 
+r> .pkt-header init-pkt-hdr ; 
+: start-pkt 
+first-pkt 
+build-pkt-hdr 
+cnt-tlm-volume ; 
+: process-pkt 
+dup .pkt-len @ 
+over .pkt-len2 @ + 
+pkt-head-struct + 
+dup #n-out-frame u/^ 1+ 
+reserve-frames if 
+over start-pkt 
+dup >r 
+.pkt-header get-code pkt-head-struct fill-pkt 
+r@ .pkt-src 2@ r@ .pkt-len @ fill-pkt 
+r@ .pkt-src2 2@ r> .pkt-len2 @ fill-pkt 
+true 
+else 
+drop drop false 
+then ; 
+public: 
+: send-pkt 
+get-tlm 
+process-pkt 
+release-tlm ; 
+private: 
+: flush-frame 
+get-tlm 
+frame-free @ #n-out-frame <> if 
+send-frame-buf 
+then 
+release-tlm ; 
+public: 
+: try-partial-frame 
+flush-frame ; 
+private: 
+public: 
+: init-packet 
+empty-frame ; 
+private: 
+endmodule> 
+decimal 
+module> dump-time 
+variable dump-count 
+variable dump-int 
+1 dump-int ! 
+do: pace-dump 
+dump-count @ 1+ dup dump-int @ u>= if drop 0 then dump-count ! ;do 
+public: 
+: dump-ok? 
+dump-count @ dump-int @ 1- u>= ; 
+private: 
+: c-mem-read-int 
+arg1 arg0 join dump-int ! ; 
+public: 
+: init-dump-time 
+pace-dump every 1 seconds doit 
+['] c-mem-read-int #mem-read-int 2 register-cmd/args 
+; 
+endmodule> 
+decimal 
+module> dumper 
+structure dump-hdr-struct 
+2 cells: .dump-src 
+cell: .dump-len 
+1 cells reserved 
+endstructure 
+dump-hdr-struct makestruct dump-header 
+dump-header dump-hdr-struct erase 
+pkt-desc-size makestruct dump-pkt 
+2variable dump-src 
+variable dump-len 
+variable dump-sem 
+1 dump-sem ! 
+: gather-dump 
+dump-src 2@ 2dup dump-header .dump-src 2! 
+dump-len @ #dump-words umin 
+2* cells dup dump-header .dump-len ! ; 
+: update-dump 
+dump-header .dump-len @ 
+dump-len @ over 2/ cell/ - dump-len ! 
+dump-src cell+ +! ; 
+: send-dump 
+gather-dump dump-pkt pkt-src-more! 
+dump-pkt tag-pkt 
+dump-pkt send-pkt 
+if update-dump then ; 
+public: 
+: start-dump 
+dump-sem wait 
+cell 2* u/^ dump-len ! dump-src 2! 
+dump-sem signal ; 
+: abort-dump 
+dump-sem wait 
+0 dump-len ! 
+dump-sem signal ; 
+private: 
+public: 
+: try-dump-pkt 
+dump-sem wait 
+dump-len @ if 
+dump-ok? if 
+send-dump 
+then 
+then 
+dump-sem signal ; 
+private: 
+public: 
+: init-dump 
+dump-header get-code dump-hdr-struct 
+#dump-pkt dump-pkt init-pkt 
+; 
+endmodule> 
+decimal 
+module> alarm 
+structure alarm-struct 
+char: .alarm-id 
+char: .alarm-flag 
+char: .alarm-value 
+char: .alarm-limit 
+endstructure 
+alarm-struct makestruct alarm-buffer 
+pkt-desc-size makestruct alarm-pkt 
+variable alarm-access 
+1 alarm-access ! 
+: record-alarm 
+alarm-type set alarm-id set 
+alarm-count get 1+ alarm-count set ; 
+: gen-alarm 
+alarm-access wait 
+2dup record-alarm 
+alarm-buffer .alarm-flag c! 
+alarm-buffer .alarm-id c! 
+alarm-buffer .alarm-limit c! 
+alarm-buffer .alarm-value c! 
+alarm-pkt tag-pkt 
+alarm-pkt send-pkt drop 
+alarm-access signal ; 
+public: 
+: trans-alarm 
+1 gen-alarm ; 
+: persist-alarm 
+0 gen-alarm ; 
+: sw-alarm 
+0 swap trans-alarm ; 
+private: 
+public: 
+: init-alarm 
+alarm-buffer get-code alarm-struct 
+#alarm-pkt alarm-pkt init-pkt ; 
+private: 
+endmodule> 
+hex 
+: crc 
+xor 10 for dup 0< if 2* #crc-poly xor else 2* then next ; 
+: checksum 
+get-mem >r swap set-mem 
+#crc-seed -rot far for @+ >r crc r> next drop 
+r> set-mem ; 
+decimal 
+module> memory 
+: first-address 
+arg3 arg2 join arg1 arg0 join ; 
+structure checksum-pkt-struct 
+2 cells: .sum-src 
+cell: .sum-len 
+cell: .sum-checksum 
+endstructure 
+checksum-pkt-struct makestruct checksum-buffer 
+pkt-desc-size makestruct checksum-pkt 
+: c-mem-check 
+first-address arg5 arg4 join 
+>r 2dup checksum-buffer .sum-src 2! 
+r@ checksum-buffer .sum-len ! 
+r> checksum checksum-buffer .sum-checksum ! 
+checksum-pkt tag-pkt 
+checksum-pkt send-pkt drop ; 
+: c-mem-copy 
+mem-write-enb get if 
+first-address 
+arg7 arg6 join arg5 arg4 join 
+9 th-arg 8 th-arg join copy 
+else 
+#mem-write-cmd cmd-error 
+then ; 
+: load-mem 
+get-mem >r swap set-mem 
+bytes-out 
+r> set-mem ; 
+: c-mem-load 
+mem-write-enb get if 
+args drop 8 + first-address 
+arg5 arg4 join load-mem 
+else 
+#mem-write-cmd cmd-error 
+then ; 
+: c-mem-read 
+first-address arg7 arg6 join start-dump ; 
+: c-mem-read-abrt 
+abort-dump ; 
+: c-mem-run 
+disable 
+first-address cpr! execute 
+enable ; 
+structure struct-load-struct 
+2 cells: .str-src 
+cell: .str-len 
+cell: .str-id 
+endstructure 
+struct-load-struct #struct * makestruct data-structures 
+pkt-desc-size makestruct structure-pkt 
+: c-mem-str-load 
+arg0 #struct u< if 
+arg0 struct-load-struct * 
+data-structures + >r 
+arg3 arg2 join 
+dup r@ .str-len @ u< 
+over arg1 + r@ .str-len @ u<= and if 
+args drop 4 + 
+swap 0 r> .str-src 2@ d+ arg1 load-mem 
+else 
+rdrop drop #badarg-cmd cmd-error 
+then 
+else 
+#badarg-cmd cmd-error 
+then ; 
+: c-mem-str-read 
+arg0 #struct u< if 
+arg0 struct-load-struct * 
+data-structures + 
+dup >r .str-src 2@ 
+r@ .str-len @ 
+r> .str-id @ structure-pkt init-pkt 
+structure-pkt tag-pkt 
+structure-pkt send-pkt drop 
+else 
+#badarg-cmd cmd-error 
+then ; 
+public: 
+: register-struct 
+struct-load-struct * data-structures + >r 
+r@ .str-id ! 
+r@ .str-len ! 
+r> .str-src 2! ; 
+private: 
+: c-mem-write 
+arg0 mem-write-enb set ; 
+public: 
+: init-memory 
+checksum-buffer get-code checksum-pkt-struct 
+#checksum-pkt checksum-pkt init-pkt 
+['] c-mem-check #mem-check 6 register-cmd/args 
+['] c-mem-copy #mem-copy 10 register-cmd/args 
+['] c-mem-load #mem-load register-cmd 
+['] c-mem-read #mem-read 8 register-cmd/args 
+['] c-mem-read-abrt #mem-read-abrt 0 register-cmd/args 
+['] c-mem-run #mem-run 4 register-cmd/args 
+['] c-mem-str-load #mem-str-load register-cmd 
+['] c-mem-str-read #mem-str-read 1 register-cmd/args 
+['] c-mem-write #mem-write 1 register-cmd/args 
+; 
+private: 
+endmodule> 
+hex 
+: m: 
+; 
+: ;m 
+0 c, 
+1+ ; 
+: w, 
+split c, c, ; 
+: c: 
+here 0 c, 
+swap w, ; 
+: ;c 
+here over - 1- swap c! ; 
+decimal 
+module> mac 
+256 constant #macros 
+32 constant #block-size 
+16 constant #nest-macros 
+64 constant #macro-contexts 
+structure m-block-struct 
+cell: .next 
+#block-size 
+chars: .m-data 
+endstructure 
+structure m-context-struct 
+char: .m-id 
+char: .m-state 
+0 constant m-state=unused 
+1 constant m-state=run 
+2 constant m-state=sleep 
+cell: .m-echo 
+2 cells: .m-pc 
+2 cells: .m-time 
+cell: .m-sp 
+#nest-macros 2* 
+cells: .m-stack 
+endstructure 
+create macros #macros cells allot 
+: install-macro 
+cells macros + dup @ >r ! r> ; 
+: macro-id-ok? 
+#macros u< ; 
+: macro-ok? 
+dup macro-id-ok? if 
+cells macros + @ 0= not 
+else drop false 
+then ; 
+: macro-code 
+cells macros + @ 0 ; 
+: init-macro-obj 
+macros #macros cells erase ; 
+cell macro-mem# far-allot drop 
+#macro-contexts m-context-struct * 
+macro-mem# far-allot constant macro-contexts 
+#max-macro-addr macro-mem# far-here - 
+h# ffff and ( for 32-bit cross environment ) 
+m-block-struct u/ constant #macro-blocks 
+#macro-blocks m-block-struct * 
+macro-mem# far-allot constant macro-blocks 
+variable macro-running 
+m-context-struct makestruct run-context 
+: macro-step 
+1+ dup #block-size = if drop .next far@ 0 then ; 
+: m!+ 
+2pick .m-data 2pick + farc! 
+macro-step ; 
+: m@+ 
+over .m-data over + farc@ >r 
+macro-step r> ; 
+variable context-access 
+1 context-access ! 
+: flush-context 
+run-context macro-running @ m-context-struct cell/ words-out 
+0 macro-running ! ; 
+: load-context 
+dup run-context m-context-struct cell/ words-in 
+macro-running ! 
+run-context .m-id c@ macro-id set ; 
+: init-context 
+>r 0 r@ .m-sp far! 
+dup r@ .m-id farc! 
+true r@ .m-echo far! 
+macro-code r@ .m-pc far2! 
+m-state=run r> .m-state farc! ; 
+: kill-context 
+m-state=unused swap .m-state farc! ; 
+: get-context 
+context-access wait 
+0 macro-contexts 
+#macro-contexts 0 do 
+dup .m-state farc@ m-state=unused = 
+if 
+nip 2dup init-context 0 leave 
+then 
+m-context-struct + 
+loop 
+context-access signal 
+drop nip ; 
+: match-context 
+0 macro-contexts 
+#macro-contexts 0 do 
+2pick over .m-id farc@ = 
+over .m-state farc@ m-state=unused <> 
+and if nip 0 leave then 
+m-context-struct + 
+loop 
+drop nip ; 
+: check-contexts 
+get-time macro-contexts 
+#macro-contexts 0 do 
+dup .m-state farc@ m-state=sleep = 
+if 
+2pick 2pick 2pick .m-time far2@ 
+du< not if m-state=run over .m-state farc! then 
+then 
+m-context-struct + 
+loop drop 2drop ; 
+: runnable-context 
+0 macro-contexts 
+#macro-contexts 0 do 
+dup .m-state farc@ m-state=run = 
+if nip 0 leave then 
+m-context-struct + 
+loop drop ; 
+: fork-macro 
+get-mem >r macro-mem# set-mem 
+swap get-context ?dup if 
+.m-echo far! false 
+else 
+drop true 
+then 
+r> set-mem ; 
+: halt-macro 
+get-mem >r macro-mem# set-mem 
+macro-running @ if flush-context then 
+match-context ?dup if 
+kill-context false 
+else 
+true 
+then 
+r> set-mem ; 
+: delay-macro 
+get-mem >r macro-mem# set-mem 
+run-context .m-time 2! 
+m-state=sleep run-context .m-state c! 
+flush-context 
+r> set-mem ; 
+: nest-macro 
+run-context .m-pc 2@ 
+run-context .m-sp @ dup 2 + run-context .m-sp ! 
+cells run-context .m-stack + 2! 
+macro-code run-context .m-pc 2! ; 
+: end-macro 
+run-context .m-sp @ ?dup if 
+2 - dup run-context .m-sp ! 
+cells run-context .m-stack + 2@ run-context .m-pc 2! 
+else 
+get-mem macro-mem# set-mem 
+m-state=unused run-context .m-state c! 
+flush-context 
+set-mem 
+then ; 
+: loop-macro 
+run-context .m-pc 2@ 
+run-context .m-sp @ dup 3 + run-context .m-sp ! 
+cells run-context .m-stack + dup >r 
+2! r> 2 cells + ! ; 
+: unloop-macro 
+run-context .m-sp @ 
+cells run-context .m-stack + 
+dup cell- @ 1- ?dup if 
+over cell- ! 
+3 cells - 2@ run-context .m-pc 2! 
+else 
+drop -3 run-context .m-sp +! 
+then ; 
+: run-prog-macro 
+>r dup macro-ok? if 
+dup r@ fork-macro if 
+dup #no-contexts-alm sw-alarm 
+then 
+then 
+rdrop drop ; 
+: run-cmd-macro 
+>r dup macro-ok? if 
+dup r@ fork-macro if 
+#macro-run-cmd cmd-error 
+then 
+else 
+#badarg-cmd cmd-error 
+then 
+rdrop drop ; 
+public: 
+: macro-ready? 
+get-mem macro-mem# set-mem 
+macro-running @ 0= if 
+check-contexts 
+runnable-context ?dup if 
+load-context 
+true 
+else false 
+then 
+else true 
+then 
+swap set-mem ; 
+: macro-load 
+get-mem >r macro-mem# set-mem 
+run-context .m-pc 2@ m@+ >r 
+rot dup r@ + swap do 
+m@+ i c! 
+loop run-context .m-pc 2! 
+r> r> set-mem ; 
+: macro-echo? 
+run-context .m-echo @ ; 
+: run-macro 
+true run-prog-macro ; 
+: run-macro-silent 
+false run-prog-macro ; 
+private: 
+: init-macro-run 
+get-mem macro-mem# set-mem 
+macro-contexts #macro-contexts 0 do 
+dup kill-context 
+m-context-struct + 
+loop drop 
+0 macro-running ! 
+set-mem ; 
+farq-struct makestruct comp-macro 
+variable comp-id 
+2variable comp-pc 
+farq-struct makestruct mac-free-list 
+: count-blocks 
+mac-free-blocks get + mac-free-blocks set ; 
+: alloc-block 
+mac-free-list farq-get 
+dup if 
+-1 count-blocks 
+dup .m-data #block-size far erase 
+then ; 
+: free-block 
+mac-free-list farq-put 
+1 count-blocks ; 
+: release-mac-blocks 
+dup 1 begin 
+swap dup far@ ?dup while 
+nip swap 1+ 
+repeat swap 
+count-blocks 
+mac-free-list farq-append ; 
+: alloc-blocks 
+0 do 
+alloc-block ?dup if 
+comp-macro farq-put 
+else 
+unloop false exit 
+then 
+loop true ; 
+: alloc-macro? 
+comp-pc 2@ swap 0= if 
+drop alloc-block ?dup if 
+dup comp-macro farq-put 
+0 comp-pc 2! 
+else 
+drop false exit 
+then 0 
+then 
+#block-size swap - 
+2dup u> if 
+- #block-size u/^ alloc-blocks 
+else 
+2drop true 
+then ; 
+: save-macro 
+comp-pc 2@ 2pick m!+ 
+2swap over + swap do 
+i c@ m!+ 
+loop comp-pc 2! ; 
+: start-macro-comp 
+get-mem >r macro-mem# set-mem 
+macro-learn get 0= if 
+0 0 comp-pc 2! 
+comp-id ! 
+true macro-learn set 
+false 
+else drop true 
+then 
+r> set-mem ; 
+public: 
+: append-cmd 
+get-mem >r macro-mem# set-mem 
+dup 256 u< if 
+macro-learn get if 
+dup 1+ alloc-macro? if 
+save-macro 
+true 
+else 2drop false 
+then 
+else 2drop false 
+then 
+else 2drop false 
+then 
+r> set-mem ; 
+private: 
+create end-macro-cmd 
+#mac-end c: ( no args ) ;c 
+: end-macro-comp 
+end-macro-cmd count append-cmd >r 
+get-mem macro-mem# set-mem 
+comp-macro farq-peek 
+r> if 
+comp-id @ install-macro 
+false 
+else 
+true 
+then 
+swap ?dup if release-mac-blocks then 
+comp-macro farq-empty 
+swap set-mem 
+false macro-learn set ; 
+: install-builtin 
+start-macro-comp drop 
+begin 
+count ?dup while 
+2dup + >r append-cmd drop r> 
+repeat 
+end-macro-comp drop ; 
+public: 
+: install-macros 
+over + swap do 
+i install-builtin 
+loop drop ; 
+private: 
+: init-macro-comp 
+get-mem macro-mem# set-mem 
+mac-free-list farq-empty 
+macro-blocks #macro-blocks 0 do 
+dup free-block 
+m-block-struct + 
+loop drop 
+comp-macro farq-empty 
+set-mem ; 
+: c-mac-def 
+arg0 macro-id-ok? if 
+arg0 start-macro-comp 
+if #macro-comp-cmd cmd-error then 
+else 
+#badarg-cmd cmd-error 
+then ; 
+: c-mac-delay 
+in-macro? if 
+arg1 arg0 join seconds-d get-time d+ 
+delay-macro 
+else 
+#need-macro-cmd cmd-error 
+then ; 
+: c-mac-pause 
+in-macro? if 
+arg3 arg2 join arg1 arg0 join 
+delay-macro 
+else 
+#need-macro-cmd cmd-error 
+then ; 
+: c-mac-end 
+in-macro? if 
+end-macro 
+else 
+#need-macro-cmd cmd-error 
+then ; 
+: c-mac-enddef 
+end-macro-comp 
+if #macro-comp-cmd cmd-error then ; 
+: c-mac-halt 
+arg0 macro-ok? if 
+arg0 halt-macro 
+if #macro-kill-cmd cmd-error then 
+else 
+#badarg-cmd cmd-error 
+then ; 
+: c-mac-nest 
+in-macro? if 
+arg0 macro-ok? if 
+arg0 nest-macro 
+else 
+#badarg-cmd cmd-error 
+then 
+else 
+#need-macro-cmd cmd-error 
+then ; 
+: c-mac-run 
+arg0 true run-cmd-macro ; 
+: c-mac-run-silent 
+arg0 false run-cmd-macro ; 
+: c-mac-loop-begin 
+in-macro? if 
+arg1 arg0 join loop-macro 
+else 
+#need-macro-cmd cmd-error 
+then ; 
+: c-mac-loop-end 
+in-macro? if 
+unloop-macro 
+else 
+#need-macro-cmd cmd-error 
+then ; 
+1 constant #shutdown 
+public: 
+: run-shutdown 
+#shutdown run-macro ; 
+private: 
+public: 
+: init-macro 
+init-macro-obj 
+init-macro-comp 
+init-macro-run 
+['] c-mac-def #mac-def 1 register-cmd/args 
+['] c-mac-delay #mac-delay 2 register-cmd/args 
+['] c-mac-end #mac-end 0 register-cmd/args 
+['] c-mac-enddef #mac-enddef 0 register-cmd/args 
+['] c-mac-halt #mac-halt 1 register-cmd/args 
+['] c-mac-loop-begin #mac-loop-begin 2 register-cmd/args 
+['] c-mac-loop-end #mac-loop-end 0 register-cmd/args 
+['] c-mac-nest #mac-nest 1 register-cmd/args 
+['] c-mac-pause #mac-pause 4 register-cmd/args 
+['] c-mac-run #mac-run 1 register-cmd/args 
+['] c-mac-run-silent #mac-run-silent 1 register-cmd/args 
+; 
+private: 
+endmodule> 
+hex 
+mac extendmodule> 
+farq-struct cell/ 
+1 + 
+#macros + 
+#macro-blocks m-block-struct cell/ * + 
+1 + 
+constant #macro-words 
+#macro-words cells macro-arch-mem# far-allot constant macro-archive 
+variable stream-checksum 
+: open-archive 
+open-mem 0 stream-checksum ! 
+seek-memid seek-memaddr ; 
+: archive-word 
+dup stream-checksum +! 
+dup 8 rshift >mem ff and >mem ; 
+: archive-block 
+get-mem >r swap set-mem 
+0 do dup far@ archive-word cell+ loop 
+drop r> set-mem ; 
+: mem> 
+mem-peek 1 step-mem ; 
+: restore-word 
+mem> 8 lshift mem> or ; 
+: restore-block 
+get-mem >r swap set-mem 
+0 do restore-word over far! cell+ loop 
+drop r> set-mem ; 
+: archive-checksum 
+stream-checksum @ negate archive-word ; 
+: close-archive 
+close-mem ; 
+: good-archive? 
+get-mem >r swap set-mem 
+0 -rot far for @+ >r + r> next drop 0= 
+r> set-mem ; 
+: save-macros 
+macro-archive macro-arch-mem# open-archive 
+mac-free-list get-code farq-struct cell/ archive-block 
+mac-free-blocks get archive-word 
+macros get-code #macros archive-block 
+macro-blocks macro-mem# #macro-blocks m-block-struct cell/ * archive-block 
+archive-checksum 
+close-archive ; 
+: restore-macros 
+macro-archive macro-arch-mem# open-archive 
+mac-free-list get-code farq-struct cell/ restore-block 
+restore-word mac-free-blocks set 
+macros get-code #macros restore-block 
+macro-blocks macro-mem# #macro-blocks m-block-struct cell/ * restore-block 
+close-archive ; 
+: good-macros? 
+macro-archive macro-arch-mem# #macro-words good-archive? ; 
+: c-mac-save 
+save-macros ; 
+: c-mac-restore 
+good-macros? if 
+init-macro-run 
+restore-macros 
+else 
+#macro-check-cmd cmd-error 
+then ; 
+public: 
+: init-mac-arch 
+['] c-mac-save #mac-save 0 register-cmd/args 
+['] c-mac-restore #mac-restore 0 register-cmd/args 
+; 
+private: 
+endmodule> 
+hex 
+mac extendmodule> 
+variable block-mac 
+variable curr-mac-id 
+variable max-mac-id 
+variable group-mac 
+variable index-mac 
+: first-block 
+far@ if #first-pkt else #none-pkt then 
+group-mac ! 
+0 index-mac ! ; 
+: next-block 
+far@ if #cont-pkt else #last-pkt then 
+group-mac ! 
+1 index-mac +! ; 
+: find-macro 
+get-mem macro-mem# set-mem 
+0 curr-mac-id @ 
+begin 
+dup max-mac-id @ u<= while 
+dup cells macros + @ 0= while 
+1+ 
+repeat 
+nip dup cells macros + @ swap 
+over first-block 
+then 
+curr-mac-id ! 
+block-mac ! 
+set-mem ; 
+: find-block 
+get-mem macro-mem# set-mem 
+block-mac @ far@ ?dup if 
+dup next-block 
+block-mac ! 
+else 
+1 curr-mac-id +! find-macro 
+then 
+set-mem ; 
+pkt-desc-size makestruct mac-dump-pkt 
+variable mac-dump-sem 
+1 mac-dump-sem ! 
+variable mac-dump-count 
+create mac-dump-hdr 
+0 c, 0 c, 
+: send-mac-dump 
+curr-mac-id @ mac-dump-hdr c! 
+index-mac @ mac-dump-hdr 1+ c! 
+block-mac @ .m-data macro-mem# 
+#block-size mac-dump-pkt pkt-src-more! 
+group-mac @ mac-dump-pkt pkt-group! 
+mac-dump-pkt tag-pkt 
+mac-dump-pkt send-pkt 
+if find-block then ; 
+: start-mac-dump 
+mac-dump-sem wait 
+max-mac-id ! curr-mac-id ! 
+find-macro 
+mac-dump-sem signal ; 
+public: 
+: try-mac-dump 
+mac-dump-sem wait 
+block-mac @ if 
+dump-ok? if 
+send-mac-dump 
+then 
+then 
+mac-dump-sem signal ; 
+private: 
+pkt-desc-size makestruct mac-check-pkt 
+create mac-check-hdr 
+0 c, 0 c, 
+create macro-checksums 
+#macros cells allot 
+: check-macro 
+#crc-seed swap cells macros + @ 
+far begin 
+?dup while 
+dup >r .m-data #block-size cell/ 
+for @+ >r crc r> next drop 
+r> @ 
+repeat ; 
+: check-macros 
+get-mem -rot macro-mem# set-mem 
+1+ swap do 
+i check-macro 
+i cells macro-checksums + ! 
+loop 
+set-mem ; 
+: send-mac-checks 
+over mac-check-hdr c! 
+dup mac-check-hdr 1+ c! 
+1+ over - cells >r 
+cells macro-checksums + get-code r> 
+mac-check-pkt pkt-src-more! 
+mac-check-pkt tag-pkt 
+mac-check-pkt send-pkt drop ; 
+: do-mac-check 
+2dup u<= if 
+2dup check-macros 
+send-mac-checks 
+else 2drop 
+then ; 
+: c-mac-check 
+arg0 macro-id-ok? arg1 macro-id-ok? 
+and if 
+arg0 arg1 do-mac-check 
+else 
+#badarg-cmd cmd-error 
+then ; 
+: c-mac-read 
+arg0 macro-id-ok? arg1 macro-id-ok? 
+and if 
+arg0 arg1 start-mac-dump 
+else 
+#badarg-cmd cmd-error 
+then ; 
+public: 
+: init-mac-dump 
+mac-check-hdr get-code 2 
+#mac-check-pkt mac-check-pkt init-pkt 
+mac-dump-hdr get-code 2 
+#mac-dump-pkt mac-dump-pkt init-pkt 
+['] c-mac-check #mac-check 2 register-cmd/args 
+['] c-mac-read #mac-read 2 register-cmd/args 
+; 
+endmodule> 
+decimal 
+module> mon 
+structure monitor-struct 
+char: .mon-state 
+0 constant #idle 
+1 constant #armed-high 
+2 constant #alarmed-high 
+3 constant #stuck-high 
+4 constant #armed-low 
+5 constant #alarmed-low 
+6 constant #stuck-low 
+char: .mon-macro-low 
+char: .mon-macro-high 
+char: .mon-type 
+0 constant #s-mon-type 
+1 constant #n-mon-type 
+2 constant #r-mon-type 
+char: .mon-value 
+endstructure 
+create monitor-limits 
+#monitors 2* allot 
+create monitors 
+monitor-struct #monitors * allot 
+: monitor[] 
+monitor-struct * monitors + ; 
+: shutdown 
+mon-response get if 
+run-shutdown 
+then ; 
+: upper-limit 
+2* monitor-limits + 1+ c@ ; 
+: lower-limit 
+2* monitor-limits + c@ ; 
+: too-high? 
+upper-limit u> ; 
+: too-low? 
+lower-limit u< ; 
+: ->high-alarm-id 
+#too-high-alm + ; 
+: run-high-macro 
+mon-response get if 
+monitor[] .mon-macro-high c@ 
+run-macro 
+else drop 
+then ; 
+: transient-high 
+nip dup monitor[] .mon-value c@ swap 
+dup upper-limit swap 
+->high-alarm-id trans-alarm 
+#idle ; 
+: act-high 
+dup run-high-macro 
+dup upper-limit swap 
+->high-alarm-id persist-alarm 
+#alarmed-high ; 
+: panic-high 
+dup monitor[] .mon-type c@ sel 
+<< #s-mon-type ==> drop drop 
+shutdown #stuck-high >> 
+<< #n-mon-type ==> drop drop #stuck-high >> 
+<< #r-mon-type ==> run-high-macro 
+drop #alarmed-high >> 
+endsel ; 
+: ->low-alarm-id 
+#too-low-alm + ; 
+: run-low-macro 
+mon-response get if 
+monitor[] .mon-macro-low c@ 
+run-macro 
+else drop 
+then ; 
+: transient-low 
+nip dup monitor[] .mon-value c@ swap 
+dup lower-limit swap 
+->low-alarm-id trans-alarm 
+#idle ; 
+: act-low 
+dup run-low-macro 
+dup lower-limit swap 
+->low-alarm-id persist-alarm 
+#alarmed-low ; 
+: panic-low 
+dup monitor[] .mon-type c@ sel 
+<< #s-mon-type ==> drop drop 
+shutdown #stuck-low >> 
+<< #n-mon-type ==> drop drop #stuck-low >> 
+<< #r-mon-type ==> run-low-macro 
+drop #alarmed-low >> 
+endsel ; 
+: idle-monitor 
+over over too-low? if 
+drop drop #armed-low 
+else too-high? if 
+#armed-high 
+else 
+#idle 
+then then ; 
+: armed-high-monitor 
+over over too-high? if 
+act-high 
+else 
+transient-high 
+then ; 
+: alarmed-high-monitor 
+over over too-high? if 
+panic-high 
+else 
+drop drop #idle 
+then ; 
+: stuck-high-monitor 
+too-high? if 
+#stuck-high 
+else 
+#idle 
+then ; 
+: armed-low-monitor 
+over over too-low? if 
+act-low 
+else 
+transient-low 
+then ; 
+: alarmed-low-monitor 
+over over too-low? if 
+panic-low 
+else 
+drop drop #idle 
+then ; 
+: stuck-low-monitor 
+too-low? if 
+#stuck-low 
+else 
+#idle 
+then ; 
+public: 
+: monitor 
+dup monitor[] 
+dup >r .mon-state c@ sel 
+<< #idle ==> over r@ .mon-value c! idle-monitor >> 
+<< #armed-high ==> armed-high-monitor >> 
+<< #alarmed-high ==> alarmed-high-monitor >> 
+<< #stuck-high ==> stuck-high-monitor >> 
+<< #armed-low ==> armed-low-monitor >> 
+<< #alarmed-low ==> alarmed-low-monitor >> 
+<< #stuck-low ==> stuck-low-monitor >> 
+endsel 
+r> .mon-state c! ; 
+private: 
+: c-mon-cntrl 
+arg0 mon-response set ; 
+public: 
+: init-monitor 
+['] c-mon-cntrl #mon-cntrl 1 register-cmd/args 
+monitor-limits get-code #monitors 2* #limits-pkt 
+#limits-str register-struct 
+; 
+private: 
+endmodule> 
+hex 
+commands extendmodule> 
+d# 10 constant #max-echo-args 
+public: 
+variable echo-result 
+private: 
+pkt-desc-size makestruct echo-pkt 
+: echo-cmd 
+opcode split drop 
+swap join echo-result ! 
+args #max-echo-args umin 
+get-code swap 
+echo-pkt pkt-src-more! 
+echo-pkt tag-pkt 
+echo-pkt send-pkt drop ; 
+: init-echo-pkt 
+echo-result get-code 2 
+#echo-pkt echo-pkt init-pkt ; 
+endmodule> 
+hex 
+commands extendmodule> 
+: count-mac-cmd 
+#ok-cmd u> if macro-cmds-rej else macro-cmds-exec then 
+dup get 1+ swap set ; 
+public: 
+: learn-macro 
+get-command append-cmd 
+if #ok-macro-cmd else #macro-comp-cmd then ; 
+: get-mac-cmd 
+get-command drop macro-load 
+set-cmd-length ; 
+: handle-mac-cmd 
+lookup-cmd ?dup if 
+macro-cmd 
+else 
+#unknown-cmd 
+then ; 
+: ack-mac-cmd 
+macro-echo? if 
+dup count-mac-cmd 
+80 or echo-cmd 
+else 
+drop 
+then ; 
+private: 
+: process-cmd 
+if 
+rt-cmd 
+else 
+drop learn-macro 
+then ; 
+: count-cmd 
+#ok-macro-cmd u> if cmds-rejected else cmds-executed then 
+dup get 1+ swap set ; 
+public: 
+: handle-cmd 
+lookup-cmd ?dup if 
+dup trim-args 
+swap process-cmd 
+else 
+drop #unknown-cmd 
+then ; 
+: ack-cmd 
+dup count-cmd 
+echo-cmd ; 
+: save-cmd 
+set-opcode load-args ; 
+private: 
+: c-cmd-null 
+( nop ) ; 
+public: 
+: init-command 
+init-cmd-table 
+init-echo-pkt 
+['] c-cmd-null #cmd-null 0 register-cmd/args 
+; 
+private: 
+endmodule> 
+hex 
+status extendmodule> 
+: send-crit-status 
+cmds-executed get 
+echo-result @ split 
+alarm-id get 
+alarm-type get 7 lshift alarm-count get or 
+send-crit-com 
+critical-instr send-crit-inst ; 
+variable status-cnt 
+pkt-desc-size makestruct status-pkt 
+: watch-memory 
+get-mem watch-mem get set-mem 
+watch-addr get 
+dup farc@ watch-byte1 set 
+1+ farc@ watch-byte2 set 
+set-mem ; 
+: send-status-pkt 
+status-cnt @ 1+ 
+dup status-int get 1- u> if 
+watch-memory 
+status-pkt tag-pkt 
+status-pkt send-pkt drop 
+drop 0 
+then status-cnt ! ; 
+public: 
+: send-status 
+send-crit-status 
+send-status-pkt ; 
+private: 
+: clear-all-cnts 
+0 cmds-executed set 
+0 cmds-rejected set 
+0 macro-cmds-exec set 
+0 macro-cmds-rej set 
+clear-tlm-volume ; 
+: c-cnt-clr 
+arg0 sel 
+<< 0 ==> 0 cmds-executed set >> 
+<< 1 ==> 0 cmds-rejected set >> 
+<< 2 ==> 0 macro-cmds-exec set >> 
+<< 3 ==> 0 macro-cmds-rej set >> 
+<< 4 ==> clear-tlm-volume >> 
+<< ff ==> clear-all-cnts >> 
+( default: ) #badarg-cmd cmd-error 
+endsel ; 
+: c-stat-int 
+arg1 arg0 join status-int set ; 
+: c-stat-mem 
+arg1 watch-mem set arg3 arg2 join watch-addr set ; 
+public: 
+: init-status 
+config/status get-code #config/status 
+#status-pkt status-pkt init-pkt 
+['] c-cnt-clr #cnt-clr 1 register-cmd/args 
+['] c-stat-int #stat-int 2 register-cmd/args 
+['] c-stat-mem #stat-mem 4 register-cmd/args 
+; 
+private: 
+endmodule> 
+decimal 
+module> safing 
+public: 
+: start-watchdog 
+reset-watchdog 
+dog-enb-mask# set-dpu-cfg ; 
+private: 
+: c-pwr-off 
+req-power-off ; 
+: c-saf-safe 
+2 run-macro ; 
+: c-saf-shut 
+run-shutdown ; 
+: c-soft-reset 
+start-watchdog 
+disable begin again ; 
+: init-com-autonomy 
+['] c-pwr-off #pwr-off 0 register-cmd/args 
+['] c-saf-safe #saf-safe 0 register-cmd/args 
+['] c-saf-shut #saf-shut 0 register-cmd/args 
+['] c-soft-reset #soft-reset 0 register-cmd/args 
+; 
+endmodule> 
+decimal 
+safing extendmodule> 
+d# 3 constant #safety-timeout 
+variable host-bad 
+variable safing-done 
+public: 
+: all-is-well 
+0 host-bad ! false safing-done ! ; 
+private: 
+do: check-safety 
+safing-done @ not if 
+host-bad @ 1+ dup host-bad ! 
+#safety-timeout u> if 
+2 run-macro 
+true safing-done ! 
+then 
+then ;do 
+public: 
+: init-autonomy 
+check-safety every 1 seconds doit 
+init-com-autonomy ; 
+private: 
+endmodule> 
+hex 
+module> telecmd 
+variable msg-rejected 
+: reject-message 
+1 msg-rejected +! 
+#bad-msg-alm sw-alarm ; 
+structure ext-cmd-struct 
+char: .ext-dest 
+char: .ext-opcode 
+cell: .ext-m/length 
+#max-args 
+chars: .ext-args 
+2 cells: .ext-checksum 
+endstructure 
+ext-cmd-struct makestruct ext-message 
+: real-time? 
+ext-message .ext-m/length @ 8000 and 0= ; 
+: command-length 
+ext-message .ext-m/length @ 3fff and 
+2 umax 
+ext-cmd-struct 2/ cell/ umin ; 
+: command-sum? 
+0 0 
+command-length 2* cells ext-message + ext-message 
+do i @ xor swap cell +loop 
+or 0= ; 
+: unwrap-command 
+ext-message .ext-opcode c@ #cmd-wrap <> if 
+ext-message .ext-args command-length 2 - 2* cells 
+ext-message .ext-opcode c@ 
+ext-message .ext-dest c@ 
+else 
+ext-message .ext-args cell+ command-length 2 - 2* 1- cells 
+ext-message .ext-args 1+ c@ 
+ext-message .ext-args c@ 
+then ; 
+endmodule> 
+hex 
+telecmd extendmodule> 
+: time-message 
+ext-message 2@ set-time 
+ext-message 2 cells + 2@ set-range&angle 
+all-is-well ; 
+: process-command 
+dup #instr-id = if 
+drop save-cmd 
+real-time? handle-cmd ack-cmd 
+else 
+#bad-dst-alm sw-alarm 
+drop drop drop 
+then ; 
+: command-message 
+command-sum? if 
+unwrap-command process-command 
+else 
+#cmd-msg reject-message 
+then ; 
+: do-macro-cmd 
+get-mac-cmd 
+handle-mac-cmd ack-mac-cmd ; 
+public: 
+0 20 20 process: command-process 
+['] macro-ready? ['] do-macro-cmd 
+macro-callbacks 
+begin 
+check-stack 
+ext-message ext-cmd-struct 
+get-message 
+if 
+sel 
+<< #tim-msg ==> time-message >> 
+<< #cmd-msg ==> command-message >> 
+dup reject-message 
+endsel 
+else 
+reject-message 
+then 
+again ;process 
+private: 
+endmodule> 
+hex 
+module> telemetry 
+: send-telemetry 
+send-status 
+try-dump-pkt 
+try-mac-dump 
+more-downlink? if 
+try-partial-frame 
+more-downlink? drop 
+then ; 
+public: 
+0 20 20 process: telemetry-process 
+begin 
+check-stack 
+sync-1hz 
+start-downlink 
+signaltimers executedoers 
+sync-dead-time 
+send-telemetry 
+proc-dead-time 
+again ;process 
+private: 
+endmodule> 
+hex 
+: init-common 
+init-gen-hw 
+enable 
+init-host 
+init-ccsds 
+init-command 
+init-memory 
+init-packet 
+init-alarm 
+init-monitor 
+init-dump-time 
+init-dump 
+init-macro 
+init-mac-arch 
+init-mac-dump 
+init-status 
+init-autonomy 
+init-i2c init-i2c-user 
+; 
+decimal 
+create builtin-macros 
+0 m: 
+#cmd-null c: ( no args ) ;c 
+;m 
+( 1 ) m: 
+#cmd-null c: ( no args ) ;c 
+;m 
+( 2 ) m: 
+#cmd-null c: ( no args ) ;c 
+;m 
+( 3 ) m: 
+#cmd-null c: ( no args ) ;c 
+;m 
+( * ) constant #builtin-macros 
+: init-macro-builtin 
+builtin-macros 0 #builtin-macros install-macros ; 
+decimal 
+mon extendmodule> 
+monitors monitor-limits 
+( 0 ) swap #idle c| 0 c| 0 c| #s-mon-type c| 0 c| swap 0 c| 255 c| 
+( 1 ) swap #idle c| 0 c| 0 c| #n-mon-type c| 0 c| swap 0 c| 255 c| 
+( 2 ) swap #idle c| 0 c| 0 c| #r-mon-type c| 0 c| swap 0 c| 255 c| 
+drop drop 
+endmodule> 
+decimal 
+module> 1hz 
+timer 1hz-proc-timer 
+: monitor-analogs 
+128 0 monitor 
+128 1 monitor 
+128 2 monitor ; 
+public: 
+0 20 20 process: 1hz-process 
+1hz-proc-timer every 1 seconds wake 
+begin 
+1hz-proc-timer wait 
+monitor-analogs 
+again ;process 
+private: 
+public: 
+: init-1hz 
+( nop ) 
+; 
+private: 
+endmodule> 
+hex 
+: init-app 
+init-1hz 
+; 
+: go 
+init-common 
+init-app 
+init-macro-builtin 
+telemetry-process 0 nextprocess 
+1hz-process telemetry-process nextprocess 
+command-process 1hz-process nextprocess 
+resched ; 
+decimal 
+4 constant pat-mem# 
+h# 0000 constant pat-addr# 
+4096 constant #max-payload 
+h# f constant #test-pkt 
+pkt-desc-size makestruct pat-pkt 
+variable rnd-seed 
+: seed 
+rnd-seed ! ; 
+: random 
+rnd-seed @ 31421 * 6927 + dup rnd-seed ! swap mod ; 
+: init-pattern 
+get-mem pat-mem# set-mem 
+far pat-addr# #max-payload 0 do i over c! 1+ loop drop 
+set-mem ; 
+: test-packets 
+swap >r pat-addr# pat-mem# r> #test-pkt pat-pkt init-pkt 
+0 do 
+pat-pkt tag-pkt 
+pat-pkt send-pkt not if ." failed!" then 
+loop ; 
+: rand-packets 
+0 do 
+pat-addr# pat-mem# 2pick random #test-pkt pat-pkt init-pkt 
+pat-pkt tag-pkt 
+pat-pkt send-pkt not if ." failed!" then 
+loop drop ; 
+: t-zero 
+0 status-int set 8 trace-itf 
+cr ." CUT HERE" 
+cr ." // 4 seconds: 492 packets, 0 bytes of payload each" 
+0 492 test-packets 4 trace-itf 
+cr ." CUT HERE" ; 
+: t-short 
+0 status-int set 8 trace-itf 
+cr ." CUT HERE" 
+cr ." // 4 seconds: 273 packets, 8 bytes of payload each" 
+8 273 test-packets 4 trace-itf 
+cr ." CUT HERE" ; 
+: t-long 
+0 status-int set 8 trace-itf 
+cr ." CUT HERE" 
+cr ." // 8 seconds: 2 packets, 4096 bytes of payload each" 
+#max-payload 2 test-packets 8 trace-itf 
+cr ." CUT HERE" ; 
+: t-rand-short 
+0 status-int set 8 trace-itf 
+cr ." CUT HERE" 
+cr ." // 6 seconds: 200 random-sized packets, up to 50 bytes" 
+0 seed 
+50 200 rand-packets 6 trace-itf 
+cr ." CUT HERE" ; 
+: t-rand-long 
+0 status-int set 8 trace-itf 
+cr ." CUT HERE" 
+cr ." // 26 seconds: 16 random-sized packets, up to maximum size" 
+0 seed 
+#max-payload 16 rand-packets 26 trace-itf 
+cr ." CUT HERE" ; 
+: t-all 
+t-zero t-short t-long t-rand-short t-rand-long ; 
+: init-test 
+init-pattern 
+; 
+7 emit
+.( Type 'go' to start program)
+quit

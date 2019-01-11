@@ -1,0 +1,7 @@
+\ (c) 1997 Johns Hopkins University / Applied Physics Laboratory
+\ DPU specific initializations, etc.
+hex
+
+every-boot:	\ ( -- ) Initialize DPU hardware.
+   0018 cr!				\ disable ints, boot pin on
+;boot

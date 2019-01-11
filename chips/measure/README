@@ -1,0 +1,56 @@
+	How to generate the traces.
+
+Freja:
+cd ~/freja/software
+aforth <simmeta >&simmap&		\ metacompile sim version (optimized)
+nifsim3 -t tracefile simfreja		\ simulate
+startat 0
+sim 0xfffff
+" test.fr" fload			\ load test program
+: test 1 trace start 8 steps 0 trace ;	\ define test
+test					\ run test
+bye					\ stop simulation
+bye					\ quit simulator
+
+Topex:
+cd ~/topex/tiu/software
+nifsim3 -t tracefile ~/forth/chips/Frisc3/classic/Topex/simforth
+startat 0
+sim 0xfffff
+" simload.fr" fload			\ load and compile application
+" test.fr" fload			\ load test program
+: test 1 trace start 8 frames 0 trace ;	\ define test
+test					\ run test
+bye					\ stop simulation
+bye					\ quit simulator
+
+TRAPS:
+cd ~/forth/benchmarks/traps
+nifsim3 -t tracefile ~/forth/chips/Frisc3/newforth	\ ANS Forth
+startat 0x10b				\ startat reboot
+sim 0xfffff
+" load.fr" fload			\ load ANS Forth application
+: test 1 trace forps 0 trace ;		\ define test
+test
+ulysses.trp				\ answer to first question
+ultja001.d				\ answer to second question
+\ watch tracefile and type ^C when it gets big enough
+bye					\ quit simulator
+
+Topex:
+cd ~/topex/tiu/software
+nifsim3 -t tracefile ~/forth/chips/Frisc3/classic/Topex/simforth
+startat 0
+sim 0xfffff
+" simload.fr" fload			\ load and compile application
+" test.fr" fload			\ load test program
+
+: test 1 trace paint-display		\ define test
+   40 0 do update-display loop 0 trace ;
+test					\ run test
+bye					\ stop simulation
+bye					\ quit simulator
+
+TRAPS:
+cd ~/forth/benchmarks/traps
+nifsim3 -t tracefile ~/forth/chips/Frisc3/newforth	\ ANS Forth

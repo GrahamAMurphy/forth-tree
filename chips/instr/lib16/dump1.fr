@@ -1,0 +1,95 @@
+\ (c) 2002 Johns Hopkins University / Applied Physics Laboratory
+\ Memory dumps
+decimal
+
+\ Note: size of dump payload is a parameter.
+
+\ Note: dump cadence is controlled by call to dump-ok?.  This could be
+\ implmented as a constant true, a function that returns true at some
+\ interval, or a function that reads a dump handshake from the host.
+
+module> dumper
+
+\ ------------------------------------------------------------------------
+\ Constants and data structures
+
+\ Structure of memory dump header
+structure dump-hdr-struct
+     2 cells: .dump-src			\ source address
+	cell: .dump-len			\ length, in bytes
+     1 cells reserved
+endstructure
+
+\ Dump header
+dump-hdr-struct makestruct dump-header
+   dump-header dump-hdr-struct erase
+
+\ Dump packet descriptor
+pkt-desc-size makestruct dump-pkt
+
+\ Dump parameters
+2variable dump-src			\ source for next packet
+variable dump-len			\ number of 32-bit words to go
+variable dump-sem			\ access control semaphore
+   1 dump-sem !
+
+\ ------------------------------------------------------------------------
+\ * Dump memory
+
+: gather-dump	\ ( -- addr mem len ) Gather dump header and return params.
+   dump-src 2@ 2dup dump-header .dump-src 2! \ record origin and size of data
+   dump-len @ #dump-words umin		\ truncate big dumps; find # of words
+      2* cells dup dump-header .dump-len ! ;
+
+: update-dump	\ ( -- ) Update dump parameters.
+   dump-header .dump-len @		\ actual amount dumped
+   dump-len @ over 2/ cell/ - dump-len ! \ adjust length remaining
+   dump-src cell+ +! ;			\ step address; wrap within page
+
+: send-dump	\ ( -- ) Send a dump packet.
+   gather-dump dump-pkt pkt-src-more!	\ gather dump information
+   dump-pkt tag-pkt			\ time tag dump
+   dump-pkt send-pkt			\ send dump
+   if update-dump then ;		\ if success, update dump data
+
+public:
+
+: start-dump	\ ( addr mem length -- ) Start a memory dump.  Length bytes
+		\ from the given location will be dumped.
+   dump-sem wait			\ get exclusive access
+   cell 2* u/^ dump-len !  dump-src 2!	\ convert byte length to 32-bit words
+   dump-sem signal ;
+
+: abort-dump	\ ( -- ) Stop memory dump.
+   dump-sem wait			\ get exclusive access
+   0 dump-len !
+   dump-sem signal ;
+
+private:
+
+\ ------------------------------------------------------------------------
+\ * Back-end support
+
+public:
+
+: try-dump-pkt	\ ( -- ) Try to generate a dump packet.
+   dump-sem wait			\ get exclusive access
+   dump-len @ if			\ if dump requested
+      dump-ok? if			\ if it is ok to send a packet
+	 send-dump			\ send one
+      then
+   then
+   dump-sem signal ;
+
+private:
+
+\ ------------------------------------------------------------------------
+\ * Initialization
+
+public:
+: init-dump	\ ( -- ) Initialize memory dumper.
+   dump-header get-code dump-hdr-struct
+      #dump-pkt dump-pkt init-pkt
+;
+
+endmodule>

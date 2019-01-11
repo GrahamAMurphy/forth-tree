@@ -1,0 +1,48 @@
+\ (c) 1997 Johns Hopkins University / Applied Physics Laboratory
+\ Access far memory.
+\ This special version of far.fr assumes that far memory is not byte
+\ writable; it provides a reasonably efficient emulation of byte writes.
+hex
+
+: far@  far @ ;	 \ ( addr -- n )
+		
+: far!  far ! ;	 \ ( n addr -- )
+
+: farc@ far c@ ; \ ( addr -- c )
+
+: farc!		\ ( c addr -- )
+		\ Note: sq! ... md@ shifts left 8 bits effectively masking c.
+   far  swap  sq!  dup  @  ff and  md@ or  swap  ! ;
+
+: farc!+	\ ( c addr -- addr' )
+   far  swap  sq!  dup  @  ff and  md@ or  over  !  1+ ;
+
+: far2! far !+ ! ; \ ( dl dh addr --- ) m[addr]<--dh, m[addr+cell]<--dl.
+
+: far2@ far @+ @ swap ; \ ( addr --- dl dh ) dh<--m[addr], dl<--m[addr+cell].
+
+: bytes-out	\ ( src dst bytes -- ) Copy given number of bytes
+		\ from source in near memory to destination in far memory.
+		\ Assumes that far memory has been set.
+		\ Note: this is slow; you should see if words-out can be used.
+   for >r c@+ swap r> farc!+ next 2drop ;
+
+: bytes-in	\ ( src dst bytes -- ) Copy given number of bytes
+		\ from source in far memory to destination in near memory.
+		\ Assumes that far memory has been set.
+   for >r far  c@+ swap r> near c!+ next 2drop ;
+
+: words-out     \ ( src dst words -- ) Copy given number of words
+		\ from source in near memory to destination in far memory.
+		\ Assumes that far memory has been set.
+		\ The routine copies a word at a time; the source and
+		\ destination must be word aligned.
+   for >r near @+ swap r> far !+ next 2drop ;
+
+: words-in      \ ( src dst words -- ) Copy given number of words
+		\ from source in far memory to destination in near memory.
+		\ Assumes that far memory has been set.
+		\ The routine copies a word at a time; the source and
+		\ destination must be word aligned.
+   for >r far @+ swap r> near !+ next 2drop ;
+

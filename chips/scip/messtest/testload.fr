@@ -1,0 +1,115 @@
+\ (c) 2002 Johns Hopkins University / Applied Physics Laboratory
+\ Artificial telemetry load production
+decimal
+
+\ Directions for use:
+\ Download:
+\   down-epu.sh sim=iotrace
+\ Type:
+\   X epu-id !		\ set EPU identity
+\   go init-test
+\ Disconnect and start script.  Reconnect.  Type:
+\   t-short	( or t-long, etc. from below)
+
+\ ------------------------------------------------------------------------
+\ Data
+
+\ Location of test pattern
+4 constant pat-mem#
+   h# 0000 constant pat-addr#
+
+\ Maximum number of bytes of packet payload
+4096 constant #max-payload
+
+\ Descriptor for test packet
+h# f constant #test-pkt
+
+\ Packet descriptor
+pkt-desc-size makestruct pat-pkt
+
+\ ------------------------------------------------------------------------
+\ Pseudo-random number generator
+
+variable rnd-seed
+
+: seed          \ ( seed -- )
+   rnd-seed ! ;
+
+: random        \ ( max -- [0-max] )
+   rnd-seed @ 31421 * 6927 + dup rnd-seed ! swap mod ;
+
+\ ------------------------------------------------------------------------
+\ Test packets
+
+: init-pattern	\ ( -- ) Fill pattern memory with counting pattern, up to
+		\ size of maximum packet.
+   get-mem pat-mem# set-mem
+   far pat-addr# #max-payload 0 do i over c! 1+ loop drop
+   set-mem ;
+
+: test-packets	\ ( size u -- ) Send u test packets with the given size.
+   swap >r pat-addr# pat-mem# r> #test-pkt pat-pkt init-pkt
+   0 do
+      pat-pkt tag-pkt
+      pat-pkt send-pkt not if ." failed!" then
+   loop ;
+
+: rand-packets	\ ( max u -- ) Send u test packets with random sizes from
+		\ 0 through the given maximum.
+   0 do
+      pat-addr# pat-mem# 2pick random #test-pkt pat-pkt init-pkt
+      pat-pkt tag-pkt
+      pat-pkt send-pkt not if ." failed!" then
+   loop drop ;
+
+\ ------------------------------------------------------------------------
+\ Tests
+
+\ TBD: need way to select EPU for APID.
+
+: t-zero	\ ( -- ) Zero-length packets.
+   0 status-int set  8 trace-itf	\ no status packets; flush
+   cr ." CUT HERE"
+   cr ." // 4 seconds: 492 packets, 0 bytes of payload each"
+   0 492 test-packets  4 trace-itf
+   cr ." CUT HERE" ;
+
+: t-short	\ ( -- ) Short packets.
+   0 status-int set  8 trace-itf	\ no status packets; flush
+   cr ." CUT HERE"
+   cr ." // 4 seconds: 273 packets, 8 bytes of payload each"
+   8 273 test-packets  4 trace-itf
+   cr ." CUT HERE" ;
+
+: t-long	\ ( -- ) Long packets.
+   0 status-int set  8 trace-itf	\ no status packets; flush
+   cr ." CUT HERE"
+   cr ." // 8 seconds: 2 packets, 4096 bytes of payload each"
+   #max-payload 2 test-packets  8 trace-itf
+   cr ." CUT HERE" ;
+
+: t-rand-short	\ ( -- ) Random-sized packets, from 0 to 50 bytes.
+   0 status-int set  8 trace-itf	\ no status packets; flush
+   cr ." CUT HERE"
+   cr ." // 6 seconds: 200 random-sized packets, up to 50 bytes"
+   0 seed
+   50 200 rand-packets  6 trace-itf 
+   cr ." CUT HERE" ;
+
+: t-rand-long	\ ( -- ) Random-sized packets, from 0 to maximum.
+   0 status-int set  8 trace-itf	\ no status packets; flush
+   cr ." CUT HERE"
+   cr ." // 26 seconds: 16 random-sized packets, up to maximum size"
+   0 seed
+   #max-payload 16 rand-packets  26 trace-itf 
+   cr ." CUT HERE" ;
+
+: t-all		\ ( -- ) Test all.
+   t-zero t-short t-long t-rand-short t-rand-long ;
+
+\ ------------------------------------------------------------------------
+\ Initialization
+
+: init-test	\ ( -- ) Initialize test.
+   init-pattern
+;

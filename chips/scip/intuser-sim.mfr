@@ -1,0 +1,18 @@
+\ (c) 2004 Johns Hopkins University / Applied Physics Laboratory
+\ Cross-compile interrupt definitions
+\ This version only supports one interrupt; system-specific overrides
+\ will provide more realistic versions.
+decimal
+
+forth : int:	\ ( u -- ) Install code in interrupt vector table at given slot.
+   [host] drop				\ only one slot
+\ TBD: kludge
+   t-align t-here dup log-anon 1 rshift	\ patch with short subroutine call
+      int-vector t-w!
+   [target] int-prologue [host] ]	\ compile prologue and response code
+   s" int:" add-log-string ;		\ log interrupt in map file
+
+metaextend
+forth : ;int
+   [target] int-epilogue [meta] [ [forth] ;
+hostinterp

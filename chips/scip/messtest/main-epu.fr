@@ -1,0 +1,26 @@
+\ (c) 2002 Johns Hopkins University / Applied Physics Laboratory
+\ MESSENGER startup
+hex
+
+\ Initialization proceeds in the following way:
+\ - Each module is initialized.
+\ - Start up processes.
+
+\ ------------------------------------------------------------------------
+\ Initialization
+
+: init-app	\ ( -- ) Initialize application-specific modules.
+   init-1hz				\ 1 Hz monitor
+;
+
+\ ------------------------------------------------------------------------
+\ Main
+
+: go		\ ( -- )
+   init-common				\ initialize common code
+   init-app				\ initialize application-specific
+   init-macro-builtin			\ install built-in macros
+   telemetry-process 0 nextprocess
+   1hz-process telemetry-process nextprocess
+   command-process 1hz-process nextprocess
+   resched ;

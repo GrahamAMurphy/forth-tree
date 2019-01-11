@@ -1,0 +1,25 @@
+\ (c) 1993 Johns Hopkins University / Applied Physics Laboratory
+\ Smart Comments (a crude way to do conditional compilation).
+\ Usage:
+\   def system-x
+\   : foo
+\      ifdef  system-x    do-system-x
+\      ifndef system-x    do-default
+\   ;
+\ Requires the existence of the Search Order Word Set.
+hex
+
+wordlist constant def-list
+
+: def		\ ( "name" -- ) Define given symbol.  We use def instead
+		\ of the more obvious define because define is used
+		\ in the cross compiler.
+   get-current def-list set-current true constant set-current ;
+
+: ifdef		\ ( "name" -- ) If symbol defined, process rest of line.
+   bl word count def-list search-wordlist 0=
+   if postpone \ else drop then ; immediate
+
+: ifndef	\ ( "name" -- ) If symbol not defined, process rest of line.
+   bl word count def-list search-wordlist
+   if drop postpone \ then ; immediate

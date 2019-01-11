@@ -1,0 +1,40 @@
+\ (c) 1993 Johns Hopkins University / Applied Physics Laboratory
+\ Setup stacks (and control registers)
+\ The following code is specific to the RTX2010
+
+noheads					\ none of these can be accessed by user
+
+decimal
+\ TBD
+ram
+40 cells allot label LOCALS		\ local variables stack
+rom
+hex
+
+: cacheenable
+   \ There are no stack caches on RTX; this will be removed by cross compiler
+   || ; inline
+
+\		Initialize the stack pointers
+\ BUG: pspreset and spreset only work when called by the interpreter process.
+\ Both reset the substack and the stack pointer to zero.
+
+: pspreset				\ reset parameter stack
+   sp@  sp-stack-mask  and  sp!  || ;
+
+: spreset				\ reset return stack
+\ The parameter stack pointer is decremented by 1 (-1 sp@+) to discard
+\ argument.
+\  -1  sp@+  ff  and  sp!  || ; inline
+\ This is simpler:
+   sp@  psp-stack-mask  and  sp!  || ; inline
+
+: under?	\ ( --- t/f )  Return t if stack has underflowed
+\  sp@  ff  and  0  80  within  not ;
+   sp@  psp-stack-mask and  0 substack-size 4 - within not ;
+
+: initlocals	\ reset the interpreter's local variable stack.
+\ TBD
+;
+
+heads

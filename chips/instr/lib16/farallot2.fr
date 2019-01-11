@@ -1,0 +1,18 @@
+\ (c) 1996 Johns Hopkins University / Applied Physics Laboratory
+\ Dynamic memory allocator for RTX.
+hex
+
+\ Tables of first free locations in each page in RTX address space.
+create far-page-set
+   0 , 0 , 0 , 0 , 0 , 0 , 0 , 0 ,
+   0 , 0 , 0 , 0 , 0 , 0 , 0 , 0 ,
+
+: far-h		\ ( memid -- addr ) Return the address of the address of
+		\ the next free memory location.
+   f and cells far-page-set + ;
+
+: far-here	\ ( page -- addr ) Return address of next free location.
+   far-h @ ;
+
+: far-allot	\ ( size page -- addr ) Allocate size bytes from given page.
+   far-h dup >r @ swap over + r> ! ;

@@ -1,0 +1,454 @@
+
+       #pcr-se                          define 0001 
+       #pcr-ie                          define 0002 
+       namesize                         define 0007 
+       nf-size                          define 0008 
+       wid-step                         define 0001 
+       prec-bit                         define 0040 
+       smudge-bit                       define 0020 
+       inline-bit                       define 0080 
+       char-mask                        define 00ff 
+       chars/dump                       define 0008 
+       <does-default>                   define d240a822 
+       <remote-does-default>            define d240e82a 
+       reset-vector                     define 0000 
+       int-vector                       define 0004 
+       HASHTABLESIZE                    define 0100 
+       HASHTABLE                        define 0006 
+0412 H reboot                           code 
+0416   branch                           code 
+041a   ?branch                          code 
+0420   return                           code 
+042e H execute                          code 
+0432   does-default                     code 
+0438   remote-does-default              code 
+0438   (do)                             code 
+044c   (loop)                           code 
+0456   (+loop)                          code 
+046c H unloop                           code 
+0480 H i                                code 
+0492 H j                                code 
+04a8   (next)                           code 
+04b2   unnext                           code 
+04c2 H !                                code 
+04d4 H +                                code 
+04e4 H +!                               code 
+04fc H -                                code 
+050c H -rot                             code 
+0520 H 0<                               code 
+0530 H 0=                               code 
+0540 H 0>                               code 
+0550 H 1+                               code 
+0560 H 1-                               code 
+0570 H 2*                               code 
+0580 H 2/                               code 
+0590 H 2over                            code 
+05ae H 2swap                            code 
+05cc H 2pick                            code 
+05e0 H 3pick                            code 
+05fa H <                                code 
+060a H >                                code 
+061a H u<                               code 
+062a H u>                               code 
+063a H =                                code 
+064a H <>                               code 
+065a H >r                               code 
+066a H @                                code 
+067a H aligned                          code 
+068c H and                              code 
+069c H c!                               code 
+06ae H c@                               code 
+06be H char+                            code 
+06ce H chars                            code 
+06dc H drop                             code 
+06ec H dup                              code 
+06fc H invert                           code 
+070c H lshift                           code 
+071e H negate                           code 
+072e H nip                              code 
+073e H nop                              code 
+074c H not                              code 
+075c H or                               code 
+076c H over                             code 
+077c H r>                               code 
+078c H r@                               code 
+079c H rdrop                            code 
+07ac H rot                              code 
+07c0 H rotate                           code 
+07d2 H rshift                           code 
+07e4 H swap                             code 
+07f4 H touch                            code 
+0806 H w!                               code 
+0818 H w@                               code 
+0828 H within                           code 
+083e H xor                              code 
+084e H cell                             code 
+085e H cell+                            code 
+086e H cell-                            code 
+087e H cells                            code 
+088e H cell/                            code 
+089e H d+                               code 
+08b6 H dnegate                          code 
+08cc H d<                               code 
+08ea H cmove                            code 
+0920 H cmove>                           code 
+0948 H move                             code 
+0962 H m*                               code 
+0996 H um*                              code 
+09b4 H um/mod                           code 
+0a0c H enable                           code 
+0a1e H disable                          code 
+0a24   md!                              code 
+0a24   md@                              code 
+       nop-boot                         define 0a24 
+       NEXT-BOOT                        define 0a26 
+       EVERY-BOOT                       define 0a2a 
+0a3a H true                             : 
+0a4a H false                            : 
+0a5a H ?dup                             : 
+0a6e H 2dup                             : 
+0a80 H s>d                              : 
+0a84   +-                               : 
+0a8c   d+-                              : 
+0aa0 H abs                              : 
+0ab0 H dabs                             : 
+0ac0 H *                                : 
+0ad0 H 2drop                            : 
+0ae2 H max                              : 
+0af6 H min                              : 
+0b0a H umax                             : 
+0b1e H umin                             : 
+0b32 H 2!                               : 
+0b4a H 2@                               : 
+0b5c H um*m                             : 
+0b7a H m/mmod                           : 
+0b9a H sm/rem                           : 
+0bc0 H fm/mod                           : 
+0bfc H /mod                             : 
+0c10 H /                                : 
+0c20 H mod                              : 
+0c30 H */mod                            : 
+0c44 H */                               : 
+       pstack                           define 0d48 
+       rstack                           define 0e48 
+0e48   safe                             code 
+0e48   cacheenable                      code 
+0e4e   initlocals                       : 
+0e5c H pspreset                         code 
+0e6e   spreset                          code 
+0e7a H depth                            code 
+0e96   under?                           code 
+0e9a   int-prologue                     code 
+0ea6   int-epilogue                     code 
+       trap-base                        define 40000000 
+0ebe H emit                             code 
+0ed8 H key                              code 
+0ede   eol                              constant 000a 
+0eea H cr                               : 
+0efe H type                             : 
+0f20   ^h                               constant 0008 
+0f20   ^u                               constant 0015 
+0f2c H accept                           : 
+       CURREGION                        define 0f96 
+       IN                               define 0f9a 
+       NTIB                             define 0f9e 
+       TIBPTR                           define 0fa2 
+0fa6   match?                           : 
+0fda   (find)                           : 
+1034   push-stream                      : 
+1066   pop-stream                       : 
+1086   skip-non-white                   : 
+1098   skip-white                       : 
+10ac   skipdel                          : 
+10ba   scan-non-white                   : 
+10cc   scan-white                       : 
+10e0   scandel                          : 
+10fa H parse                            : 
+1140   parse-word                       : 
+118a   regionptr                        constant 0f96 
+118a   hashtablesize                    constant 0100 
+118a   hashtable                        constant 0006 
+118a   kib                              create(adjacent) 118e 
+120e   sourceptr                        constant 0fa2 
+120e   #source                          constant 0f9e 
+121a H >in                              constant 0f9a 
+122c H forth-wordlist                   constant 0000 
+1230   loc-wordlist                     constant 0001 
+1234   vocabtag                         constant 1230 variable 
+1238   clue                             constant 1234 variable 
+123c   last-colon                       constant 1238 variable 
+1240   last                             constant 123c variable 
+1244   to?                              constant 1240 variable 
+1254 H stdregion                        constant 1244 variable 
+126a H state                            constant 125a variable 
+1280 H #order                           constant 1270 variable 
+1292 H #vocs                            constant 0008 
+12a6 H current                          constant 1296 variable 
+12b8 H context                          create(adjacent) 12bc 
+12e0   #locals                          constant 12dc variable 
+12ec H bl                               constant 0020 
+12f2   name>                            : 
+12f2   link>                            : 
+12f2   body>                            : 
+12f2   >name                            : 
+12f4   >link                            : 
+1300 H >body                            : 
+1310 H fill                             : 
+133c H environment?                     : 
+134a H [                                : 
+1360 H ]                                : 
+136a   dp                               : 
+1376 H allocatefrom                     : 
+138c H here                             : 
+13a0 H pad                              : 
+13b2 H latest                           : 
+13c4 H align                            : 
+13d2   align-here                       : 
+13e2 H allot                            : 
+13f8 H ,                                : 
+140c H w,                               : 
+1420 H c,                               : 
+1434 H count                            : 
+1446 H string,                          : 
+1458   "s-buffer                        create(adjacent) 145c 
+14b8 H "                                : 
+14cc   (")                              : 
+14d8   (.")                             : 
+       <small-lit>                      define a208 
+       <small+lit>                      define a200 
+       <hi-lit>                         define b2100000 
+       <lo-lit>                         define b2000000 
+       <lo-off>                         define b0020000 
+       <small-off>                      define a006 
+       <small+off>                      define a002 
+       <hi-off>                         define b0120000 
+14e6   *inline*                         : 
+1514   *callop*                         : 
+1526 H compile,                         : 
+1548   *code*                           : 
+155e   *literal*                        : 
+15c0   *offset*                         : 
+161c   *branch-dest*                    : 
+1690   *branch-unpack*                  : 
+16d4   does-parent                      : 
+16de   does-child                       : 
+16e2   <mark                            : 
+16e4   <resolve                         : 
+16ec   >mark                            : 
+16f0   >resolve                         : 
+16f4   >>mark                           : 
+16fa   >>resolve                        : 
+171a H if                               : 
+172e H else                             : 
+1746 H then                             : 
+1754 H begin                            : 
+1762 H while                            : 
+1778 H until                            : 
+178c H repeat                           : 
+17a2 H again                            : 
+17b6 H sel                              : 
+17c4 H <<                               : 
+17d6 H =>                               : 
+17f0 H ==>                              : 
+1804 H >>                               : 
+181e H otherwise                        : 
+1830 H endsel                           : 
+1844 H do                               : 
+1868 H loop                             : 
+1890 H +loop                            : 
+18b8 H leave                            : 
+18ce   chuckbuf                         : 
+18dc   reset-stream                     : 
+18f8 H source                           : 
+1910 H word                             : 
+194a H ,word                            : 
+1960 H ""                               : 
+197a H ."                               : 
+1994 H s"                               : 
+19b2 H (                                : 
+19c8 H .(                               : 
+19de H \                                : 
+19ec H get-current                      : 
+19fe H set-current                      : 
+1a12 H definitions                      : 
+1a24 H get-order                        : 
+1a6a H set-order                        : 
+1aae H wordlist                         : 
+1abe   hash                             : 
+1af2 H find                             : 
+1b50 H search-wordlist                  : 
+1b68   (forget)                         : 
+1bac   notunique?                       : 
+1bc6 H header                           : 
+1c0a   setbits                          : 
+1c18   clearbits                        : 
+1c34 H immediate                        : 
+1c48 H hide                             : 
+1c5c H reveal                           : 
+1c70 H inline                           : 
+1c84 H constant                         : 
+1c9c H variable                         : 
+1cb0 H 2variable                        : 
+1cc8 H create                           : 
+1cde H region                           : 
+1cf6 H does>                            : 
+1d10 H :noname                          : 
+1d2c H :                                : 
+1d40 H recurse                          : 
+1d56 H exit                             : 
+1d6a H ;                                : 
+1d86 H base                             constant 1d76 variable 
+1d90   hld                              constant 1d8c variable 
+1d90   pno-buffer                       : 
+1d9c H hex                              : 
+1db2 H decimal                          : 
+1dc8 H space                            : 
+1ddc H spaces                           : 
+1e08 H hold                             : 
+1e26 H <#                               : 
+1e3c H #>                               : 
+1e52 H sign                             : 
+1e6a H #                                : 
+1e90 H #s                               : 
+1ea4 H d.r                              : 
+1ebe   zeroes                           : 
+1eee H d.lz                             : 
+1f14 H d.                               : 
+1f26 H .r                               : 
+1f3a H .                                : 
+1f4a H u.r                              : 
+1f5c H u.lz                             : 
+1f6e H u.                               : 
+1f7e H ?                                : 
+1f8e H u?                               : 
+1f9e H postpone                         : 
+1fc4 H '                                : 
+1fe0 H [']                              : 
+1ff2 H literal                          : 
+2002 H char                             : 
+2016 H [char]                           : 
+2028 H forget                           : 
+205a H dump                             : 
+2114 H .s                               : 
+2132 H digit                            : 
+217a H convert                          : 
+21ac H >number                          : 
+21e8 H number                           : 
+2214   interpreting?                    : 
+2228 H interpret                        : 
+22ac H evaluate                         : 
+22c2 H h#                               : 
+22ea H d#                               : 
+2312 H quit                             : 
+2358 H abort                            : 
+2368 H abort"                           : 
+2376   version                          : 
+2384                                    every-boot: 
+23b0   doforth                          : 
+23f0 H int:                             : 
+2410 H ;int                             : 
+241a   silent-accept                    : 
+2460 H silent                           : 
+247c H offset:                          : 
+2496 H for                              : 
+24b4 H next                             : 
+24d4 H arg                              : 
+24ea H trap                             : 
+24fe H r/o                              create(adjacent) 2502 
+2510 H open-file                        : 
+253e H close-file                       : 
+2552 H fexpect                          : 
+2572 H chdir                            : 
+2594 H fload                            : 
+       memarea                          define 25ca 
+25ea                                    int: 
+       callme                           define 2602 
+       regtest                          define 2800 
+       flowtest                         define 29aa 
+       stacktest                        define 29e8 
+       longimmtest                      define 2ac0 
+       alutest                          define 2bee 
+       regtest2                         define 2da8 
+       shifttest                        define 2f2a 
+       loadstoretest                    define 2faa 
+       pstacktest                       define 3160 
+       rstacktest                       define 31fa 
+       intholdofftest                   define 32bc 
+       done                             define 32d6 
+32e2 H d=                               : 
+32fa H check-m*                         : 
+3336 H check-um*                        : 
+3372 H test-m*                          : 
+3f1e H test-um*                         : 
+44ca H d=                               : 
+44e2 H check-um/mod                     : 
+4536 H check-/mod                       : 
+4574 H test-um/mod                      : 
+49d8 H test-/mod                        : 
+       REBOOT                           define 52f2 
+       app-vector                       define 532a 
+here = 532e 
+Rule <move><shifti> was applied 0 times.
+Rule <short><short><shift> was applied 0 times.
+Rule <short>swap<shift> was applied 7 times.
+Rule overswap<shift> was applied 0 times.
+Rule [/dup<shifti>]<shifti> was applied 0 times.
+Rule <long><shifti> was applied 0 times.
+Rule <long><long-op> was applied 0 times.
+Rule <long><short-op> was applied 1 times.
+Rule <short><shifti> was applied 0 times.
+Rule <short><long-op> was applied 0 times.
+Rule <short><short-op> was applied 2 times.
+Rule <long>to<short> was applied 2 times.
+Rule [/dup<long-op>]><long-op> was applied 0 times.
+Rule [/dup<short-op>]><long-op> was applied 0 times.
+Rule [/dup<long-op>]><short-op> was applied 0 times.
+Rule 0+ was applied 0 times.
+Rule [/dup<short-op>]<short-op> was applied 2 times.
+Rule [/dup<long-op>]>to<short-op> was applied 4 times.
+Rule <call>return was applied 57 times.
+Rule <long>return was applied 2 times.
+Rule <*>return was applied 73 times.
+Rule [<short>+]<store> was applied 3 times.
+Rule [dup<short>+]<load> was applied 3 times.
+Rule [<short>+]<load> was applied 3 times.
+Rule dup<load> was applied 9 times.
+Rule drop[drop<long>] was applied 3 times.
+Rule drop<long> was applied 16 times.
+Rule <long>[over<binop>] was applied 0 times.
+Rule dup<long><bincmp> was applied 6 times.
+Rule <long><bincmp><?br> was applied 1 times.
+Rule dup[<long><binop>] was applied 4 times.
+Rule <long><binop> was applied 33 times.
+Rule drop[drop<short/i>] was applied 6 times.
+Rule drop<short/i> was applied 22 times.
+Rule dup<short><bincmp> was applied 6 times.
+Rule <short><bincmp><?br> was applied 1 times.
+Rule <short>[over<binop>] was applied 0 times.
+Rule dup[<short><binop>] was applied 5 times.
+Rule <short>drop was applied 1 times.
+Rule <short><binop> was applied 18 times.
+Rule drop[drop<reg@>] was applied 2 times.
+Rule drop<reg@> was applied 9 times.
+Rule dup<reg@><bincmp> was applied 0 times.
+Rule <reg@><bincmp><?br> was applied 6 times.
+Rule <reg@>[over<binop>] was applied 2 times.
+Rule dup[<reg@><binop>] was applied 0 times.
+Rule <reg@><binop> was applied 6 times.
+Rule <alu><reg!>2 was applied 0 times.
+Rule <alu><reg!>1 was applied 9 times.
+Rule <cmp><?br>2 was applied 18 times.
+Rule <cmp><?br>1 was applied 18 times.
+Rule <alu><?br>2 was applied 2 times.
+Rule <alu><?br>1 was applied 4 times.
+Rule <cmp>not was applied 2 times.
+Rule <alu><uncmp> was applied 9 times.
+Rule over[over<bincmp>] was applied 12 times.
+Rule over<bincmp> was applied 13 times.
+Rule swap<bincmp> was applied 0 times.
+Rule over[over<binop>] was applied 5 times.
+Rule over<binop> was applied 13 times.
+Rule swap<binop> was applied 0 times.
+Rule swapswap was applied 0 times.
+Rule nipdup was applied 1 times.
+Rule dropdup was applied 3 times.

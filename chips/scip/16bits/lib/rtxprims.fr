@@ -1,0 +1,12 @@
+\ (c) 2004 Johns Hopkins University / Applied Physics Laboratory
+\ Emulate some RTX primitives
+\ These are used in $FTROOT/instr/lib16
+hex
+
+: @+		\ ( addr -- x addr' ) Fetch and increment address.  RTX
+		\ primitive.
+   dup @ swap cell+ || ; inline
+
+: !+		\ ( x addr -- addr' ) Store and increment address.  RTX
+		\ primitive.
+   dup >r ! r> cell+ || ; inline

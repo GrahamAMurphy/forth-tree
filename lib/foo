@@ -1,0 +1,21 @@
+class> myroot
+   msg: :msg1	\ ( object -- )
+   msg: :msg2	\ ( object -- )
+--methods--
+\ methods defined in subclass
+end>
+
+myroot sub-class> myclass
+   msg: :msgx	\ ( object -- )
+   msg: :msgy	\ ( object -- )
+--methods--
+
+   method: :msg1
+      ... ;method
+   method: :msg2
+      ... ;method
+   method: :msgx
+      ... ;method
+   method: :msgy
+      ... ;method
+end>

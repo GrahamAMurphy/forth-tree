@@ -1,0 +1,11 @@
+#########################################################################
+# Extensions to common
+
+#########################################################################
+# Application
+
+1hz:		1hz-proc.fr;		# 1 Hz monitoring process
+
+epu:		epu-serve.fr;		# EPU command/data handling
+
+summit:		summit2.fr;		# Summit 1553-bus I/O

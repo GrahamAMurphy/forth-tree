@@ -1,0 +1,86 @@
+\ (c) 1993 Johns Hopkins University / Applied Physics Laboratory
+\ Serial device driver interface for intttyws.fr
+\ 8530 SCC Control
+\ Set up channel A of SCC as UART.
+hex
+
+noheads					\ only emit, key, etc. have heads
+
+\ status bits
+01 define RXRDYMASK
+04 define TXRDYMASK
+
+\ commands
+38 define ACKINT
+28 define RSTTINTPEND
+
+\ ------------------------------------------------------------------------
+\ Device configuration
+
+ttystruct makestruct tty
+
+\ ------------------------------------------------------------------------
+\ Low-level UART access routines
+
+: uart-status	\ ( -- x ) Return UART status.
+   cmd-a c@ ;
+
+: cmd-uart	\ ( x -- ) Command UART.
+   cmd-a c! ;
+
+: uart-reg!	\ ( x regno -- ) Store x in given UART register.
+   cmd-uart cmd-uart ;
+
+: uart@		\ ( -- c ) Read character from UART.
+   data-a c@ ;
+
+: uart!		\ ( c -- ) Send character to UART.
+   data-a c! ;
+
+: uart-first!	\ ( c -- ) Send character; start generating interrupts.
+   uart! ;
+
+: stop-transints \ ( -- ) Stop generating transmit interrupts.
+   RSTTINTPEND cmd-uart ;
+   
+\ ------------------------------------------------------------------------
+\ Interrupt routine
+
+UARTINT# int:	\ ( -- ) UART interrupt routine.
+   uart-status dup RXRDYMASK and
+   if drop tty tty-rcvint		\ receive interrupt
+   else TXRDYMASK and
+   if tty tty-transint			\ transmit interrupt
+   then then
+   ACKINT cmd-uart			\ acknowledge interrupt
+;int
+
+\ ------------------------------------------------------------------------
+\ Initialization
+
+every-boot:	\ ( -- )
+   c9 9 uart-reg!			\ hardware reset
+   44 4 uart-reg!			\ x16 clock, 1 stop bit, no parity
+   c1 3 uart-reg!			\ Rx: 8 bits, enable
+   ea 5 uart-reg!			\ Tx: DTR, 8 bits, enable CTS
+   05 b uart-reg!			\ no xtal, Tx/Rx use RTxC
+   a0 e uart-reg!			\ source = RTxC
+   12 1 uart-reg!			\ interrupt on all rcv/send chars
+
+   ['] uart!  ['] uart-first!  ['] uart@  ['] stop-transints
+   tty tty-init
+;boot
+
+\ ------------------------------------------------------------------------
+\ High level driver interface routines
+
+heads
+
+: emit		\ ( c -- )
+   tty tty-putc ;
+
+: key		\ ( -- c )
+   tty tty-getc ;
+
+: key?		\ ( -- t/f )
+   tty tty-incount 0= not ;

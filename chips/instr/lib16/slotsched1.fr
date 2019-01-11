@@ -1,0 +1,54 @@
+\ (c) 2014 Johns Hopkins University / Applied Physics Laboratory
+\ Slot schedule
+hex
+
+\ * Provide interface to a "slot" schedule.  The scheduler is called
+\ * periodically; each call executes code associated with the slot, then
+\ * advances to the next slot.  The user supplies functions that are called
+\ * in each slot.  A user-defined parameter, #slots, defines how many slots
+\ * to provide.
+\ * Note: this is a re-factor of i2c2.fr.  New non-I2C-specific names were
+\ * given, except for i2c-active, which was preserved so as not to break
+\ * existing client code.
+
+module> slotsched
+
+\ ------------------------------------------------------------------------
+\ * Slot management
+
+: slot-nop ;	\ ( -- ) Nop. (Needed for boot program; kernel nop is bodiless.)
+
+create slot-vectors			\ slots: each has an execution vector
+   #slots cells allot
+variable slots-free			\ pointer to next free slot
+   slot-vectors slots-free !
+
+variable slot-index			\ current slot number
+
+public:
+
+: exec-slot	\ ( -- ) Execute next slot function.
+		\ Note: called from an interrupt routine.
+   slot-index @ 1+ dup #slots =		\ step to next slot
+      if drop 0 then dup slot-index !	\   modulo #slots
+   cells slot-vectors + @ execute ;	\ execute handler for this slot
+
+: i2c-active	\ ( f -- ) Schedule call of f in next free slot.
+		\ Note: name doesn't make sense but preserves existing
+		\ user interface.
+   slots-free @ dup cell+ slots-free !	\ get next free slot
+   ! ;					\ record f in slot
+
+private:
+
+\ ------------------------------------------------------------------------
+\ * Initialization
+
+public:
+: init-slots	\ ( -- ) Initialize slot schedule.
+   slot-vectors #slots 0 do		\ for each slot
+      ['] slot-nop over !  cell+	\ place default nop
+   loop drop ;
+private:
+
+endmodule>

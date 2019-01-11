@@ -1,0 +1,147 @@
+This file examines the portability of each of these file with an eye
+to reusing the code on other 16-bit processors.
+TBD: 16-bit specific?
+
+alarm1.fr: Send an alarm packet.
+   depends on module API (modules2.fr), packet API (packet1.fr), get/set
+API (outbits2.fr), and standard names in status db.
+
+alpha2.fr: Test port access to boot ROM
+   depends on farcopy.fr, memory API (memory2.fr), and download API (motor2.fr)
+
+boot.fr: Can load and run programs from EEPROM.
+   depends on far API (far2.fr)
+   RTXism: @+ and !+
+
+boot-cmd1.fr: Boot ROM commands.
+   depends on module API (modules2.fr), boot API (boot.fr) and command
+API (cmd-*.fr).
+   derives 16-bit assumption from boot API
+
+cmd-dict1.fr: Command dictionary.
+   depends on module API (modules2.fr).
+
+cmd-echo1.fr: Generate command echo packets.
+   depends on module API (modules2.fr) and packet API (packet1.fr).
+
+cmd-proc1.fr: Command processing.
+   depends on module API (modules2.fr), get/set API (outbits2.fr), standard
+names in status db, and macro API (macro1.fr).
+
+condwait.fr: Conditional wait.
+    portable to any system with counting semaphores.
+
+defmacro1.fr: Macro compiler.
+
+dump1.fr: Generate macro dump packets.
+   depends on module API (modules2.fr) and packet API (packet1.fr).
+
+farallot.fr: far memory allocator
+
+farallot2.fr: improved far memory allocator
+   RTXism: allocates memory in 16 pages
+
+farcopy.fr: arbitrary page to page memory copy
+   depends on memory API (memory2.fr)
+
+fardump.fr: far memory ASCII dump
+
+farqueue.fr: queueing operations with buffers in remote memory.
+
+farqueue2.fr: queueing opertions plus versions for use in interrupt routines
+
+fast16b2.fr: fast compression on 16-bit values
+   depends on module API (modules2.fr)
+
+fast8b2.fr: fast compression on 8-bit values
+   depends on module API (modules2.fr)
+
+i2c-user1.fr: User-level I2C interface.
+   depends on module API (modules2.fr), low-level I2C API (i2c1.fr), and
+command API (cmd-*.fr).
+
+i2c1.fr: Low-level I2C interface.
+   depends on module API (modules2.fr).
+   does RTX G-bus accesses and has an interrupt routine; non-portable.
+
+log32to10.fr, log19to8.fr: Pseudo-log compression.
+
+login1.fr: Login.
+
+macro-arch1.fr: Macro archiver.
+   depends on module API (modules2.fr), farqueue API (farqueue.fr), farallot
+API (farallot2.fr), far API (far2.fr), and memory API (memory2.fr).
+   RTXism: @+
+
+macro-dump1.fr: Macro dump and checksum packet generator.
+   depends on module API (modules2.fr), packet API (packet1.fr), command
+API (cmd-*.fr), CRC API (sumcrc.fr), and far API (far2.fr).
+   RTXism: @+
+
+macro1.fr: Macro compiler and multitasker.
+   depends on module API (modules2.fr), far allot API (farallot2.fr), far
+API (far2.fr), time API (TBD.fr), command API (cmd-*.fr), alarm API (alarm1.fr),
+get/set API (outbits2.fr), standard names in status db, and farqueue API
+(farqueue.fr).
+
+memory1.fr: memory stream abstraction for RAM
+   depends on far API (far2.fr)
+
+memory2.fr: memory stream abstraction for RAM or EEPROM
+   depends on far API (far2.fr)
+
+mem-cmd1.fr: Memory commands.
+   depends on module API (modules2.fr), command API (cmd-*.fr), farcopy API
+(farcopy.fr), memory API (memory2.fr), dump API (dump1.fr), packet API
+(packet1.fr), and checksum API (sumcrc.fr).
+
+mem-cmd2.fr: Memory commands.
+   depends on module API (modules2.fr), command API (cmd-*.fr), farcopy API
+(farcopy.fr), far API (far2.fr), dump API (dump1.fr), packet API (packet1.fr),
+and checksum API (sumcrc.fr).
+
+monitor1.fr: Monitor analogs.
+   depends on module API (modules2.fr), command API (cmd-*.fr), get/set
+API (outbits2.fr), standard names in status db, macro API (macro1.fr),
+and alarm API (alarm1.fr).
+
+motor2.fr: Motorola S-record download
+   depends on memory API (memory2.fr)
+
+packbits1.fr: bit stream abstraction (non-reentrant)
+   depends on module API (modules2.fr) and far API (far2.fr)
+
+packbits2.fr: bit stream abstraction (reentrant)
+   depends on module API (modules2.fr) and far API (far2.fr)
+
+packet1.fr: Packet transmission.
+   depends on module API (modules2.fr), get/set API (outbits2.fr), standard
+names in status db, far API (far2.fr), host/frame API (TBD).
+
+power1.fr: Power board control.
+   depends on module API (modules2.fr) and user I2C API (i2c-user1.fr).
+
+struct.fr: data structure compiler
+   overrides portable version so that structure returns correct size in far mode
+
+sumcrc.fr: CRC generator
+   RTXism: @+
+
+summit1.fr: Summit 1553 RT.
+   depends on module API (modules2.fr) and far API (far2.fr).
+
+summit2.fr: Summit 1553 RT.
+   depends on module API (modules2.fr) and far API (far2.fr).
+
+sumtwos.fr: two's complement checksum generator
+
+telemetry1.fr: Telemetry process.
+   depends on module API (modules2.fr), dump API (dump1.fr), macro API
+(macro-dump1.fr), status API (TBD), timers/doers API (timers2.fr), and host
+API (TBD).
+
+time1.fr: Time.
+
+trioc1.fr: TRIO-C access.
+   depends on module API (modules2.fr) and user I2C API (i2c-user1.fr).
+RTXism: 8<<

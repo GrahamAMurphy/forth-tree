@@ -1,0 +1,178 @@
+\begin{gloss}{"}{\verb|"|ccc$<$\verb|"|$>$\verb|"| -- c-addr u}
+
+Used in the form:
+\begin{verbatim}
+   " ccc"
+\end{verbatim}
+Returns the address and length of the given string.  The string is stored
+in a transient area.
+\end{gloss}
+\begin{cgloss}{""}{ -- c-addr u}{\verb|"|ccc$<$\verb|"|$>$\verb|"| -- }
+
+Compiling word used in the form:
+\begin{verbatim}
+   : foo ... "" ccc" ... ;
+\end{verbatim}
+Compiles a string from the input stream into the current definition.
+At run time, the address and length of the string are returned.
+\end{cgloss}
+\begin{gloss}{-rot}{x1 x2 x3 -- x3 x1 x2}
+
+The top three stack entries are rotated, moving the top entry to the
+bottom.  \fw{-rot} is the converse of \fw{rot}.
+\end{gloss}
+\begin{gloss}{2pick}{x1 x2 x3 -- x1 x2 x3 x1}
+
+Shorthand for \fw{2 pick}.
+\end{gloss}
+\begin{gloss}{3pick}{x1 x2 x3 x4 -- x1 x2 x3 x4 x1}
+
+Shorthand for \fw{3 pick}.
+\end{gloss}
+\begin{cgloss}{$<<$}{ x -- x x}{sys1 -- sys2}
+
+Compiling word to signal the beginning of a case inside the select case
+control structure.  See \fw{sel} for an example of how to use the case words.
+\end{cgloss}
+\begin{cgloss}{==$>$}{x1 x1 x2 -- x1 $|$ }{sys1 -- sys2}
+
+Compiling word separates a case structure equality test from the corresponding
+case action.  See \fw{sel} for an example of how to use the case words.
+\end{cgloss}
+\begin{cgloss}{=$>$}{x1 flag -- x1 $|$ }{sys1 -- sys2}
+
+Compiling word separates a case structure test from the corresponding case
+action.  See \fw{sel} for an example of how to use the case words.
+\end{cgloss}
+\begin{cgloss}{$>>$}{ -- }{sys1 -- sys2}
+
+Compiling word ends a case inside a case select control structure.  See
+\fw{sel} for an example of how to use the case words.
+\end{cgloss}
+\begin{gloss}{cell}{ -- u}
+
+Constant that returns the size of a cell in address units.
+\end{gloss}
+\begin{gloss}{cell-}{a-addr1 -- a-addr2}
+
+Subtract the size of a cell, specified in address units, from
+\type{a-addr1} giving \type{a-addr2}.
+\end{gloss}
+\begin{gloss}{cell/}{n1 -- n2}
+
+\type{n2} is the size, in cells (rounded towards zero), of
+\type{n1} address units.
+\end{gloss}
+\begin{gloss}{d.lz}{d n -- }
+
+Print the double precision number \type{d} right-justified in a field of
+\type{n} characters with leading zeros prepended.
+\end{gloss}
+\begin{gloss}{disable}{ -- }
+
+Disable interrupts.
+\end{gloss}
+\begin{gloss}{enable}{ -- }
+Enable interrupts.
+\end{gloss}
+\begin{cgloss}{endsel}{x -- }{sys1 -- sys2}
+
+Compiling word ends a case control structure.  See \fw{sel} for an example
+of how to use the case words.
+\end{cgloss}
+\begin{gloss}{inline}{ -- }
+
+Marks the most recently created dictionary entry as a word that should be
+expanded inline (instead of being called) when used in a colon definition.
+NOTE: should not be used on words that contain branches
+or word defined via \fw{create}.
+\end{gloss}
+\begin{gloss}{m/mmod}{ud1 u1 -- u2 ud2}
+
+Unsigned mixed-mode division.  Dividend and quotient are two cells big.
+\end{gloss}
+\begin{gloss}{nop}{ -- }
+
+Do nothing.
+\end{gloss}
+\begin{gloss}{not}{x1 -- x2}
+
+\type{x2} is the one's complement of \type{x1}.  Equivalent to \fw{invert}.
+\end{gloss}
+\begin{gloss}{number}{c-addr -- n true $<$or$>$ false}
+
+\type{c-addr} points to a counted string.  \fw{number}
+attempts to convert this string
+to a number using the current base.  The converted number \type{n}
+and a true flag
+are returned if successful.  Otherwise, a false is returned.  For the
+conversion to be successful, there must be a blank at the end
+of the string.
+\end{gloss}
+\begin{gloss}{rdrop}{ -- }
+
+Drop one item off the return stack.
+\end{gloss}
+\begin{gloss}{reboot}{ ... -- }
+
+Reinitialize system.  All processes are killed and the Forth
+interpretation process is restarted.  Dictionary entries are
+retained.
+\end{gloss}
+\begin{gloss}{rotate}{x1 n -- x2}
+
+Rotate \type{x1} by \type{n} bits.  If \type{n} is greater than zero,
+\type{x1} is rotated left.  If
+\type{n} is less than zero, \type{x1} is rotated right.  If \type{n}
+is zero, nothing happens.
+\end{gloss}
+\begin{cgloss}{sel}{ -- }{sys1 -- sys2}
+
+Compiling case structure word used in the form:
+\begin{verbatim}
+   : foo
+      ...
+      <selector> sel
+         <<    1      ==> ... >>
+         <<    2      ==> ... >>
+         <<    5      ==> ... >>
+      endsel
+	  ... ;
+\end{verbatim}
+The constants 1, 2, and 5 are just shown as an example.  Any word that
+leaves
+one item on the stack can be used in the select field.  The action code 
+symbolized by ..., can be any thing including another case structure.  The
+selector is no longer on the stack when the action code begins execution.
+If none of the words in the select
+fields match the selector, the selector is dropped by \fw{endsel}.
+\end{cgloss}
+\begin{gloss}{touch}{a-addr -- }
+
+Touch an address for side-effect.  Equivalent to \fw{@ drop}.
+\end{gloss}
+\begin{gloss}{u.lz}{u n -- }
+
+\type{u} is displayed as an unsigned number right-justified in a field
+of \type{n} characters with leading zeros.
+\end{gloss}
+\begin{gloss}{u?}{a-addr -- }
+
+Display the contents of \type{a-addr} as an unsigned number
+in free-field format.
+\end{gloss}
+\begin{gloss}{um*m}{ud1 u -- ud2}
+
+\type{ud2} is the double precision product of the unsigned multiplication
+of \type{ud1} and \type{u}.
+\end{gloss}
+\begin{gloss}{umax}{u1 u2 -- u3}
+
+\type{u3} is the greater of \type{u1} and \type{u2}
+according to the operation of \fw{u$>$}.
+\end{gloss}
+\begin{gloss}{umin}{u1 u2 -- u3}
+
+\type{u3} is the lesser of \type{u1} and \type{u2}
+according to the operation of \fw{u$<$}.
+\end{gloss}

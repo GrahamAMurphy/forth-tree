@@ -1,0 +1,121 @@
+\ (c) 1997/2010 Johns Hopkins University / Applied Physics Laboratory
+\ This file contains routines that allow universal access to
+\ a random-access storage device.  The user is presented with
+\ read/write byte-accessable memory.  The actual device might
+\ be word-addressable only and/or EEPROM.
+
+\ Note: since the memory interface is not reentrant, a single
+\ process will "own" it.
+
+\ Note: uses set-mem/get-mem API.  Also needs a value m-size that is the
+\ size of the EEPROM memory block and a function wait-for-eeprom that
+\ waits for for write cycle to complete.
+
+hex
+
+\ Several constants and algorithms are for specific EEPROMs.
+\ These are indicated by (*); it may be possible to make these
+\ applicable to other EEPROMs.
+
+m-size 1-		constant m-lo-mask
+m-size 1- invert	constant m-hi-mask
+
+variable m-memid			\ memory id of memory (e.g. page, etc.)
+variable m-addr				\ address of memory
+variable m-buf-memid			\ memory id of bufferer memory
+variable m-buf-addr			\ address of buffered memory
+variable m-state			\ state of buffer:
+   0 constant m-empty			\  nothing buffered
+   1 constant m-clean			\  buffered, unmodified
+   2 constant m-dirty			\  buffered, modified
+
+\ Memory buffer
+create m-buffer  m-size allot
+
+\ ------------------------------------------------------------------------
+\ Memory access
+
+: block-out	\ ( src dst -- ) Copy one memory block from near memory
+		\ to far memory.  Assumes that far memory has been set.
+   m-size 2/ words-out ;
+
+: block-in	\ ( src dst -- ) Copy one memory block from far memory
+		\ to near memory.  Assumes that far memory has been set.
+   m-size 2/ words-in ;
+
+: m-read	\ ( -- ) Read in one block of memory.  The block to read
+		\ is determined by m-memid and m-addr.
+   get-mem				\ remember current memory id
+   m-memid @ dup set-mem m-buf-memid !	\ identify remote memory
+   m-addr @ m-hi-mask and		\ compute address of block
+   dup m-buf-addr !			\ that holds desired data
+   m-buffer block-in			\ move block into buffer
+   m-clean m-state !
+   set-mem ;				\ restore original memory id
+
+: m-write	\ ( -- ) Write out one block of memory.  The block to
+		\ write is determined by m-buf-memid and m-buf-addr.
+   get-mem				\ remember current memory id
+   m-buf-memid @ set-mem		\ identify remote memory
+   m-buf-addr @ m-size + cell-		\ last address to write
+   m-buffer m-size + cell- @		\ ... and last word to write
+   \ writes must not have gap >tBLC (*).
+   disable				\ disable interrupts
+   m-buffer m-buf-addr @ block-out	\ move data back to block
+   enable
+   wait-for-eeprom			\ wait for EEPROM write cycle to finish
+   m-clean m-state !
+   set-mem ;				\ restore original memory id
+
+\ ------------------------------------------------------------------------
+\ Low level help.
+: m-flush	\ ( -- ) If buffered data is dirty, write it out.
+   m-state @ m-dirty =			\ if buffer is dirty,
+  if m-write then ;			\ write out buffer
+
+: m-addr-in-buffer \ ( -- addr ) Return address corresponding to current
+		\ position.
+   m-state @ m-empty =			\ if buffer is empty
+   m-addr @ m-hi-mask and
+      m-buf-addr @ <> or		\ or if buffer does not have data
+   m-memid @ m-buf-memid @ <> or
+   if m-flush m-read then		\ then flush any stale data and load
+   m-buffer m-addr @ m-lo-mask and + ;	\ compute address
+
+\ ------------------------------------------------------------------------
+\ User Interface
+
+: open-mem	\ ( -- ) Open memory stream.  This should not be called
+		\ again until a close-mem has been done (or data may
+		\ be lost).
+   get-code m-memid !  0 m-addr !	\ default to code space
+   m-empty m-state ! ;
+
+: seek-memid	\ ( memid -- ) Set memory id of memory stream.  This may
+		\ be called as many times as desired.
+   m-memid ! ;
+
+: seek-memaddr	\ ( addr -- ) Set memory address of memory stream.  This
+		\ may be called as many times as desired.
+   m-addr ! ;
+
+: step-mem	\ ( n -- ) Move memory address by n bytes.  The address is
+		\ allowed to wrap around within its memory space.
+   m-addr +! ;
+
+: mem-pos	\ ( -- addr memid ) Return memory id and current address.
+   m-addr @  m-memid @  ;
+
+: mem-peek	\ ( -- byte ) Return byte from current address.
+   m-addr-in-buffer c@ ;
+
+: >mem		\ ( byte -- ) Store byte at current address and move
+		\ address to next byte.
+   m-addr-in-buffer c!
+   m-dirty m-state !
+   1 step-mem ;
+
+: close-mem	\ ( -- ) Close memory interface.  Flush out any dirty
+		\ data and invalidate buffer.
+   m-flush
+   m-empty m-state ! ;

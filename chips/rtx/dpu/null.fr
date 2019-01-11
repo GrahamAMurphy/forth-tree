@@ -1,0 +1,10 @@
+\ (c) 1995 Johns Hopkins University / Applied Physics Laboratory
+\ Extend multitasker: define address of null loop code so that
+\ user may replace with her own null loop as follows:
+\ : init
+\    ['] inf-loop 1 rshift null-loop !
+hex
+
+[ifdef] multitasking                    \ if multitasking system requested
+nullprocess-init pd-init + constant null-loop
+[then]

@@ -1,0 +1,173 @@
+\ (c) 2004 Johns Hopkins University / Applied Physics Laboratory
+\ This is a peephole optimizer
+hex
+
+\ TBD: Note: some 2* uses should be "t-instr *", or t-instrs.
+
+\ Structure of an optimization rule
+structure rule-struct
+	cell: .next			\ next rule
+	cell: .#applic			\ number of applications
+	cell: .rulename			\ pointer to name of rule
+	cell: .patlength		\ instructions in pattern part of rule
+	cell: .rulecode			\ pointer to code
+endstructure
+
+\ Here is code for managing a table of wild card matches from the optimizer
+create matchtable			\ table of wild card matches
+	10 2* cells allot		\ format: addr[len pos] fieldvalue
+variable nextfreeslot			\ points to next free slot in table
+
+: matchreset	\ ( -- ) empty table 
+   matchtable nextfreeslot ! ;
+
+: savematch	\ ( value addr[len pos] -- )
+   nextfreeslot @ 2!			\ save in table 
+   cell 2* nextfreeslot +! ;
+
+: wildcard	\ ( index -- addr ) Return address of matched value.
+   2* cells matchtable + cell+ ;
+: wildcard-match \ ( index -- value ) Return matched value.
+   2* cells matchtable + cell+ @ ;
+: wildcard-resize \ ( addr[len pos] index -- ) Change field position and size.
+   2* cells matchtable + ! ;
+
+: ??		\ ( instr index -- instr' ) insert value from 
+		\ matchtable[index] into the instruction on the  
+		\ stack.					 
+   2* cells matchtable + 2@ 2@ !field ;
+
+: wildcard-extract \ ( instr patinstr addr[len pos] -- actual' pat' )
+   >r over r@ 2@ @field			\ extract value from matched field
+      r@ savematch			\   and save it in match table
+   swap 0 r@ 2@ !field			\ make out field of actual instruction
+   swap 0 r> 2@ !field ;		\   and pattern instruction
+
+: makewildcard	\ ( -- )  Construct a wildcard.  This is a defining 
+		\ word that takes two names from input stream.  The   
+		\ first name should be for a field defining word that 
+		\ already exists.  A new word will be built with a    
+		\ pointer to the field definition.		      
+   -1 ' execute
+   does>	\ ( instr patinstr addr[ addr[len pos] -1] -- actual' pat' )
+      @ wildcard-extract ;
+
+\ First, the rule compiler:  these are the run-time words: 
+variable scan		\ Address of object to try to match against 
+
+: (start)	\ ( addr[rule] -- addr[rule] instr ) start matching process
+   matchreset				\ reset match table 
+   t-here over .patlength @ 2* -	\ find address of first instruction 
+   dup t-i+ scan !			\ and initialize scan pointer 
+   t-i@ ;				\ and return first instruction 
+
+: (next)	\ ( -- instr ) last match was successful so begin another.					     
+   scan @ dup t-i+ scan ! t-i@ ;	\ return next instruction 
+
+: (success)	\ ( addr[rule] -- addr[rule] ) all matches succeed 
+\  5 spaces ." apply:" dup .rulename @ count type cr \ DEBUG 
+   dup .patlength @ 2* negate t-allot	\ reclaim dictionary space 
+   1 over .#applic +! ;			\ rule application counter 
+
+\ Now, the actual rule compiler: 
+variable rulelist			\ linked list of rules 
+   0 rulelist !
+
+: rule		\ ( -- xt colon-sys &rule.code &rule.patlength )
+   here bl ,word align
+   here rulelist @ , rulelist !		\ add rule to rulelist 
+   0 , , here 0 ,			\ #applic, rulename, patlength 
+   here 0 , swap			\ rule code
+   2>r :noname postpone (start) 2r> ;	\ start compiling pattern code 
+
+\ : watch   ." matching:" over u. dup u. cr ;	\ DEBUG 
+
+: >,		\ ( <origs> &code &patlength -- <origs>' &code &patlength )
+		\ a new pattern has been compiled. compile run-  
+		\ time code to check the result and quit on fail.
+   1 over +!				\ update pattern length 
+\  postpone watch			\ DEBUG 
+   postpone =
+   2>r postpone if 2r>
+   postpone (next) ; immediate		\ prepare for next pattern 
+
+: -->		\ ( <origs> &code &patlength -- <origs>' &code &patlength )
+		\ compile code to check last pattern 
+   1 over +!				\ update pattern length 
+\  postpone watch			\ DEBUG 
+   postpone =
+   2>r postpone if 2r>
+   postpone (success) ; immediate
+
+\ TBD: redo ...
+: isconstraint	\ ( pattern t/f -- pattern' )  if the input result 
+		\ from the constraint test is false, the pattern is 
+		\ smashed so that the next match will fail.	    
+   not if drop -1 then ;		\ BUG: this works 99.99% of the time 
+
+: endrule	\ ( xt colon-sys <origs> &rule.code &rule.patlength -- )
+		\ end rule compilation. resolve failure branches.
+   postpone true postpone exit		\ execute on success 
+   swap >r @ 0 do postpone then loop	\ resolve forward branches
+   postpone false postpone ;		\ execute on failure 
+   r> ! ; immediate			\ record execution vector
+
+\ Here is the optimizer 
+variable ?code		\ A variable that points to the beginning of the 
+			\ optimization queue.  here marks the end.	 
+			\ From cmforth on the Novix chip.		 
+
+\ : ||		\ ( -- ) flush optimization queue 
+\    t-here ?code ! ;
+
+: ruleok?	\ ( addr[rule] -- addr[rule] t/f ) return true iff their
+		\ are sufficient inputs for given rule and that the first
+		\ input isn't actually the second half of a long instruction.
+   t-here over .patlength @ 2* -	\ address of first input
+   dup ?code @ u< not if		\ if sufficient inputs
+      2- t-i@ dup f000 and 8000 <>	\ ensure that first input is not second
+      swap f1c0 and b000 <> and		\   half of long call or long immediate
+   else					\ if insufficient inputs
+      drop false			\ return false
+   then ;
+
+: ruleapplied?	\ ( addr[rule] -- addr[rule] t/f ) try to apply 
+		\ given rule.  return t/f on success/failure.	   
+   dup .rulecode perform ;
+
+: applyrules	\ ( -- t/f ) attempt to apply each rule in rule 
+			\ list until successful or list is empty.	   
+   rulelist @
+   begin
+      dup while				\ while not at end of list 
+	 ruleok? if			\ if rule can be tried
+            ruleapplied? if		\ if successful 
+               drop true exit		\ exit this word 
+	    then
+         then
+      @					\ fetch next rule 
+   repeat drop false ;
+
+: optimize	\ ( -- ) apply optimization rules until none are 
+		\ successful.					    
+   ?code @ t-here u< if			\ if there is stuff in the queue 
+      begin applyrules not until
+   then ;
+
+: rulestats	\ ( -- ) print out rule application statistics 
+   rulelist @
+   begin
+      dup while				\ while not at end of list 
+      ." Rule " dup .rulename @ count type
+      ."  was applied " dup .#applic ?
+      ." times." cr
+      @
+   repeat drop ;
+
+: clearstats	\ ( -- ) reset rule statistics 
+   rulelist @
+   begin
+      dup while				\ while not at end of list 
+      0 over .#applic !
+      @
+   repeat drop ;

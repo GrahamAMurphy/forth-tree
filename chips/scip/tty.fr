@@ -1,0 +1,16 @@
+\ (c) 2004 Johns Hopkins University / Applied Physics Laboratory
+\ These are I/O routines for running interactive Forth on simulator
+hex
+
+trap-base define trap-base
+
+code emit	\ ( char --- )
+	trap-base *literal*
+	<!	popp >.			\ push arg into I/O system
+	trap-base *literal*
+	<@	1 +# popp >.		\ trigger I/O
+	<alu	nopb popp return >.
+
+code key	\ ( --- char )
+	trap-base *literal*
+	<@	2 +# return >.		\ trigger I/O

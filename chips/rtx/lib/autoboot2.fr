@@ -1,0 +1,74 @@
+\ (c) 1998 Johns Hopkins University / Applied Physics Laboratory
+\ Automatically boot from EEPROM.
+\ This is intended to be a component for a boot ROM ...
+hex
+
+\ Requires the following words:
+\ eeprom-prog-pg#	\ ( -- page ) Returns page of source program.
+\ eeprom-prog-addr	\ ( -- addr ) Returns address of source program header.
+
+structure prog-head-struct	\ header of program
+   cell: .prog-page		\ page in which to load program
+   cell: .prog-dst		\ destination address in page
+   cell: .prog-exec		\ program entry point
+   cell: .prog-length		\ program length in words (including header)
+   cell: .prog-cksum		\ 16 bit 2's complement checksum
+\ program begins here ...
+endstructure
+
+: checksum+	\ ( checksum addr page length -- checksum' ) Accumulate
+		\ word-wise checksum at given address in given page.  The
+		\ length is in words.
+   swap set-page far			\ all accesses on remote page
+   0 do swap over @ + swap cell+ loop	\ accumulate checksum
+   drop ;
+
+: eeprom-good?	\ ( -- t/f ) return true if EEPROM checksum is good.
+		\ The checksum is the 16 bit 2's complement checksum of the
+		\ the header and program.  The header includes a value,
+		\ (the checksum) to make this computation produce zero.
+   0 eeprom-prog-addr eeprom-prog-pg#
+   dup set-page over .prog-length far@ checksum+ 0= ;
+
+: dst-ok?	\ ( -- t/f ) Return true if it is ok to write to dest. page.
+   eeprom-prog-pg# set-page		\ see that dest page <> current page
+      eeprom-prog-addr .prog-page far@ cpr@ <> ;
+
+: eeprom-copy	\ ( -- ) Copy EEPROM program to specified destination.
+   eeprom-prog-pg# set-page		\ access EEPROM page
+   eeprom-prog-addr .prog-page far@
+   eeprom-prog-addr prog-head-struct +
+   eeprom-prog-addr .prog-dst far@
+   eeprom-prog-addr .prog-length far@	\ length to copy in words
+      prog-head-struct cell/ -
+   far for				\ s: dst page, src addr, dst addr
+      >r eeprom-prog-pg# set-page @+ swap
+      2pick set-page r> !+
+   next drop drop drop ;
+
+: copy-ok?	\ ( -- t/f ) Confirm that EEPROM copy was ok by computing
+		\ checksum of EEPROM header + RAM program.
+   0 eeprom-prog-addr eeprom-prog-pg#	\ compute EEPROM head checksum
+      prog-head-struct cell/ checksum+
+   eeprom-prog-pg# set-page
+   eeprom-prog-addr .prog-dst far@
+   eeprom-prog-addr .prog-page far@
+   eeprom-prog-addr .prog-length far@ prog-head-struct cell/ -
+      checksum+ 0= ;			\ accumulate RAM checksum
+
+: eeprom-jump	\ ( -- ) Jump to program loaded from EEPROM.
+   eeprom-prog-pg# set-page		\ access EEPROM page
+   eeprom-prog-addr .prog-page far@
+   eeprom-prog-addr .prog-exec far@
+      swap cpr! execute ;		\ jump to loaded program
+
+: autoboot	\ ( -- ) If EEPROM, run default pgm.  Will return on failure
+		\ of if booted program returns.
+   eeprom-good? if			\ if eeprom is ok
+      dst-ok? if			\ if destination is ok
+	 eeprom-copy			\ coppy eeprom
+	 copy-ok? if			\ if copy successful
+	    eeprom-jump			\ run program
+	 then
+      then
+   then ;			

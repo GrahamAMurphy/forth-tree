@@ -1,0 +1,63 @@
+\ (c) 1997 Johns Hopkins University / Applied Physics Laboratory
+\ Modification of NEAR DPU
+hex
+
+\ ------------------------------------------------------------------------
+\ Useful G-bus interfaces
+\ Note: only the least-significant byte of Gbus is connected to these ports.
+\ This means that a port read returns junk in the ms byte.
+
+\ Writes
+be98 ucode dpu-cfg0!	\ ( x -- ) Configure DPU.
+be99 ucode edac-cfg!	\ ( x -- ) Configure EDAC.
+be9a ucode misc-cfg!	\ ( x -- ) Configure DPU.
+b09b ucode edac-clear	\ ( -- ) Clear EDAC flag.
+be9c ucode dpu-icr!	\ ( x -- ) Write to DPU Interrupt Control Register.
+be9e ucode dpu-cfg6!	\ ( x -- ) Configure DPU.
+be9f ucode det-cfg!	\ ( x -- ) Configure DPU.
+
+\ Reads
+be18 ucode dpu-cfg0@	\ ( -- x ) Return DPU configuration.
+be19 ucode edac-status@	\ ( -- x ) Return EDAC status.
+be1a ucode hv-cmds@	\ ( -- x ) Return HV command/enable bits.
+be1b ucode wd-status@	\ ( -- x ) Return watchdog status register.
+b01e ucode reset-watchdog \ ( -- ) Reset watchdog timer.
+
+\ UART
+noheads		\ only available internally for interpreter
+be1c ucode uart-status	\ ( -- x ) Return UART status (interrupt stat., Gbus 4).
+be1d ucode testport@	\ ( -- c ) Read character from UART (Gbus 5).
+be9d ucode testport!	\ ( c -- ) Send character to UART (Gbus 5).
+
+20 constant RXRDYMASK
+10 constant TXRDYMASK
+heads
+
+\ Memory bank switching abstraction.  Replaces get-page/set-page suite.
+: get-code	\ ( -- memid ) Return a memory id for the currently
+		\ executing code.
+   cpr@ || ; inline			\ same as cpr@ in HENA
+
+: get-mem	\ ( -- memid ) Return the memory id for the current far
+		\ address space.
+   get-page dpu-cfg0@ or || ; inline
+
+: set-mem	\ ( memid -- ) Set the memory id for the far address space.
+   dup dpu-cfg0! set-page || ; inline
+
+: valid-mem?	\ ( memid -- t/f ) Return true iff memid is valid.
+   40 u< ;
+
+\ ------------------------------------------------------------------------
+\ Interrupt numbers
+
+noheads
+3 constant UARTINT#			\ UART on EI5
+heads
+
+\ ------------------------------------------------------------------------
+\ Useful constants
+
+noheads
+100 constant FIFOSIZE			\ TTY input buffer, output buffer sizes
+heads

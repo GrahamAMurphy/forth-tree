@@ -1,0 +1,10 @@
+\ (c) 2004 Johns Hopkins University / Applied Physics Laboratory
+\ Interrrupt Vector Table
+hex
+
+rom
+label reset-vector
+   4 allot			\ slot for reset
+label int-vector
+   2 allot			\ slot for interrupt
+ram

@@ -1,0 +1,20 @@
+\ (c) 1998 Johns Hopkins University / Applied Physics Laboratory
+\ Macro definitions (cross-compiler extensions).
+hex
+
+forth : m:	\ ( -- ) Start defining a builtin macro.
+   [host] ;
+
+forth : ;m	\ ( count -- count' ) End a builtin macro.
+   [host] 0 c,				\ terminate macro with empty command
+   1+ ;					\ keep count of number of macros
+
+forth : w,	\ ( w -- ) Comma down one word; no alignment is necessary.
+   [host] split c, c, ;
+
+forth : c:	\ ( opcode -- addr ) Add a command to builtin macro.
+   [host] here 0 c,			\ reserve byte for length
+   swap w, ;				\ add opcode
+
+forth : ;c	\ ( addr -- ) End command.
+   [host] here over - 1- swap c! ;	\ store length of command

@@ -1,0 +1,55 @@
+verbatim
+
+EOL = 0xd				/* end of line marker */
+/*PROM = 0x100020				/* address of offboard PROM */
+PROM = 0x10000				/* address of V2F PROM */
+
+/*			startup code */
+	.globl _main
+	.text
+	.=0x1000			/* entry of system */
+/* cold start entry point */
+_main:	movl	#TOPPS,psp		/* stack pointer */
+	movl	#COLDSTART,iar		/* point to high level startup */
+	movl	INITSP,sp		/* initialize stack pointer */
+	movl	#DICT,d0		/* calculate size of system */
+	subl	#_main,d0
+	movl	d0,Alength
+	movl	#lnext,addrnext		/* inner interp. entry point */
+	jsr	_initchans		/* initialize tty driver */
+	next
+
+/* warm start entry point */
+_warm:	movl	#TOPPS,psp		/* stack pointer */
+	movl	#WARMSTART,iar		/* point to high level startup */
+	movl	INITSP,sp		/* initialize stack pointer */
+	movl	#lnext,addrnext		/* inner interp. entry point */
+	jsr	_initchans		/* initialize tty driver */
+	next
+
+/*		Code For Copying System From Prom Into RAM */
+/*	When this code is executed it will actually be located in the */
+/*	prom.  This accounts for the weird calculation on the first line. */
+_from:	movl	#Alength+PROM,a0
+	subl	#_main,a0
+	movl	a0@,d0			/* length in bytes */
+	asrl	#1,d0			/* length in words */
+	subql	#1,d0
+	movl	#PROM,a1		/* start of data */
+	movl	#_main,a0		/* starting address */
+1$:	movw	a1@+,a0@+		/* move one word at a time */
+	dbf	d0,1$
+	jmp	_main			/* start up Forth */
+
+
+	.data
+
+INITSP:	.long	_main			/* initial value of return stack */
+
+/* size of system in bytes. this is initialized at forth boot time and
+   should be updated before saving the system in EEPROM.  A default value
+   is supplied for booting out of PROM.
+ */
+Alength:.long	0x8000			/* default copy size: 32k */
+
+end

@@ -1,0 +1,315 @@
+\ (c) 1992 Johns Hopkins University / Applied Physics Laboratory
+
+verbatim
+#include "defs.h"
+	.data
+/* file mode strings for fopen */
+ro:	.asciz	"r"
+rw:	.asciz	"r+"
+wo:	.asciz	"w"
+
+/* message for perror */
+forthmsg:.asciz	"forth"
+
+/* some external things we need */
+	.globl __iob			/* declare _iob array from stdio */
+	.globl _errno			/* error number from kernel */
+	.globl _result2			/* extra result from function call */
+
+	.globl _OUTPUTFP		/* referenced in unixio.fr */
+
+	.align 4			/* TBD should be automated */
+
+end
+
+\			I/O interface
+
+code fkey	( fileid  -- c )
+	movl	psp@,sp@-		/* fileid */
+	jbsr	_fkey			/* use custom key routine */
+	addql	#4,sp			/* discard argument */
+	movl	d0,psp@			/* return character */
+	next
+end
+
+code key	( -- c )
+	jbsr	_key			/* use custom key routine */
+	movl	d0,psp@-		/* return character */
+	next
+end
+
+code bin	( -- )
+	next				/* nop on Unix */
+end
+
+code close-file	( fp -- ior )
+	movl	#0,_errno		/* reset error number */
+	movl	psp@,sp@-		/* file id */
+	jbsr	_fclose			/* use fclose(3S) */
+	addql	#4,sp			/* discard arguments */
+	movl	_errno,psp@		/* return errno */
+	next
+end
+
+code create-file ( c-addr u w1 -- w2 ior )
+	movl	#0,_errno		/* reset error number */
+	movl	psp@+,sp@-		/* file mode */
+	movl	psp@,sp@-		/* length of string */
+	movl	psp@(4),sp@-		/* start of string */
+	jbsr	_create_file		/* use wraper for fopen(3S) */
+	lea	sp@(12),sp		/* discard arguments */
+	movl	d0,psp@(4)		/* return fileid */
+	movl	_errno,psp@		/*  and errno */
+	next
+end
+
+code delete-file ( c-addr u -- ior )
+	movl	#0,_errno		/* reset error number */
+	movl	psp@+,sp@-		/* length of string */
+	movl	psp@,sp@-		/* start of string */
+	jbsr	_delete_file		/* use wraper for unlink(2) */
+	addql	#8,sp			/* discard arguments */
+	movl	_errno,psp@		/* return errno */
+	next
+end
+
+code file-position ( fileid -- ud ior )
+	movl	#0,_errno		/* reset error number */
+	movl	psp@,sp@-		/* fileid */
+	jbsr	_ftell			/* use ftell(3S) */
+	addql	#4,sp			/* discard argument */
+	movl	d0,psp@			/* return current position */
+	movl	#0,psp@-		/*  as a double unsigned number */
+	movl	_errno,psp@-		/*  and errno */
+	next
+end
+
+code file-size	( fileid -- ud ior )
+	movl	#0,_errno		/* reset error number */
+	movl	psp@,sp@-		/* fileid */
+	jbsr	_file_size		/* use wrapper for fstat(2) */
+	addql	#4,sp			/* discard argument */
+	movl	d0,psp@			/* return current size */
+	movl	#0,psp@-		/*  as a double unsigned number */
+	movl	_errno,psp@-		/*  and errno */
+	next
+end
+
+code file-status ( c-addr u -- w ior )
+	movl	#0,_errno		/* reset error number */
+	movl	psp@,sp@-		/* length of string */
+	movl	psp@(4),sp@-		/* start of string */
+	jbsr	_file_status		/* use wrapper for stat(2) */
+	addql	#8,sp			/* discard argument */
+	movl	d0,psp@(4)		/* return stat buf */
+	movl	_errno,psp@		/*  and errno */
+	next
+end
+
+code open-file	( c-addr u w1 -- w2 ior )
+	movl	#0,_errno		/* reset error number */
+	movl	psp@+,sp@-		/* file mode */
+	movl	psp@,sp@-		/* length of string */
+	movl	psp@(4),sp@-		/* start of string */
+	jbsr	_open_file		/* use wrapper for fopen(3S) */
+	lea	sp@(12),sp		/* discard arguments */
+	movl	d0,psp@(4)		/* return fileid */
+	movl	_errno,psp@		/*  and errno */
+	next
+end
+
+code r/o	( -- w )
+	movl	#ro,psp@-
+	next
+end
+
+code r/w	( -- w )
+	movl	#rw,psp@-
+	next
+end
+
+code read-file	( c-addr u1 fileid -- u2 ior )
+	movl	#0,_errno		/* reset error number */
+	movl	psp@+,sp@-		/* fileid */
+	movl	psp@,sp@-		/* number of bytes */
+	movl	#1,sp@-			/* size of a byte */
+	movl	psp@(4),sp@-		/* buffer */
+	jbsr	_fread			/* use fread(3S) */
+	lea	sp@(16),sp		/* discard arguments */
+	movl	d0,psp@(4)		/* return actual number */
+	movl	_errno,psp@		/*  and error number */
+	next
+end
+
+code read-line	( c-addr u1 fileid -- u2 flag ior )
+	movl	#0,_errno		/* reset error number */
+	movl	psp@,sp@-		/* fileid */
+	movl	psp@(4),sp@-		/* number of characters */
+	movl	psp@(8),sp@-		/* buffer */
+	jbsr	_read_line		/* use custom line routine */
+	lea	sp@(12),sp		/* discard arguments */
+	tstl	d0			/* zero indicates end of file */	
+	sne	d1			/* EOF=false, !EOF=true */
+        extw    d1
+        extl    d1
+	subql	#1,d0			/* don't count end of line char */
+	movl	d0,psp@(8)		/* return actual number */
+	movl	d1,psp@(4)		/*  and eof flag */
+	movl	_errno,psp@		/*  and error number */
+	next
+end
+
+code reposition-file ( ud fileid -- ior )
+	movl	#0,_errno		/* reset error number */
+	movl	#0,sp@-			/* flag: seek from beginning of file */
+	movl	psp@(8),sp@-		/* offset */
+	movl	psp@+,sp@-		/* fileid */
+	addql	#4,psp			/* discard tos */
+	jbsr	_fseek			/* use fseek(3S) */
+	lea	sp@(12),sp		/* discard arguments */
+	movl	_errno,psp@		/* return error number */
+	next
+end
+
+code resize-file ( ud fileid -- ior )
+	movl	#0,_errno		/* reset error number */
+	movl	psp@+,sp@-		/* fileid */
+	addql	#4,psp			/* discard msbs of ud */
+	movl	psp@,sp@-		/* offset */
+	jbsr	_resize_file		/* use wrapper for ftruncate(2) */
+	addql	#8,sp			/* discard arguments */
+	movl	_errno,psp@		/* return error number */
+	next
+end
+
+code w/o	( -- w )
+	movl	#wo,psp@-
+	next
+end
+
+code write-file	( c-addr u fileid -- ior )
+	movl	#0,_errno		/* reset error number */
+	movl	psp@+,sp@-		/* fileid */
+	movl	psp@+,sp@-		/* number of bytes */
+	movl	#1,sp@-			/* size of a byte */
+	movl	psp@,sp@-		/* buffer */
+	jbsr	_fwrite			/* use fwrite(3S) */
+	lea	sp@(16),sp		/* discard arguments */
+	movl	_errno,psp@		/* return error number */
+	next
+end
+
+code write-line	( c-addr u fileid -- ior )
+	movl	#0,_errno		/* reset error number */
+	movl	psp@+,sp@-		/* fileid */
+	movl	psp@+,sp@-		/* number of bytes */
+	movl	psp@,sp@-		/* buffer */
+	jbsr	_write_line		/* use custom line routine */
+	lea	sp@(12),sp		/* discard arguments */
+	movl	_errno,psp@		/* return error number */
+	next
+end
+
+\ -----------------------------------------------------------------------
+
+code perror	( -- ) 
+	movl	#forthmsg,sp@-		/* error message */
+	jbsr	_perror			/* use perror(3S) */
+	addql	#4,sp			/* discard arguments */
+	next
+end
+
+code stdin	( -- &_iob[0] )
+	movl	#__iob,psp@-		/* return address of stdin */
+	next
+end
+
+code stdout	( -- &_iob[1] )
+	movl	#__iob+IOBUFSIZE,psp@-	/* return address of stdout */
+	next
+end
+
+code stderr	( -- &_iob[2] )
+	movl	#__iob+IOBUFSIZE+IOBUFSIZE,psp@-
+					/* return address of stderr */
+	next
+end
+
+code terminate	( status -- )
+	movl	psp@+,sp@-		/* return status */
+	jbsr	_exit
+end
+
+code chdir	( addr u -- )
+	movl	psp@+,sp@-		/* directory name length */
+	movl	psp@+,sp@-		/* directory name */
+	jbsr	_change_dir		/* use wrapper for chdir(2) */
+	addql	#8,sp			/* discard arguments */
+	next
+end
+
+code get-env	( c-addr1 u1 -- c-addr2 u2 )
+	movl	psp@,sp@-		/* string length */
+	movl	psp@(4),sp@-		/* string */
+	jbsr	_get_env		/* use wrapper for getenv(3) */
+	addql	#8,sp			/* discard arguments */
+	movl	a0,psp@(4)		/* return address */
+	movl	_result2,psp@		/* ... and length */
+	next
+end
+
+\ -----------------------------------------------------------------------
+\ Interpreter I/O comes through here.  The routines cmd_getc, cmd_getline,
+\ cmd_putc, and cmd_putline are supplied separately so that a user can
+\ provide his own versions if the Forth system is being linked into a
+\ larger C program.  The routines must obey a few rules:
+\
+\ int cmd_getc() returns character; EOF on end of file
+\ int cmd_getline(char *, int) accumulates characters into given buffer
+\	and returns actual number of characters.  The line terminatator
+\	is placed in the buffer and included in the count.  An end of
+\	file returns zero and a blank line returns 1.  BUG: If there is
+\	no line terminator on last line, what happens?
+\ void cmd_putc(c) outputs one character
+\ void cmd_putline(char *, int) outputs the given buffer of characters.
+\	No line terminator is appended.
+
+~ code getc	( -- c )
+	jbsr	_cmd_getc
+	movl	d0,psp@-		/* return character */
+	next
+end
+
+~ code get-line	( addr u1 -- u2 flag ior )
+	movl	#0,_errno		/* reset error number */
+	movl	psp@,sp@-		/* number of characters */
+	movl	psp@(4),sp@-		/* buffer */
+	jbsr	_cmd_getline		/* use custom line routine */
+	lea	sp@(8),sp		/* discard arguments */
+	tstl	d0			/* zero indicates end of file */	
+	sne	d1			/* EOF=false, !EOF=true */
+        extw    d1
+        extl    d1
+	subql	#1,d0			/* don't count end of line char */
+	movl	d0,psp@(4)		/* return actual number */
+	movl	d1,psp@			/*  and eof flag */
+	movl	_errno,psp@-		/*  and error number */
+	next
+end
+
+~ code putc	( c -- )
+	movl	psp@+,sp@-		/* character */
+	jbsr	_cmd_putc
+	addql	#4,sp			/* discard argument */
+	next
+end
+
+~ code put-line	( addr u -- ior )
+	movl	#0,_errno		/* reset error number */
+	movl	psp@+,sp@-		/* number of bytes */
+	movl	psp@,sp@-		/* buffer */
+	jbsr	_cmd_putline		/* use custom line routine */
+	lea	sp@(8),sp		/* discard arguments */
+	movl	_errno,psp@		/* return error number */
+	next
+end

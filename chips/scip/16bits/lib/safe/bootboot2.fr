@@ -1,0 +1,45 @@
+\ (c) 2008 Johns Hopkins University / Applied Physics Laboratory
+\ Boot boot program.
+\ Copies boot program from ROM in to RAM.  The parameters boot-mem# and
+\ #boot-words define the destination memory and number of words to copy.
+\ The target RAM is tested, starting at boot-mem# and working downward
+\ through RAM, until a good location is found.  After the copy, execution
+\ continues in RAM via reboot.
+hex
+
+noheads
+
+: good-page?	\ ( page# -- t/f ) Return true iff given RAM page is good.
+		\ The test is trivial, but relatively quick.
+   set-mem far true			\ remote memory access; assume succes
+   #boot-words cells 0 do		\ only test needed locations
+      5555 i !  i @ 5555 = and		\ test patterns: 5555
+      aaaa i !  i @ aaaa = and		\   and aaaa
+   cell +loop ;
+
+: select-ram	\ ( page# -- page#' ) Select a RAM page.  Starts testing
+		\ with the given page, moving down through RAM pages until
+		\ a good page is found (page 0 is excluded).  If no good
+		\ page is found, the given page is returned.
+   dup begin				\ starting with given page
+      dup good-page? not while		\ test each page, if bad,
+      1-				\ test next lower page
+   dup 0= until				\ if 0 is reached,
+      swap				\ default to given page
+   then nip ;				\ return good page or default
+
+: copy-out	\ ( page# -- ) Copy local ROM page, starting at address 0,
+		\ to given page.  Copies #boot-words of data.
+   set-mem
+   0 #boot-words 0 do			\ for each of word
+      dup @ over far ! near cell+	\ copy word to remote page
+   loop drop ;
+
+rom label romboot \ ( -- ) Start running boot program.  ROM phase.
+here *callop* w0 forth @ host ! ram	\ patch reset vector
+]
+   boot-mem# select-ram dup copy-out	\ copy ROM to RAM
+      set-code reboot			\ jump to RAM and start application
+[
+
+heads

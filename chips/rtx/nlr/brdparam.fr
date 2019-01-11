@@ -1,0 +1,8 @@
+\ (c) 1993 Johns Hopkins University / Applied Physics Laboratory
+hex
+
+\ Interrupt numbers
+e define UARTINT#			\ EI1
+
+\ Useful constants
+80 define FIFOSIZE

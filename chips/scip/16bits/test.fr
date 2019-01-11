@@ -1,0 +1,9 @@
+hex
+
+" /homes/john/forth/loclib/cross-emul.fr" fload
+" /homes/john/forth/chips/scip/16bits/lib/rtxprims.fr" fload
+h# 100 constant m-size
+" /homes/john/forth/chips/scip/16bits/lib/far2.fr" fload
+" /homes/john/forth/chips/instr/lib16/memory2.fr" fload
+
+" test-write.fr" fload

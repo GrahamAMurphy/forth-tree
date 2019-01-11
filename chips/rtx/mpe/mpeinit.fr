@@ -1,0 +1,7 @@
+\ (c) 1993 Johns Hopkins University / Applied Physics Laboratory
+\ MPE specific initializations, etc.
+hex
+
+every-boot:	\ load interrupt mask
+   2010 cr!				\ ARCE, disable ints, boot pin off
+;boot

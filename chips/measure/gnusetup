@@ -1,0 +1,4 @@
+set terminal tek40xx
+set data style dot
+set samples 65536
+set xrange [0:65535]

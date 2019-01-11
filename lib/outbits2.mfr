@@ -1,0 +1,202 @@
+\ (c) 1996 Johns Hopkins University / Applied Physics Laboratory
+\ Input/output hardware ports, bits, and fields (cross-compiler extensions).
+hex
+
+\ ------------------------------------------------------------------------
+\ Forward references
+
+forth variable 'get host
+forth variable 'set host
+
+forth : get	\ ( obj -- x ) Return value of object.
+   [host] 'get [forth] @ [host] execute ;
+
+forth : set	\ ( x obj -- ) Set value of object.
+   [host] 'set [forth] @ [host] execute ;
+
+\ ------------------------------------------------------------------------
+\ Helpers
+
+forth : insert-bit \ ( 0/1 desc value -- value' ) Insert bit into given value.
+		\ Desc (which starts one cell after bit object) describes where.
+   [host] >r swap if cell+ @ r> or else cell+ @ invert r> and then ;
+
+forth : extract-bit \ ( desc value -- 0/1 ) Extract bit from given value.
+		\ Desc describes where.
+   [host] swap cell+ @ and if 1 else 0 then ;
+
+forth : insert-field \ ( x desc value -- value' ) Insert field into given value.
+		\ Desc (which starts one cell after field object) describes
+		\ where.
+   [host] >r dup cell+ @ >r cell+ cell+ @ lshift
+   r@ and r> invert r> and or ;
+
+forth : extract-field \ ( desc value -- x ) Extract field from given value.
+		\ Desc describes where.
+   [host] over cell+ @ and swap cell+ cell+ @ rshift ;
+
+\ ------------------------------------------------------------------------
+\ Output word ports
+
+forth : port-w!	\ ( x port -- ) Store x at given output port.
+   [host] cell+ @ ! ;
+
+forth : port-w@	\ ( port -- x ) Fetch current output port value.
+   [host] cell+ @ @ ;
+
+forth : port-word: \ ( addr "name" -- ) Define a hardware output port.  The
+		\ address indicates were to keep a copy of the port's data.
+		\ After use of port-word: an execution token must be appended
+		\ to the default data structure plus any parameters that 
+		\ it may need; its stack picture must be ( x port-data -- )
+		\ where port-data is the address of the parameter data.
+		\ ( -- port) The child returns the address of the port
+		\ data structure.
+   [host] create port-word-access , ,	\ place in default space, ROM or RAM
+   s" port-word:" add-log-string ;
+
+\ ------------------------------------------------------------------------
+\ Output byte ports
+\ Like word ports, but cached value is only one byte.  Port is still
+\ a word though.
+
+forth : port-b!	\ ( x port -- ) Store x at given output port.
+   [host] cell+ @ c! ;
+
+forth : port-b@	\ ( port -- x ) Fetch current output port value.
+   [host] cell+ @ c@ ;
+
+forth : port-byte: \ ( addr "name" -- ) Define a hardware output port.  The
+		\ address indicates were to keep a copy of the port's data.
+		\ After use of port-byte: an execution token must be appended
+		\ to the default data structure plus any parameters that 
+		\ it may need; its stack picture must be ( x port-data -- )
+		\ where port-data is the address of the parameter data.
+   [host] create port-byte-access , ,	\ place in default space, ROM or RAM
+   s" port-byte:" add-log-string ;
+
+\ ------------------------------------------------------------------------
+\ Define abstract port bits.
+
+forth : port-bit! \ ( 0/1 port-bit -- ) Store 0/1 to given bit.
+   [host] cell+ dup @ dup >r get  insert-bit  r> set ;
+
+forth : port-bit@ \ ( port-bit -- 0/1 ) Fetch last value written to given bit.
+   [host] cell+ dup @ get extract-bit ;
+
+forth : port-bit: \ ( port bit# "name" -- ) Define a bit in given port.
+		\ ( -- port-bit ) The child returns bit data structure.
+   [host] t-create port-bit-access t-,
+   swap t-, pow2 t-,
+   s" port-bit:" add-log-string ;
+
+\ ------------------------------------------------------------------------
+\ Define abstract port fields.
+
+forth : port-field! \ ( x port-field -- ) Store x to given field.
+   [host] cell+ dup @ dup >r get  insert-field  r> set ;
+
+forth : port-field@ \ ( port-field -- x ) Fetch last val written to given field.
+   [host] cell+ dup @ get extract-field ;
+
+forth : port-field: \ ( port bit# width "name" -- ) Define a field in
+		\ given port.
+		\ ( -- port-field ) The child returns field data structure.
+   [host] t-create port-field-access t-,
+   rot t-, mask over lshift t-, t-,
+   s" port-field:" add-log-string ;
+
+\ ------------------------------------------------------------------------
+\ Word memory
+
+forth : mem-w!	\ ( x mem -- ) Store x at given mem.
+   [host] cell+ @ ! ;
+
+forth : mem-w@	\ ( mem -- x ) Return value of mem.
+   [host] cell+ @ @ ;
+
+forth : mem-word: \ ( addr "name" -- ) Define a memory config. word.
+		\ The address indicates were to keep a copy of the data.
+		\ ( -- mem) The child returns the address of the mem
+		\ data structure.
+   [host] t-create mem-word-access t-, t-,
+   s" mem-word:" add-log-string ;
+
+\ ------------------------------------------------------------------------
+\ Byte memory
+\ Like word, but byte is cached.
+
+forth : mem-b!	\ ( x mem -- ) Store x at given mem.
+   [host] cell+ @ c! ;
+
+forth : mem-b@	\ ( mem -- x ) Return value of mem.
+   [host] cell+ @ c@ ;
+
+forth : mem-byte: \ ( addr "name" -- ) Define a memory config. byte.
+		\ The address indicates were to keep a copy of the data.
+		\ ( -- mem) The child returns the address of the mem
+		\ data structure.
+   [host] t-create mem-byte-access t-, t-,
+   s" mem-byte:" add-log-string ;
+
+\ ------------------------------------------------------------------------
+\ Define abstract memory bits.
+
+forth : mem-bit! \ ( 0/1 mem-bit -- ) Store 0/1 to given bit.
+   [host] cell+ dup @ dup >r c@  insert-bit  r> c! ;
+
+forth : mem-bit@ \ ( mem-bit -- 0/1 ) Fetch last value written to given bit.
+   [host] cell+ dup @ c@ extract-bit ;
+
+forth : mem-bit: \ ( addr bit# "name" -- ) Define a bit in given location.
+		\ ( -- mem-bit ) The child returns bit data structure.
+   [host] t-create mem-bit-access t-,
+   swap t-, pow2 t-,
+   s" mem-bit:" add-log-string ;
+
+\ ------------------------------------------------------------------------
+\ Define abstract memory fields.
+
+forth : mem-field! \ ( x mem-field -- ) Store x to given field.
+   [host] cell+ dup @ dup >r c@  insert-field  r> c! ;
+
+forth : mem-field@ \ ( mem-field -- x ) Fetch last value written to given field.
+   [host] cell+ dup @ c@ extract-field ;
+
+forth : mem-field: \ ( addr bit# wid "name" -- ) Define field in given location.
+		\ ( -- mem-field ) The child returns field data structure.
+   [host] t-create mem-field-access t-,
+   rot t-, mask over lshift t-, t-,
+   s" mem-field:" add-log-string ;
+
+\ ------------------------------------------------------------------------
+\ Overloaded interface to memory and ports, bits and fields.
+
+forth : (get)	\ ( obj -- x ) Return value of object.
+   [host] dup @ sel			\ determine type from get/set vectors.
+      << port-word-access ==>	port-w@ >>
+      << port-byte-access ==>	port-b@ >>
+      << port-bit-access ==>	port-bit@ >>
+      << port-field-access ==>	port-field@ >>
+      << mem-word-access ==>	mem-w@ >>
+      << mem-byte-access ==>	mem-b@ >>
+      << mem-bit-access ==>	mem-bit@ >>
+      << mem-field-access ==>	mem-field@ >>
+   endsel ;
+
+forth : (set)	\ ( x obj -- ) Set value of object.
+   [host] dup @ sel			\ determine type from get/set vectors.
+      << port-word-access ==>	port-w! >>
+      << port-byte-access ==>	port-b! >>
+      << port-bit-access ==>	port-bit! >>
+      << port-field-access ==>	port-field! >>
+      << mem-word-access ==>	mem-w! >>
+      << mem-byte-access ==>	mem-b! >>
+      << mem-bit-access ==>	mem-bit! >>
+      << mem-field-access ==>	mem-field! >>
+   endsel ;
+
+also forth
+' (get) 'get !
+' (set) 'set !
+hostinterp

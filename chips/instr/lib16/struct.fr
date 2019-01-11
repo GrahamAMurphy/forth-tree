@@ -1,0 +1,53 @@
+\ (c) 1991 Johns Hopkins University / Applied Physics Laboratory
+\ May be distributed freely as long as this copyright notice remains.
+\ Structure access words usage:
+\	structure foo			\ Declare a structure
+\	     3 chars: .part1		\  consisting of a 3 char part,
+\		cell: .part2		\  a one cell part,
+\		char: .part3		\  and a one char part.
+\	endstructure
+\	
+\	structure foobar		\ Declare another structure
+\	         2 cells: .this		\  consisting of two cells,
+\	      foo struct: .that		\  and substructure,
+\	  foo 3 struct[]: .fooz[]	\  and an array of 3 substructures
+\	endstructure
+\	
+\	foobar makestruct teststruct	\ Allocate a structure instance
+\	123 teststruct .that .part2 !	\ and store something in it.
+
+\ Implementation notes:
+\ 1. Structure instances must be placed at an aligned address (i.e. via create)
+\ 2. endstructure does not pad out the end of the structure.
+
+: structure	\ ( --- pfa template ) Start structure declaration.
+   h# 1234 constant			\ knows RTX compiler
+   here cell- cell- 0 ;
+
+: aus:		\ ( offset size --- offset' ) Structure member compiler.
+   over offset: + ;
+		\ ( base --- base' ) Add member's offset to base.
+
+: chars:	\ ( template n --- template' ) Create n char member.
+   chars aus: ;
+
+: char:		\ ( template --- template' ) Create 1 char member.
+   1 chars: ;
+
+: cells:	\ ( template n --- template' ) Create n cell member.
+   cells >r aligned r> aus: ;
+
+: cell:		\ ( template --- template' ) Create 1 cell member.
+   1 cells: ;
+
+: struct:	\ ( template size --- template' ) Create member of given size.
+   >r aligned r> aus: ;
+
+: struct[]:	\ ( template size u --- template' ) Create substructure array.
+   * struct: ;
+
+: endstructure	\ ( pfa template --- )
+   swap ! ;
+
+: makestruct	\ ( size --- ) allocate memory for a struct of given size
+   create allot ;

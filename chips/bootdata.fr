@@ -1,0 +1,18 @@
+\ (c) 1992 Johns Hopkins University / Applied Physics Laboratory
+\ TBD: this could be loaded after meta2.fr and use : for better readability
+
+rom
+label nop-boot			\ nop routine to be called at end of boot chain
+   <exit>
+ram
+
+\ [ifdef] ramobject
+\ Assume initialized RAM, even for ROM system.
+label NEXT-BOOT			\ todo list for next reboot
+   nop-boot ,
+\ [then]
+
+rom
+label EVERY-BOOT		\ todo list for every reboot
+   nop-boot ,
+ram

@@ -1,0 +1,84 @@
+\ (c) 1988 Johns Hopkins University / Applied Physics Laboratory
+\ words for handling null terminated strings
+hex
+
+: string	\ ( addr[counted_string] --- addr'[counted_string] )
+ dup @ 1+ >r pad r@ move 0 pad r> + ! pad ;
+
+: "		\ ( --- addr[string] )
+ 22 word string ;
+
+: ,zword	\ ( del --- ) add counted, null terminated string to dict.
+ word dup @ 2+ allot  count + 0 swap ! ;
+
+: ("")		\ ( --- addr[string] )
+ r> dup count + 1+ >r ;
+
+: ""
+ postpone ("") 22 ,zword ; immediate
+
+only forth also host also meta definitions
+forth : ""
+ [target] ("") [host] 22 word count dup c, over + swap
+ [forth] do i c@ [host] c, loop 0 c, [meta] || [forth] ;
+hostinterp
+
+\ Simulator interface
+hex
+
+: arg		\ ( x --- ) pass an argument to the simulator
+   -1 ! || ; inline
+
+: trap		\ ( trap# --- ) trap to simulator for doing I/O
+   @ || ; inline
+
+\ File primitives
+: fopen		\ ( "file" "mode" --- fp ) open a file
+   arg arg -3 trap ;
+
+: fclose	\ ( fp --- ) close a file
+   arg -4 trap drop ;
+
+: fexpect	\ ( addr count fp --- addr ) read one line from file
+   arg arg arg -5 trap ;
+
+: fseek		\ ( addr fp --- ) set file position
+   arg arg -6 trap drop ;
+
+: fread		\ ( addr count fp --- actcount ) read count bytes to addr
+   arg arg arg -7 trap ;
+
+: fgetc		\ ( fp --- byte ) read one byte from file
+   arg -8 trap ;
+
+: fputc		\ ( byte fp --- ) send one byte to file
+   arg arg -9 trap drop ;
+
+: chdir		\ ( "dir" --- ) change current directory
+   arg -a trap drop ;
+
+: bye		\ ( --- ) return to simulator.  equivalent to typing ^C.
+   -b trap drop ;
+
+: traceon	\ ( --- ) enable address tracing
+   -c trap drop ;
+
+: traceoff	\ ( --- ) disable address tracing
+   -d trap drop ;
+
+\ High level I/O
+: fquery	\ ( fp --- actcount ) read one line, up to 120 characters,
+		\ from indicated file. actcount is actual number of
+		\ characters read. will be zero on end of file.    
+ 0 >in ! tib 78 rot fexpect ;
+
+\ Word for loading Forth source into a running system.
+: fload		\ ( addr --- )
+ "" r"  fopen				\ open for reading
+ dup 0= if
+    drop ." can't open" cr
+ else
+    >r begin r@ fquery while interpret repeat
+    r> fclose chuckbuf
+ then ;
+

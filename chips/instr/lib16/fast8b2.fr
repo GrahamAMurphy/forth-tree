@@ -1,0 +1,47 @@
+\ (c) 2008 Johns Hopkins University / Applied Physics Laboratory
+\ * Fast compression - compress an array of 8-bit values
+decimal
+
+module> fastcomp8
+
+\ * Compress an array of 8-bit values in place.  The difference between
+\ * each value is computed.  The first value is not changed; the remaining
+\ * values are replaced by the differences:  value[n] <- value[n-1] -
+\ * value[n].  The differences are encoded as unsigned numbers such that
+\ * differences with small absolute values are encoded as small unsigned
+\ * numbers.  The algorithm returns the number of bits needed to represent
+\ * the largest encoded difference.  This value, along with some
+\ * bit-packing software, can be used to pack the data into a smaller
+\ * memory area.
+
+public:
+: delta8	\ ( addr len base -- ) Delta encode the len bytes stored
+		\ at the given address.  Each byte is replaced with an 8-bit
+		\ code for the difference between the byte and its predecessor
+		\ (the first cell is replaced with the code for the difference
+		\ between it and the input base).
+   -rot 0 do				\ for each byte; s: p0 addr
+      dup >r c@ swap over -		\ delta = p0 - p1; s: p1 delta
+      dup h# 80 and if 2* invert else 2* then ( h# ff and)
+      r@ c!				\ encode and replace byte
+      r> 1+				\ step to next byte; s: p1 addr'
+   loop 2drop ;
+private:
+
+: delta-max8	\ ( addr len -- u ) Find the maximum delta value stored
+		\ in the given array of bytes.
+   0 -rot 0 do				\ for each delta; s: max addr
+      dup >r c@ umax r> 1+
+   loop drop ;
+
+: count-bits8	\ ( u -- n-bits ) Return number of bits needed to hold u.
+		\ Note: returns zero if input is zero.
+   0 swap begin dup while swap 1+ swap 1 rshift repeat drop ;
+
+public:
+: fast8		\ ( addr len -- bits ) Return the number of bits needed to hold
+		\ the largest value.
+   delta-max8 count-bits8 ;
+private:
+
+endmodule>

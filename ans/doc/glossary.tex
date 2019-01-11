@@ -1,0 +1,229 @@
+\begin{gloss}{"}{\verb|"|ccc$<$\verb|"|$>$\verb|"| -- c-addr u}
+
+Used in the form:
+\begin{verbatim}
+   " ccc"
+\end{verbatim}
+Returns the address and length of the given string.  The string is stored
+in a transient area.
+\end{gloss}
+\begin{cgloss}{""}{ -- c-addr u}{\verb|"|ccc$<$\verb|"|$>$\verb|"| -- }
+
+Compiling word used in the form:
+\begin{verbatim}
+   : foo ... "" ccc" ... ;
+\end{verbatim}
+Compiles a string from the input stream into the current definition.
+At run time, the address and length of the string are returned.
+\end{cgloss}
+\begin{gloss}{?error}{ior -- }
+
+Consume an I/O result.  If the \type{ior} indicates no error (i.e.
+\type{ior} is zero), \fw{?error} returns.  Otherwise, \fw{?error}
+attempts to ``handle'' the error.  Currently this is done by
+displaying a message describing the error and
+terminating the program with a return code of 1.
+\end{gloss}
+\begin{gloss}{-rot}{x1 x2 x3 -- x3 x1 x2}
+
+The top three stack entries are rotated, moving the top entry to the
+bottom.  \fw{-rot} is the converse of \fw{rot}.
+\end{gloss}
+\begin{gloss}{2pick}{x1 x2 x3 -- x1 x2 x3 x1}
+
+Shorthand for \fw{2 pick}.
+\end{gloss}
+\begin{gloss}{3pick}{x1 x2 x3 x4 -- x1 x2 x3 x4 x1}
+
+Shorthand for \fw{3 pick}.
+\end{gloss}
+\begin{cgloss}{$<<$}{ x -- x x}{sys1 -- sys2}
+
+Compiling word to signal the beginning of a case inside the select case
+control structure.  See \fw{sel} for an example of how to use the case words.
+\end{cgloss}
+\begin{cgloss}{==$>$}{x1 x1 x2 -- x1 $|$ }{sys1 -- sys2}
+
+Compiling word separates a case structure equality test from the corresponding
+case action.  See \fw{sel} for an example of how to use the case words.
+\end{cgloss}
+\begin{cgloss}{=$>$}{x1 flag -- x1 $|$ }{sys1 -- sys2}
+
+Compiling word separates a case structure test from the corresponding case
+action.  See \fw{sel} for an example of how to use the case words.
+\end{cgloss}
+\begin{cgloss}{$>>$}{ -- }{sys1 -- sys2}
+
+Compiling word ends a case inside a case select control structure.  See
+\fw{sel} for an example of how to use the case words.
+\end{cgloss}
+\begin{gloss}{cell}{ -- u}
+
+Constant that returns the size of a cell in address units.
+\end{gloss}
+\begin{gloss}{cell-}{a-addr1 -- a-addr2}
+
+Subtract the size of a cell, specified in address units, from
+\type{a-addr1} giving \type{a-addr2}.
+\end{gloss}
+\begin{gloss}{cell/}{n1 -- n2}
+
+\type{n2} is the size, in cells (rounded towards zero), of
+\type{n1} address units.
+\end{gloss}
+\begin{gloss}{chdir}{c-addr u -- }
+
+Change the current working directory to the directory named by the given
+string.
+\end{gloss}
+\begin{cgloss}{d }{ -- x}{"string" -- }
+
+Momentarily override the current \fw{base} and force the interpretation
+of the following number of be in decimal.
+\end{cgloss}
+\begin{gloss}{d.lz}{d n -- }
+
+Print the double precision number \type{d} right-justified in a field of
+\type{n} characters with leading zeros prepended.
+\end{gloss}
+\begin{cgloss}{endsel}{x -- }{sys1 -- sys2}
+
+Compiling word ends a case control structure.  See \fw{sel} for an example
+of how to use the case words.
+\end{cgloss}
+\begin{gloss}{fload}{c-addr u -- }
+
+Load the file named by the given string.  \fw{fload} is an alternate
+name for the ANS Forth \fw{included}.
+\end{gloss}
+\begin{cgloss}{h }{ -- x}{"string" -- }
+
+Momentarily override the current \fw{base} and force the interpretation
+of the following number of be in hexadecimal.
+\end{cgloss}
+\begin{gloss}{m/mmod}{ud1 u1 -- u2 ud2}
+
+Unsigned mixed-mode division.  Dividend and quotient are two cells big.
+\end{gloss}
+\begin{gloss}{nop}{ -- }
+
+Do nothing.
+\end{gloss}
+\begin{gloss}{not}{x1 -- x2}
+
+\type{x2} is the one's complement of \type{x1}.  Equivalent to \fw{invert}.
+\end{gloss}
+\begin{gloss}{number}{c-addr -- n true $<$or$>$ false}
+
+\type{c-addr} points to a counted string.  \fw{number}
+attempts to convert this string
+to a number using the current base.  The converted number \type{n}
+and a true flag
+are returned if successful.  Otherwise, a false is returned.  For the
+conversion to be successful, there must be a blank at the end
+of the string.
+\end{gloss}
+\begin{gloss}{perror}{ -- }
+
+Display a message describing the most recent I/O error.
+\end{gloss}
+\begin{gloss}{rdrop}{ -- }
+
+Drop one item off the return stack.
+\end{gloss}
+\begin{gloss}{rotate}{x1 n -- x2}
+
+Rotate \type{x1} by \type{n} bits.  If \type{n} is greater than zero,
+\type{x1} is rotated left.  If
+\type{n} is less than zero, \type{x1} is rotated right.  If \type{n}
+is zero, nothing happens.
+\end{gloss}
+\begin{cgloss}{sel}{ -- }{sys1 -- sys2}
+
+Compiling case structure word used in the form:
+\begin{verbatim}
+   : foo
+      ...
+      <selector> sel
+         <<    1      ==> ... >>
+         <<    2      ==> ... >>
+         <<    5      ==> ... >>
+      endsel
+	  ... ;
+\end{verbatim}
+The constants 1, 2, and 5 are just shown as an example.  Any word that
+leaves
+one item on the stack can be used in the select field.  The action code 
+symbolized by ..., can be any thing including another case structure.  The
+selector is no longer on the stack when the action code begins execution.
+If none of the words in the select
+fields match the selector, the selector is dropped by \fw{endsel}.
+\end{cgloss}
+\begin{gloss}{stderr}{ -- fp}
+
+Returns the file pointer of the standard error output.
+\end{gloss}
+\begin{gloss}{stdin}{ -- fp}
+
+Returns the file pointer of the standard input.
+\end{gloss}
+\begin{gloss}{stdout}{ -- fp}
+
+Returns the file pointer of the standard output.
+\end{gloss}
+\begin{gloss}{terminate}{x -- }
+
+Terminate forth and return status \type{x} to parent process.
+\end{gloss}
+\begin{gloss}{used}{c-addr u -- }
+
+Attempt to load the file named by the given string.  \fw{used} searches
+for the file using a predefined list of directories.
+\end{gloss}
+\begin{gloss}{u.lz}{u n -- }
+
+\type{u} is displayed as an unsigned number right-justified in a field
+of \type{n} characters with leading zeros.
+\end{gloss}
+\begin{gloss}{u?}{a-addr -- }
+
+Display the contents of \type{a-addr} as an unsigned number
+in free-field format.
+\end{gloss}
+\begin{gloss}{um*m}{ud1 u -- ud2}
+
+\type{ud2} is the double precision product of the unsigned multiplication
+of \type{ud1} and \type{u}.
+\end{gloss}
+\begin{gloss}{umax}{u1 u2 -- u3}
+
+\type{u3} is the greater of \type{u1} and \type{u2}
+according to the operation of \fw{u$>$}.
+\end{gloss}
+\begin{gloss}{umin}{u1 u2 -- u3}
+
+\type{u3} is the lesser of \type{u1} and \type{u2}
+according to the operation of \fw{u$<$}.
+\end{gloss}
+\begin{gloss}{w!}{xw w-addr -- }
+
+Store the half-cell quantity \type{xw} at address \fw{w-addr}.
+\type{w-addr} is a half-cell-aligned address.
+\type{c-addr} is a subtype of
+\type{w-addr} and \type{w-addr} is a subtype of \type{a-addr}.
+\end{gloss}
+\begin{gloss}{w,}{xw -- }
+
+Reserve space for a half-cell quantity in the data space and store
+\type{xw} in the space.  If the data-space pointer is
+half-cell-aligned, when \fw{w,} begins execution, it will remain
+half-cell-aligned when \fw{w,} finishes execution.  An ambiguous
+condition exists if the data-space pointer is not half-cell-aligned
+prior to execution of \fw{w,}.
+See also \fw{w!}.
+\end{gloss}
+\begin{gloss}{w@}{w-addr -- xw}
+
+\type{xw} is the half-cell stored at \type{w-addr}.
+See also \fw{w!}.
+\end{gloss}

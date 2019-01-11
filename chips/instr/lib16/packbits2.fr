@@ -1,0 +1,73 @@
+\ (c) 2002 Johns Hopkins University / Applied Physics Laboratory
+\ * Bit pack data
+decimal
+
+module> bit-pack
+
+\ * Create an output stream that can accept bit writes, e.g. 1 bit, 2 bits,
+\ * etc.  The state of the stream is maintained in a descriptor passed
+\ * in with each call.  Consequently, the code is re-entrant.
+
+\ -----------------------------------------------------------------------
+\ Packing buffer
+\ A stream of bits to remote memory.
+
+public:
+structure bit-pack-struct		\ * bit packing stream descriptor
+private:
+	cell: .bit-mem			\ memory id of remote memory
+	cell: .start-scan		\ pointer to start of remote memory
+	cell: .out-scan			\ scanner of memory
+	cell: .bit-buffer		\ single word buffer
+	cell: .bit-pos			\ bit position in buffer
+endstructure
+
+: reset-pack	\ ( desc -- ) Reset bit buffer.
+   0 over .bit-buffer !  16 swap .bit-pos ! ;
+
+: pack-write	\ ( x desc -- ) Write out word x.
+   >r get-mem swap r@ .bit-mem @ set-mem \ select remote memory
+   r@ .out-scan @ dup cell+ r@ .out-scan ! \ step scanner
+   far!					\ write out
+   set-mem
+   r> reset-pack ;
+
+\ -----------------------------------------------------------------------
+\ Packing interface
+
+public:
+
+: open-pack	\ ( a-addr memid desc -- ) Start bit-packing; initialize
+		\ bit-writable output stream at given location.  The
+		\ address must be word aligned.
+   dup >r .bit-mem !
+   dup r@ .start-scan ! r@ .out-scan !  r> reset-pack ;
+
+: pack-bits	\ ( x n desc -- ) Pack n bits of x, i.e. append them to
+		\ bit stream.  Unused bits of x must be zero.
+		\ Note: n may range from 0 up to the word size, i.e. 16.
+   >r dup r@ .bit-pos @ u> if		\ if save will overflow bit buffer
+      r@ .bit-pos @ - 2dup rshift 	\ fold upper part of x into buffer
+	 r@ .bit-buffer @ or r@ pack-write
+   then
+   r@ .bit-pos @ swap - dup r@ .bit-pos !
+      lshift r@ .bit-buffer +!		\ fold lower part of x into bit buffer
+   r@ .bit-pos @ 0= if			\ if buffer is full
+      r@ .bit-buffer @ r@ pack-write
+   then rdrop ;
+
+: pack-bit	\ ( 0/1 desc -- ) Pack given bit, i.e., append it to the
+		\ bit stream.
+   1 swap pack-bits ;
+
+: close-pack	\ ( desc -- u ) End packing, i.e., flush buffered bits.  Padding
+		\ bits are added until the number of bits is a multiple of 16.
+		\ Return number of bytes written.
+   dup >r .bit-pos @ 16 <> if		\ if bit buffer not empty
+      r@ .bit-buffer @ r@ pack-write	\ write out buffer
+   then
+   r@ .out-scan @ r> .start-scan @ - ;
+
+private:
+
+endmodule>

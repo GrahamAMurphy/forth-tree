@@ -1,0 +1,25 @@
+\ (c) 2010 Johns Hopkins University / Applied Physics Laboratory
+\ EEPROM write wait - ready interrupt
+hex
+
+\ Semaphore, signaled when EEPROM write complete.
+variable eeprom-rdy
+
+eeprom-int# int: \ ( -- ) EEPROM ready interrupt, i.e. write complete.
+   eeprom-rdy signal ;int
+
+: wait-for-eeprom \ ( addr x -- ) Wait until write cycle is finished.  If
+		\ EEPROM, then wait for interrupt.  Otherwise, return
+		\ immediately.  Note: remote memory is set to memory written.
+   2drop get-mem			\ get memory written
+   eep-base-mem# - total-eep-mem# u< if	\ if EEPROM
+      eeprom-rdy wait			\ wait for completion interrupt
+   then ;
+
+: init-eeprom-write \ ( -- ) Initialize EEPROM write wait.  Note: there
+		\ could be a pending interrupt, for example, if a boot
+		\ program wrote to EEPROM using polling.  The semaphore
+		\ is cleared after the interrupt is enabled.
+   eeprom-int# get-mask unmask-int	\ unmask interrupt
+   ( interrupt could occur here )
+   0 eeprom-rdy ! ;			\ reset semaphore

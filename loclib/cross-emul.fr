@@ -1,0 +1,9 @@
+\ (c) 2007 Johns Hopkins University / Applied Physics Laboratory
+\ Emulate things from the cross-compiler not present in the interpreter
+hex
+
+: heads ;
+: noheads ;
+: ram ;
+: rom ;
+: || ; immediate

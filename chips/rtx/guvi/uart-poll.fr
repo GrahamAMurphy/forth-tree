@@ -1,0 +1,52 @@
+\ (c) 1998 Johns Hopkins University / Applied Physics Laboratory
+\ Software UART
+\ Polled UART interface; each bit is individually clocked out by software
+\ polling of an RTX timer.
+hex
+
+be13 ucode t-uart@			\ bit timer
+be93 ucode t-uart!
+
+d# 625 constant #baud-clock		\ number of clocks per bit at 9600						\ baud on a 6 MHz processor
+
+: start-time	\ ( u -- ) Start timer countdown with given number of clocks.
+   t-uart! || ; inline
+
+: wait-time	\ ( -- ) Wait until countdown complete.
+   begin t-uart@ 5 - 0< until ;		\ assumes loop takes < 5 clocks
+
+: tx1		\ ( -- ) Send a 1 out the serial port.
+		\ Note: output is active low.
+   0000 test-req! ;
+
+: tx0		\ ( -- ) Send a 0 out the serial port.
+		\ Note: output is active low.
+   0800 test-req! ;
+
+: rx-wait	\ ( -- ) Wait for start bit to be set.
+		\ Note: input is active low, so start bit will be a 1.
+   begin status@ 0400 and 0= until	\ wait for idle (ignore previous bit)
+   begin status@ 0400 and until ;	\ wait for start bit
+
+: rx-set?	\ ( -- t/f ) Return true if serial port input is set.
+		\ Note: input is active low; this routine inverts it.
+   status@ 0400 and 0= ;
+
+: emit		\ ( byte -- ) Send byte out serial port.
+   #baud-clock start-time		\ start timer
+   tx0 wait-time			\ start bit
+   1 8 for				\ for 8 bits
+      2dup and if tx1 else tx0 then	\ send each bit, ls bit first
+      wait-time 2*
+   next drop drop
+   tx1 wait-time ;			\ stop bit
+
+: key		\ ( -- key ) Return next byte from serial port.
+   rx-wait				\ wait for start bit
+   #baud-clock 2/ start-time wait-time	\ wait for center of start bit
+   #baud-clock start-time		\ start timer
+   1 0 8 for				\ for 8 bits
+      wait-time rx-set? if over or then	\ accumulate bits, ls bit first
+      swap 2* swap
+   next nip
+   dup 0d = if drop 0a then ;		\ map '\r' to '\n'

@@ -1,0 +1,33 @@
+\ (c) 1993 Johns Hopkins University / Applied Physics Laboratory
+hex
+
+noheads
+
+\ 8254 Timers
+fff9 constant timer-ch0
+ffff constant timer-control
+
+\ 8530 UART
+fff3 constant cmd-a
+fff7 constant data-a
+
+\ Interrupt numbers
+5 constant UARTINT#			\ UART on EI3
+
+\ Useful constants
+100 constant FIFOSIZE			\ TTY input buffer, output buffer sizes
+
+heads
+
+\ Memory bank switching abstraction.  Alias for get/set-page on this hardware.
+: get-code	\ ( -- memid ) Return a memory id for the currently
+		\ executing code.
+   cpr@ || ; inline
+
+: get-mem	\ ( -- memid ) Return the memory id for the current far
+		\ address space.
+   get-page || ; inline
+
+: set-mem	\ ( memid -- ) Set the memory id for the far address space.
+   set-page || ; inline
+

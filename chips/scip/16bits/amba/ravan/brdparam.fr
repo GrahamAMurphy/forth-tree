@@ -1,0 +1,39 @@
+\ (c) 2014 Johns Hopkins University / Applied Physics Laboratory
+\ Board configuration parameters
+hex
+
+\ ------------------------------------------------------------------------
+\ Board constants
+
+\ Memory Map
+10 constant io-mem#			\ SCIP memory-mapped I/O
+nohead
+   0 constant uart-a#			\ RW: UART
+   4 constant int-a#			\ R: interrupt vector W: mode/mask set
+   6 constant parin-a#			\ R: interrupts W: mode/mask reset
+
+noheads
+
+\ Interrupts
+0 constant uart-rx-int#			\ UART receive
+1 constant uart-tx-int#			\ UART transmit
+d# 13 constant #ints			\ total number of interrupts
+
+heads
+
+\ ------------------------------------------------------------------------
+\ Configuration constants
+
+noheads
+100 constant FIFOSIZE			\ UART buffer size
+heads
+
+\ ------------------------------------------------------------------------
+\ Stack error checker
+
+variable stack-errors
+
+: check-stack	\ ( ... -- ) Check data stack depth.  If not empty count error.
+		\ Empty stack.
+   depth if 1 stack-errors +! then
+   pspreset ;

@@ -1,0 +1,64 @@
+\ (c) 2000 Johns Hopkins University / Applied Physics Laboratory
+\ Alarms
+decimal
+
+module> alarm
+
+structure alarm-struct			\ Alarm
+	char: .alarm-id			\ alarm identifier
+	char: .alarm-flag		\ alarm flag (0=non-transient, 1=trans)
+	char: .alarm-value		\ alarm value
+	char: .alarm-limit		\ alarm limit
+endstructure
+
+\ Alarm data is assembled here before being sent
+alarm-struct makestruct alarm-buffer
+
+\ Alarm packet descriptor
+pkt-desc-size makestruct alarm-pkt
+
+\ Alarm buffer access semaphore
+variable alarm-access
+	1 alarm-access !		\ initially available
+
+: record-alarm	\ ( id flag -- ) Record alarm data in status.
+   alarm-type set  alarm-id set
+   alarm-count get 1+ alarm-count set ;
+
+: gen-alarm	\ ( value limit id flag -- ) Report an alarm.
+   alarm-access wait			\ get access to buffer
+   2dup record-alarm			\ record data in status
+   alarm-buffer .alarm-flag c!		\ record transient/persistent flag,
+   alarm-buffer .alarm-id c!		\  id,
+   alarm-buffer .alarm-limit c!		\  limit,
+   alarm-buffer .alarm-value c!		\  and value
+   alarm-pkt tag-pkt			\ tag packet
+   alarm-pkt send-pkt drop		\  and send it
+   alarm-access signal ;		\ release buffer
+
+public:
+
+\ * Report alarms:
+
+: trans-alarm	\ ( value limit id -- ) Report transient alarm given id, value,
+		\ and limit.
+   1 gen-alarm ;
+
+: persist-alarm	\ ( value limit id -- ) Report persistent alarm given id, value,
+		\ and limit
+   0 gen-alarm ;
+
+: sw-alarm	\ ( value id -- ) Report software alarm given id and value.
+   0 swap trans-alarm ;
+
+private:
+
+\ * Initialization
+
+public:
+: init-alarm	\ ( -- ) Initialize alarm interface.
+   alarm-buffer get-code alarm-struct	\ data is in alarm buffer
+      #alarm-pkt alarm-pkt init-pkt ;
+private:
+
+endmodule>

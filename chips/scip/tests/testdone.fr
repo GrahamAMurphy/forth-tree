@@ -1,0 +1,8 @@
+\ (c) 2005 Johns Hopkins University / Applied Physics Laboratory
+\ Finish
+hex
+
+\ Good test
+	<lis	d# 0 +# nopb pushp >.		\ leave good=0
+	<alu	nopa >.
+label done

@@ -1,0 +1,66 @@
+\ (c) 1993 Johns Hopkins University / Applied Physics Laboratory
+\ Serial device driver interface for intttyws.fr
+\ NEAR DPU UART wart.
+hex
+
+noheads
+
+\ ------------------------------------------------------------------------
+\ Device configuration
+
+ttystruct makestruct tty
+
+\ ------------------------------------------------------------------------
+\ Low-level UART access routines
+
+: uart!		\ ( c -- ) Write a character to UART.
+   testport! ;
+
+: uart-first!	\ ( c -- ) Write first character to UART.
+   testport! ;
+
+: uart@		\ ( -- c ) Read a character from UART.
+   testport@ ff and ;
+
+: stop-transints \ ( -- ) Disable further transmit interrupts.
+   ;
+
+\ ------------------------------------------------------------------------
+\ Interrupt routines
+
+UARTINT# int:	\ ( -- ) The transmit and receive interrupts share
+		\ an interrupt pin.  Both transmit empty and character
+		\ ready signals go to edge-detect flip-flops; they
+		\ do not need to be (and cannot be) reprogrammed.
+   uart-status dup RXRDYMASK and	\ if receive flip-flop set
+   if RXRDYMASK dpu-icr!  00 dpu-icr!	\ reset event flip-flop
+      drop tty tty-rcvint		\ receive character
+   else TXRDYMASK and			\ if transmit flip-flop set
+   if TXRDYMASK dpu-icr!  00 dpu-icr!	\ reset event flip-flop
+      tty tty-transint			\ sent character
+   then then
+;int
+
+\ ------------------------------------------------------------------------
+\ Initialization
+
+every-boot:	\ ( -- )
+   ['] uart!  ['] uart-first!  ['] uart@  ['] stop-transints
+      tty tty-init
+   UARTINT# get-mask unmask-int		\ enable UART interrupts
+;boot
+
+\ ------------------------------------------------------------------------
+\ High level driver interface routines
+
+heads
+
+: emit		\ ( c -- )
+   tty tty-putc ;
+
+: key		\ ( -- c )
+   tty tty-getc ;
+
+: key?		\ ( -- t/f )
+   tty tty-incount 0= not ;
+

@@ -1,0 +1,14 @@
+Greetings,
+
+   This message is to inform you that I have made a substantial
+change to the RTX Forth multitasker.  Each process now has its
+own view of 'far' memory.  The register that identifies the remote
+page (DPR) is saved on context switch, as is the near/far (DPRSEL)
+mode.  If you use the multitasker, you should get the new version
+from the Forth server; a separate message will explain how to do
+that.  A memo documenting the system is available.
+
+	John R. Hayes
+	Applied Physics Laboratory
+	Johns Hopkins University
+	John.Hayes@jhuapl.edu

@@ -1,0 +1,39 @@
+\ Load the primitives for the Forth system
+" chpparam.fr" ftload			\ chip parameters: formats, etc
+" sysparam.fr" ftload			\ system parameters
+[ifndef] no-ints			\ if interrupts used
+" vector.fr" ftload			\ allot reset and interrupt vectors
+[else]					\ if no interrupts
+0 define int-base			\ define reasonable IBC value
+[then]
+[ifdef] int-fwd				\ if interrupt forwarding used
+" vect-fwd.fr" ftload			\ allot interrupt forwarding table
+[then]
+" prims.fr" ftload			\ low level code primitives
+" bootdata.fr" ftload			\ boot todo lists
+
+\ Extend the metacompiler to handle compiling and defining words
+" locxcomp.fr" ftload			\ cross compiler for locals
+" meta2.fr" ftload			\ metacompiler part 2
+" struct.mfr" ftload			\ metacompile structure defintions
+" boot.mfr" ftload			\ metacompile boot todo list
+
+\ Load more primitives, these written in Forth
+" prims2.fr" ftload			\ more RTX primitives
+" hiprims.fr" ftload			\ "primitives" in Forth
+" rules2.fr" ftload			\ extend optimization rules
+[ifndef] no-ints
+" inter.fr" ftload			\ interrupt support
+[then]
+[ifdef] int-fwd
+" int-fwd.fr" ftload			\ forward interrupts
+[then]
+   noheads
+" stacks.fr" ftload			\ init parameter and return stacks
+   heads
+
+\ Load multitasking primitives
+[ifdef] multitasking
+" sched.fr" ftload			\ scheduler and concurrency primitives
+" user.mfr" ftload			\ per-process "user" variables
+[then]

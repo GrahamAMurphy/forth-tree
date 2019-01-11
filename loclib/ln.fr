@@ -1,0 +1,23 @@
+\ (c) 2002 Johns Hopkins University / Applied Physics Laboratory
+\ Logarithms
+\ Requires fix.fr fixed-point arithmetic module.
+hex
+
+: log2		\ ( u -- log2(u)-ls log2(u)-ms ) Compute the logarithm base 2
+		\ of u.  The result is returned in fixed-point format.
+		\ Fails for u=0.
+		\ See Knuth, "Fundamental Algorithms" for details.
+   0 swap 0 begin			\ s: u-ls u-ms count
+      >r dup 2 u>= while		\ count number of 2/'s
+      d2/ r> 1+
+   repeat				\ s: u-ls' u-ms'  r: log2(u)-ms
+   0 10 0 do				\ s: u-ls' u-ms' partial
+      2* >r fix^2 dup 2 u>=		\ square u
+      if d2/ r> 1+ else r> then		\ if >= 2, next bit is 1
+   loop
+   >r fix^2 nip 2 u>=			\ once more
+   if r> 1+ else r> then r> ;		\  to round result
+
+: ln		\ ( u -- ln(u)-ls ln(u)-ms ) Compute the natural logarithm
+		\ of u.
+   log2 b172 0 fix* ;			\ log2(x) * ln(2)

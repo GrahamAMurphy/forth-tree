@@ -1,0 +1,10 @@
+\ (c) 1993 Johns Hopkins University / Applied Physics Laboratory
+hex
+
+\ Interrupt numbers
+4 define UARTINT#			\ UART on EI4
+f7ff define UARTINTMASK
+
+\ Useful constants
+100 define FIFOSIZE			\ TTY input buffer, output buffer sizes
+

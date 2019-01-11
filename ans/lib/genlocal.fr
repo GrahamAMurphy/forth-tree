@@ -1,0 +1,57 @@
+\ (c) 1991 Johns Hopkins University / Applied Physics Laboratory
+\ Generic Forth style local variables.
+\ This is obsolete; only use to get old programs to run.
+hex
+
+variable currentdepth			\ number of locals in current scope
+variable outerdepth			\ number of locals in surrounding scopes
+
+: do  2 currentdepth +!  postpone do ; immediate
+:  loop  postpone  loop  -2 currentdepth +! ; immediate
+: +loop  postpone +loop  -2 currentdepth +! ; immediate
+
+: {		\ ( --- oldcurrentdepth region ) begin a scope.
+ currentdepth @ dup outerdepth +!
+ 0 currentdepth !
+ locregion @ ; immediate		\ this allows space to be recovered
+
+: }		\ ( oldcurrentdepth region --- ) recover space used by
+		\ local headers, unwind vocabulary, compile code to clean
+		\ up return stack, and restore depth variables.
+		\ BUG: knows representation of regions
+ dup locregion @ =
+ if drop				\ if no locals used, do nothing
+ else					\ otherwise,
+    locregion allocatefrom		\ reclaim local space
+    (forget)
+    stdregion allocatefrom
+ then
+ currentdepth @ ?dup if
+    compile (rpop) cells ,		\ compile code to clean up rstack
+ then
+ dup currentdepth !			\ restore depth counters
+ negate outerdepth +! ; immediate
+
+: make-local	\ ( --- ) create a local variable dynamically allocate
+		\ its header from the temporary region.  at run time,
+		\ dynamically allocate space for the local on the return
+		\ stack.
+ locregion allocatefrom			\ create dict. entries in temp region
+ create					\ new header
+    outerdepth @ currentdepth @ + ,	\ record offset from bottom
+    1 currentdepth +!
+    immediate
+ stdregion allocatefrom			\ revert to standard allocation region)
+    compile >r				\ initialize local
+ does>		\ ( addr[offset] --- ) offset is in words from the bottom.
+    to? @ if				\ if to local
+       compile (rstore)  0 to? !	\ copy local from pstack to rstack
+    else
+       compile (rfetch)			\ copy local from rstack to pstack
+    then
+    @ outerdepth @ currentdepth @ +
+    swap - 1- cells , ;
+
+: local		\ ( --- ) create a local.
+   last @ make-local			\ mustn't affect last
+   last ! ; immediate			\ restore so that ; works

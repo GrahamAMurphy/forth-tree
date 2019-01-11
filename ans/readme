@@ -1,0 +1,72 @@
+	ANS Forth for MC680x0 or SPARC (or C!)
+	by John R. Hayes
+	Johns Hopkins University / Applied Physics Laboratory
+
+1. Copying
+   This is free software but it is not public domain software.
+   You can use this for your work freely.
+   You cannot give the system to anyone.  There are several reasons for
+this.  ANS Forth is not a standard yet and could change.  I don't want
+a copy of this system to lurk on someone's disk for several years, then
+cause problems because my 'ANS Forth' doesn't conform to the final release
+of the standard.  It has also been argued that the plethora of free
+Forth systems available have hurt the image of the language, either because
+they were poorly implemented or poorly documented.  I do not want to
+contribute to this perception.  I use this Forth system for I my own
+work and it is adequate for my needs.  However, I do not have the time
+to add features that others may deem essential, but that I don't need,
+or to provide the level of documentation available in commercial
+Forth systems.
+
+2. Compilation
+   Compilation of the system occurs in three steps:
+
+A: Compile bootstrap compiler.
+	% cd meta
+	% make 
+	Optionally, to free disk space.
+	% make clean
+	% cd ..
+
+B: Configure for your system.
+	Configure for a generic C system.  This edits the makefile
+	so you don't have to.
+	% config
+	If you have a 68k machine (e.g. Sun 3), or sparc machine
+	(e.g. Sun 4), or have GNU C, type
+	config mc68020, config sparc, or config gnuc instead.
+	On machines in which the generic C version fails, there may be
+	a workaround; look for specific machines listed in the config
+	script.
+
+C: Compile Forth system.
+	% make jhforth
+	% make install
+	Optionally, to free disk space.
+	% make clean
+
+3. Documentation
+   Since this is an ANS Forth system, the standards document is a suitable
+reference.  There is some additional information in the doc directory
+describing unique features of the system; the documentation is in LaTeX
+format.  To format it:
+	% cd doc
+	% latex jhforth
+	% latex gloss
+You may also want to look in the file named 'bugs'.
+
+4. Other business
+   This is a work in progress.  Numerous pieces of the system are
+experimental; if it isn't mentioned in the documentation, don't count
+on it being present in future versions.
+   The system has been tested on Sun 3, Sun 4, MIPS, and Apollo (68k)
+systems.  The Sun 3 and Sun 4 systems are partially written in assembly
+language and are faster than the C versions on those machines.
+   Source code specific to the SPARC is in the sparc directory, 68k
+code is in the mc68020 directory, and code for a Heurikon stand-alone
+CPU board is in hk68 (not maintained).  There is also a C version in
+directory cmach.  To save disk space, you can delete any of these
+directories that your system doesn't use.  For example, SPARC users can
+delete the 68k directories.
+
+   Report bugs to john.hayes@jhuapl.edu

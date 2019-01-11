@@ -1,0 +1,71 @@
+\ (c) 1994 Johns Hopkins University / Applied Physics Laboratory
+\ ANS Forth conditional compilation (from Programming Tools word set).
+\ This version is not entirely ANS conformant: it is only works when
+\ the conditional compilation occurs in a file (not in blocks, etc.)
+\ The code for [if], [else], and [then] is from the A.15.6.2.2533
+\ with modifications.
+hex
+
+\ TBD: add to string kernel?
+: compare	\ ( addr1 u1 addr2 u2 -- n ) Compare two text strings
+		\ alphabetically.  Return -1 if first is less, 0 if equal,
+		\ and 1 if first is greater.
+   rot 2dup - >r umin			\ save u2-u1; use shortest length
+   ?dup if 0 do				\ for each character
+      over i + c@  over i + c@ -	\ compare characters
+      ?dup if				\ if there is a mismatch
+	 0< if -1 else 1 then		\ -1 if first string is less; else 1
+	 nip nip unloop r> drop exit	\ clean up and exit
+      then
+   loop then 2drop			\ strings equal up to shortest
+   r> dup if 0< if 1 else -1 then then ;
+
+\ ------------------------------------------------------------------------
+\ Conditionally compile based on an equation.
+
+: [else]	\ ( -- )
+   1 begin				\ level
+      begin bl parse-word dup while	\ level adr len
+	 2dup "" [if]" compare 0= >r	\ check for [if], [ifdef], or [ifndef]
+	 2dup "" [ifdef]" compare 0= >r
+	 2dup "" [ifndef]" compare 0= >r
+	 r> r> or r> or if		\ level adr len
+	    2drop 1+			\ level'
+	 else				\ level adr len
+	    2dup "" [else]" compare 0= if \ level adr len
+	       2drop 1- dup if 1+ then	\ level'
+	    else			\ level adr len
+	       "" [then]" compare 0= if	\ level
+	          1-			\ level'
+	       then
+	    then
+	 then ?dup 0= if exit then	\ level'
+      repeat 2drop
+      source drop 80 source-id read-line ?error while
+      reset-stream			\ load another line into stream
+   repeat drop ; immediate
+
+: [if]		\ ( -- )
+   0= if postpone [else] then ; immediate
+
+: [then]	\ ( -- )
+   ; immediate
+
+\ ------------------------------------------------------------------------
+\ Conditionally compile based on the existence or non-existence
+\ of a symbol.
+
+wordlist constant def-list
+
+: def		\ ( "name" -- ) Define given symbol.  We use def instead
+		\ of the more obvious define because define is used
+		\ in the cross compiler.
+   get-current def-list set-current true constant set-current ;
+
+: [ifdef]	\ ( "name" -- )
+   bl parse-word def-list search-wordlist 0=
+   if postpone [else] else drop then ; immediate
+
+: [ifndef]	\ ( "name" -- )
+   bl parse-word def-list search-wordlist
+   if drop postpone [else] then ; immediate

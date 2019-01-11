@@ -1,0 +1,357 @@
+\ (c) 1996 Johns Hopkins University / Applied Physics Laboratory
+\ Input/output hardware ports, bits, and fields.
+hex
+
+module> bits
+
+\ ------------------------------------------------------------------------
+\ Overloaded interface to memory and ports, bits and fields.
+
+\ * Any object defined can be accessed with get or set without regard
+\ * to the type of object.  Modification of an object will be done
+\ * reentrantly.  This is accomplished by disabling interrupts; therefore
+\ * set should not be used within an interrupt routine.  There is a version
+\ * of set, set-i, that does no effect the state of interrupts and can
+\ * be used within an interrupt routine.
+public:
+
+: get		\ ( obj -- x ) Return value of object.
+   dup @ @ execute ;
+
+: set-i		\ ( x obj -- ) Set value of object.
+   dup @ cell+ @ execute ;
+
+: set		\ ( x obj -- ) Set value of object (with interrupts disabled).
+   disable set-i enable ;
+
+: refresh	\ ( obj -- ) Refresh given object: read then write its
+		\ value.  This is done with interrupts disabled for
+		\ reentrancy.
+		\ Note: most useful for output port objects.
+   disable dup get swap set-i enable ;
+
+private:
+
+\ ------------------------------------------------------------------------
+\ Helpers
+
+: insert-bit	\ ( 0/1 desc value -- value' ) Insert bit into given value.
+		\ Desc (which starts one cell after bit object) describes where.
+   >r swap if cell+ @ r> or else cell+ @ invert r> and then ;
+
+: extract-bit	\ ( desc value -- 0/1 ) Extract bit from given value.
+		\ Desc describes where.
+   swap cell+ @ and if 1 else 0 then ;
+
+: insert-field	\ ( x desc value -- value' ) Insert field into given value.
+		\ Desc (which starts one cell after field object) describes
+		\ where.
+   >r dup cell+ @ >r cell+ cell+ @ lshift
+   r@ and r> invert r> and or ;
+
+: extract-field	\ ( desc value -- x ) Extract field from given value.
+		\ Desc describes where.
+   over cell+ @ and swap cell+ cell+ @ rshift ;
+
+\ ------------------------------------------------------------------------
+\ Output word ports
+
+\  get/set vectors      cache
+\ +----+----+          +------+
+\ | xt | xt |          | word |
+\ +----+----+          +------+
+\    ^                    ^
+\    |                    |
+\    |    +---------------+
+\    |    |
+\ +----+----+----+- - - -+
+\ |  o |  o | xt | data  |
+\ +----+----+----+- - - -+
+\ port
+
+\ * Write-only hardware ports can be defined and accessed.  The port
+\ * keeps a cache of its value in a user-specified location.  Both the
+\ * hardware port and the cache are assumed to be one cell wide.
+
+: port-w!	\ ( x port -- ) Store x at given output port.
+   2dup cell+ @ !  dup 3 cells + swap 2 cells + @ execute ;
+
+: port-w@	\ ( port -- x ) Fetch current output port value.
+   cell+ @ @ ;
+
+public:
+
+rom here
+' port-w@ ,	' port-w! ,		\ access vectors
+constant port-word-access
+ram
+
+: port-word:	\ ( addr "name" -- ) Define a hardware output port.  The
+		\ address indicates were to keep a copy of the port's data.
+		\ After use of port-word: an execution token must be appended
+		\ to the default data structure plus any parameters that 
+		\ it may need; its stack picture must be ( x port-data -- )
+		\ where port-data is the address of the parameter data.
+		\ ( -- port) The child returns the address of the port
+		\ data structure.
+   create port-word-access , , ;
+
+private:
+
+\ ------------------------------------------------------------------------
+\ Output byte ports
+\ Like word ports, but cached value is only one byte.  Port is still
+\ a word though.
+
+\ * Write-only hardware ports, where the cached value is only one byte
+\ * wide can also be defined and accessed.  Although the cache is one
+\ * byte wide, the port is assumed to be a cell.  In other respects,
+\ * these byte ports are like the word ports defined above.
+
+: port-b!	\ ( x port -- ) Store x at given output port.
+   2dup cell+ @ c!  dup 3 cells + swap 2 cells + @ execute ;
+
+: port-b@	\ ( port -- x ) Fetch current output port value.
+   cell+ @ c@ ;
+
+public:
+ 
+rom here
+' port-b@ ,	' port-b! ,		\ access vectors
+constant port-byte-access
+ram
+
+: port-byte:	\ ( addr "name" -- ) Define a hardware output port.  The
+		\ address indicates were to keep a copy of the port's data.
+		\ After use of port-byte: an execution token must be appended
+		\ to the default data structure plus any parameters that 
+		\ it may need; its stack picture must be ( x port-data -- )
+		\ where port-data is the address of the parameter data.
+   create port-byte-access , , ;
+
+private:
+
+\ ------------------------------------------------------------------------
+\ Define abstract port bits.
+
+\  get/set vectors      port
+\ +----+----+          +------+
+\ | xt | xt |          | ...  |
+\ +----+----+          +------+
+\    ^                    ^
+\    |                    |
+\    |    +---------------+
+\    |    |
+\ +----+----+------+
+\ |  o |  o | mask |
+\ +----+----+------+
+\ port-bit
+
+\ * Define a bit within an output port.
+
+: port-bit!	\ ( 0/1 port-bit -- ) Store 0/1 to given bit.
+   cell+ dup @ dup >r get  insert-bit  r> set-i ;
+
+: port-bit@	\ ( port-bit -- 0/1 ) Fetch last value written to given bit.
+   cell+ dup @ get extract-bit ;
+
+rom here
+' port-bit@ ,	' port-bit! ,		\ access vectors
+constant port-bit-access
+ram
+
+public:
+
+: port-bit:	\ ( port bit# "name" -- ) Define a bit in given port.
+		\ ( -- port-bit ) The child returns bit data structure.
+   create port-bit-access ,
+   swap , pow2 , ;
+
+private:
+
+\ ------------------------------------------------------------------------
+\ Define abstract port fields.
+
+\  get/set vectors      port
+\ +----+----+          +------+
+\ | xt | xt |          | ...  |
+\ +----+----+          +------+
+\    ^                    ^
+\    |                    |
+\    |    +---------------+
+\    |    |
+\ +----+----+------+------+
+\ |  o |  o | mask | bit# |
+\ +----+----+------+------+
+\ port-field
+
+\ * Define a field within an output port.
+
+: port-field!	\ ( x port-field -- ) Store x to given field.
+   cell+ dup @ dup >r get  insert-field  r> set-i ;
+
+: port-field@	\ ( port-field -- x ) Fetch last value written to given field.
+   cell+ dup @ get extract-field ;
+
+rom here
+' port-field@ ,	' port-field! ,		\ access vectors
+constant port-field-access
+ram
+
+public:
+
+: port-field:	\ ( port bit# width "name" -- ) Define a field in
+		\ given port.
+		\ ( -- port-field ) The child returns field data structure.
+   create port-field-access ,
+   rot , mask over lshift , , ;
+
+private:
+
+\ ------------------------------------------------------------------------
+\ Word memory
+
+\  get/set vectors      cache
+\ +----+----+          +------+
+\ | xt | xt |          | word |
+\ +----+----+          +------+
+\    ^                    ^
+\    |                    |
+\    |    +---------------+
+\    |    |
+\ +----+----+
+\ |  o |  o |
+\ +----+----+
+\ mem
+
+\ * Define a word in memory that can be accessed via get and set.
+\ * The user supplies the address of the memory location to use.
+
+: mem-w!	\ ( x mem -- ) Store x at given mem.
+   cell+ @ ! ;
+
+: mem-w@	\ ( mem -- x ) Return value of mem.
+   cell+ @ @ ;
+
+rom here
+' mem-w@ ,	' mem-w! ,		\ access vectors
+constant mem-word-access
+ram
+
+public:
+
+: mem-word:	\ ( addr "name" -- ) Define a memory config. word.
+		\ The address indicates were to keep a copy of the data.
+		\ ( -- mem) The child returns the address of the mem
+		\ data structure.
+   create mem-word-access , , ;
+
+private:
+
+\ ------------------------------------------------------------------------
+\ Byte memory
+\ Like word, but byte is cached.
+
+\ * Define a word in memory that can be accessed via get and set.
+\ * The user supplies the address of the memory location to use.
+
+: mem-b!	\ ( x mem -- ) Store x at given mem.
+   cell+ @ c! ;
+
+: mem-b@	\ ( mem -- x ) Return value of mem.
+   cell+ @ c@ ;
+
+rom here
+' mem-b@ ,	' mem-b! ,		\ access vectors
+constant mem-byte-access
+ram
+
+public:
+
+: mem-byte:	\ ( addr "name" -- ) Define a memory config. byte.
+		\ The address indicates were to keep a copy of the data.
+		\ ( -- mem) The child returns the address of the mem
+		\ data structure.
+   create mem-byte-access , , ;
+
+private:
+
+\ ------------------------------------------------------------------------
+\ Define abstract memory bits.
+
+\  get/set vectors      cache
+\ +----+----+          +------+
+\ | xt | xt |          | byte |
+\ +----+----+          +------+
+\    ^                    ^
+\    |                    |
+\    |    +---------------+
+\    |    |
+\ +----+----+------+
+\ |  o |  o | mask |
+\ +----+----+------+
+\ mem-bit
+
+\ * Define a bit within a memory byte.  The bit can be accessed via get
+\ * and set.  The user specifies the memory address.
+
+: mem-bit!	\ ( 0/1 mem-bit -- ) Store 0/1 to given bit.
+   cell+ dup @ dup >r c@  insert-bit  r> c! ;
+
+: mem-bit@	\ ( mem-bit -- 0/1 ) Fetch last value written to given bit.
+   cell+ dup @ c@ extract-bit ;
+
+rom here
+' mem-bit@ ,	' mem-bit! ,		\ access vectors
+constant mem-bit-access
+ram
+
+public:
+
+: mem-bit:	\ ( addr bit# "name" -- ) Define a bit in given location.
+		\ ( -- mem-bit ) The child returns bit data structure.
+   create mem-bit-access ,
+   swap , pow2 , ;
+
+private:
+
+\ ------------------------------------------------------------------------
+\ Define abstract memory fields.
+
+\  get/set vectors      cache
+\ +----+----+          +------+
+\ | xt | xt |          | byte |
+\ +----+----+          +------+
+\    ^                    ^
+\    |                    |
+\    |    +---------------+
+\    |    |
+\ +----+----+------+------+
+\ |  o |  o | mask | bit# |
+\ +----+----+------+------+
+\ mem-field
+
+\ * Define a field within a memory byte.  The field can be accessed via get
+\ * and set.  The user specifies the memory address.
+
+: mem-field!	\ ( x mem-field -- ) Store x to given field.
+   cell+ dup @ dup >r c@  insert-field  r> c! ;
+
+: mem-field@	\ ( mem-field -- x ) Fetch last value written to given field.
+   cell+ dup @ c@ extract-field ;
+
+rom here
+' mem-field@ ,	' mem-field! ,		\ access vectors
+constant mem-field-access
+ram
+
+public:
+
+: mem-field:	\ ( addr bit# width "name" -- ) Define field in given location.
+		\ ( -- mem-field ) The child returns field data structure.
+   create mem-field-access ,
+   rot , mask over lshift , , ;
+
+private:
+
+endmodule>

@@ -1,0 +1,32 @@
+\ (c) 1993 Johns Hopkins University / Applied Physics Laboratory
+\ 8530 SCC Control
+\ Set up channel A of SCC as UART.
+hex
+
+01 define RXRDYMASK
+04 define TXRDYMASK
+
+: uart-status	\ ( -- x ) Return UART status.
+   cmd-a c@ ;
+
+: cmd-uart	\ ( x -- ) Command UART.
+   cmd-a c! ;
+
+: uart-reg!	\ ( x regno -- ) Store x in given UART register.
+   cmd-uart cmd-uart ;
+
+: uart@		\ ( -- c ) Read character from UART.
+   data-a c@ ;
+
+: uart!		\ ( c -- ) Send character to UART.
+   data-a c! ;
+
+every-boot:
+   c9 9 uart-reg!			\ hardware reset
+   44 4 uart-reg!			\ x16 clock, 1 stop bit, no parity
+   c1 3 uart-reg!			\ Rx: 8 bits, enable
+   ea 5 uart-reg!			\ Tx: DTR, 8 bits, enable CTS
+   05 b uart-reg!			\ no xtal, Tx/Rx use RTxC
+   a0 e uart-reg!			\ source = RTxC
+;boot
+

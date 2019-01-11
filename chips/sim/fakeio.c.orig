@@ -1,0 +1,96 @@
+#include <stdio.h>
+#include "globals.h"
+#include "external.h"
+
+static void Unixstring();
+static void Forthstring();
+
+static int32 fakeioargs[10];
+static int argindex = 0;
+
+int32
+Fakeio(trapnumber)
+int32 trapnumber;
+{
+	char buf1[256], buf2[256];	/* I/O buffers */
+	int result;
+
+	argindex = 0;			/* reset index on each trap */
+	switch(trapnumber){
+	   case -1:			/* emit */
+		Cmdcharput((int)fakeioargs[0]);
+		return(0);
+	   case -2:			/* key */
+		return(Cmdcharget());
+	   case -3:			/* fopen ( "file" "mode" --- fp ) */
+		Unixstring((uint32)fakeioargs[1],buf1);
+		Unixstring((uint32)fakeioargs[0],buf2);
+		return((int32)fopen(buf1,buf2));
+	   case -4:			/* fclose ( fp --- ) */
+		fclose((FILE*)fakeioargs[0]);
+		return(0);
+	   case -5:			/* fexpect ( addr count fp --- addr )*/
+		if(fgets(buf1,(int)fakeioargs[1],(FILE *)fakeioargs[0])
+				 == 0) return(0);
+		Forthstring(buf1,(uint32)fakeioargs[2]);
+		return(fakeioargs[2]);
+	   case -6:			/* fseek ( addr fp --- ) */
+		return(fseek((FILE *)fakeioargs[0],(long)fakeioargs[1],0));
+	   case -7:			/* fread ( addr count fp --- actcoun)*/
+		result = fread(buf1,sizeof(char),
+				(int)fakeioargs[1],(FILE *)fakeioargs[0]);
+		buf1[result] = '\0';
+		Forthstring(buf1,(uint32)fakeioargs[2]);
+		return(result);
+	   case -8:			/* fgetc ( fp --- byte ) */
+		return(fgetc((FILE *)fakeioargs[0]));
+	   case -9:			/* fputc ( byte fp --- ) */
+		return(fputc((int)fakeioargs[1],(FILE *)fakeioargs[0]));
+	   case -10:			/* chdir ( "dir" --- ) */
+		Unixstring((uint32)fakeioargs[0],buf1);
+		chdir(buf1);
+		return(0);
+	   case -11:			/* terminate ( --- ) */
+		quitflag = TRUE;
+		return(0);
+	   case -12:			/* traceon ( --- ) */
+		Traceon();
+		return(0);
+	   case -13:			/* traceoff ( --- ) */
+		Traceoff();
+		return(0);
+	   default:
+		Cmdmsg("Unknown trap number\n"); break;
+	}
+	return(0);
+}
+
+void
+Fakeioarg(arg)
+int32 arg;
+{
+	fakeioargs[argindex++] = arg;
+}
+
+static void
+Unixstring(forthaddr,string)
+uint32 forthaddr;
+char *string;
+{
+	int count;
+
+	for(count=Fetchexternal(forthaddr++); count; count--){
+		*string++ = (char)Fetchexternal(forthaddr++);
+	}
+	*string = '\0';
+}
+
+static void
+Forthstring(string,forthaddr)
+char *string;
+uint32 forthaddr;
+{
+	while(*string){
+		Storeexternal(forthaddr++, (int32)*string++);
+	}
+}

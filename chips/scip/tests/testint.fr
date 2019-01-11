@@ -1,0 +1,19 @@
+\ (c) 2005 Johns Hopkins University / Applied Physics Laboratory
+\ Interrupt
+hex
+
+\ Note: test can be run with a continuous interrupt source (i.e.  "1
+\ interrupt" commanded in the simulator.  The interrupt routine reenables
+\ interrupts on completion by writing the PCR.  This has the side-effect
+\ of holding off interrupts for one cycle.  One instruction will execute
+\ before the next interrupt response.  Therefore, an interrupt will occur
+\ after almost every instruction in the test.  This is a good test of the
+\ interrupt logic.  Also, there are some explicit tests of interrupt
+\ hold-off (intholdofftest) that are only meaningful in the presence of
+\ the continuous interrupt.
+
+0 int:		\ ( -- ) Malicious interrupt routine.
+[	<testx	nopb Z >.		\ tricky: reach into stack and
+	<reg!	nota md >.		\   invert flag and MD registers
+] ;int
+

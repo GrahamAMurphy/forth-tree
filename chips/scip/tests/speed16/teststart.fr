@@ -1,0 +1,13 @@
+\ (c) 2005 Johns Hopkins University / Applied Physics Laboratory
+\ Test
+hex
+
+\ Count iterations of test.
+variable test-count
+
+label test	\ ( -- ) Test processor.  Does not return.
+]  10 set-mem				\ remote memory-mapped I/O
+   test-count @ dup 1+ test-count !	\ toggle state
+   8 rshift 2 far ! near		\   and write to LVPS
+[					\ run test
+\ compile test here ...

@@ -1,0 +1,619 @@
+\ (c) 2009 Johns Hopkins University / Applied Physics Laboratory
+\ Exercise cross-compile code
+hex
+
+\ ------------------------------------------------------------------------
+\ ALU Operations
+
+testing ALUOp instruction optimizations, stack nop.
+{ 1 2 aluop-nop1 -> 1 1 }
+{ 2 1 aluop-nop1 -> 2 -1 }
+{ 2 2 aluop-nop1 -> 2 0 }
+\ { 1 ffff aluop-nop2 -> 1 ffff }
+\ { 2 0 aluop-nop2 -> 2 0 }
+\ { 2 0 aluop-nop3 -> 2 ffff }
+\ { 2 ffff aluop-nop3 -> 2 0 }
+{ ffff 2 aluop-nop4 -> ffff ffff }
+{ 0 2 aluop-nop4 -> 0 0 }
+{ 0 2 aluop-nop5 -> 0 ffff }
+{ ffff 2 aluop-nop5 -> ffff 0 }
+
+testing ALUOp instruction optimizations, stack swap.
+{ 1 2 aluop-swap1 -> 2 -1 }
+{ 2 1 aluop-swap1 -> 1 1 }
+{ 2 2 aluop-swap1 -> 2 0 }
+{ 1 ffff aluop-swap2 -> ffff ffff }
+{ 1 0 aluop-swap2 -> 0 0 }
+{ 1 0 aluop-swap3 -> 0 ffff }
+{ 1 ffff aluop-swap3 -> ffff 0 }
+\ { ffff 1 aluop-swap4 -> 1 ffff }
+\ { 0 1 aluop-swap4 -> 1 0 }
+{ 0 1 aluop-swap5 -> 1 ffff }
+{ ffff 1 aluop-swap5 -> 1 0 }
+
+testing ALUOp instruction optimizations, stack push.
+{ 1 2 aluop-push1 -> 1 2 -1 }
+{ 2 1 aluop-push1 -> 2 1 1 }
+{ 2 2 aluop-push1 -> 2 2 0 }
+\ { 1 ffff aluop-push2 -> 1 ffff ffff }
+\ { 1 0 aluop-push2 -> 1 0 0 }
+{ 1 0 aluop-push3 -> 1 0 ffff }
+{ 1 ffff aluop-push3 -> 1 ffff 0 }
+\ { ffff 1 aluop-push4 -> ffff 1 ffff }
+\ { 0 1 aluop-push4 -> 0 1 0 }
+{ 0 1 aluop-push5 -> 0 1 ffff }
+{ ffff 1 aluop-push5 -> ffff 1 0 }
+
+testing ALUOp instruction optimizations, stack pop.
+{ 1 2 aluop-drop1 -> 1 }
+{ 2 1 aluop-drop1 -> -1 }
+{ 2 2 aluop-drop1 -> 0 }
+{ 1 ffff aluop-drop2 -> ffff }
+{ 1 0 aluop-drop2 -> 0 }
+{ 1 0 aluop-drop3 -> ffff }
+{ 1 ffff aluop-drop3 -> 0 }
+\ { ffff 1 aluop-drop4 -> ffff }
+\ { 0 1 aluop-drop4 -> 0 }
+{ 0 1 aluop-drop5 -> ffff }
+{ ffff 1 aluop-drop5 -> 0 }
+
+\ ------------------------------------------------------------------------
+\ ALU Extended Operations
+
+testing ALUOpEx instruction optimizations, stack nop.
+{ 1 2 aluopex-nop1 -> 1 1 false }
+{ 2 1 aluopex-nop1 -> 2 -1 false }
+{ 2 2 aluopex-nop1 -> 2 0 true }
+{ 1 ffff aluopex-nop2 -> 1 ffff false }
+{ 2 0 aluopex-nop2 -> 2 0 true }
+{ 2 0 aluopex-nop3 -> 2 ffff false }
+{ 2 ffff aluopex-nop3 -> 2 0 true }
+{ ffff 2 aluopex-nop4 -> ffff ffff false }
+{ 0 2 aluopex-nop4 -> 0 0 true }
+{ 0 2 aluopex-nop5 -> 0 ffff false }
+{ ffff 2 aluopex-nop5 -> ffff 0 true }
+
+testing ALUOpEx instruction optimizations, stack swap.
+{ 1 2 aluopex-swap1 -> 2 -1 false }
+{ 2 1 aluopex-swap1 -> 1 1 false }
+{ 2 2 aluopex-swap1 -> 2 0 true }
+{ 1 ffff aluopex-swap2 -> ffff ffff false }
+{ 1 0 aluopex-swap2 -> 0 0 true }
+{ 1 0 aluopex-swap3 -> 0 ffff false }
+{ 1 ffff aluopex-swap3 -> ffff 0 true }
+{ ffff 1 aluopex-swap4 -> 1 ffff false }
+{ 0 1 aluopex-swap4 -> 1 0 true }
+{ 0 1 aluopex-swap5 -> 1 ffff false }
+{ ffff 1 aluopex-swap5 -> 1 0 true }
+
+testing ALUOpEx instruction optimizations, stack push.
+{ 1 2 aluopex-push1 -> 1 2 -1 false }
+{ 2 1 aluopex-push1 -> 2 1 1 false }
+{ 2 2 aluopex-push1 -> 2 2 0 true }
+{ 1 ffff aluopex-push2 -> 1 ffff ffff false }
+{ 1 0 aluopex-push2 -> 1 0 0 true }
+{ 1 0 aluopex-push3 -> 1 0 ffff false }
+{ 1 ffff aluopex-push3 -> 1 ffff 0 true }
+{ ffff 1 aluopex-push4 -> ffff 1 ffff false }
+{ 0 1 aluopex-push4 -> 0 1 0 true }
+{ 0 1 aluopex-push5 -> 0 1 ffff false }
+{ ffff 1 aluopex-push5 -> ffff 1 0 true }
+
+testing ALUOpEx instruction optimizations, stack pop.
+{ 1 2 aluopex-drop1 -> -1 false }
+{ 2 1 aluopex-drop1 -> 1 false }
+{ 2 2 aluopex-drop1 -> 0 true }
+{ 1 ffff aluopex-drop2 -> ffff false }
+{ 1 0 aluopex-drop2 -> 0 true }
+{ 1 0 aluopex-drop3 -> ffff false }
+{ 1 ffff aluopex-drop3 -> 0 true }
+{ ffff 1 aluopex-drop4 -> ffff false }
+{ 0 1 aluopex-drop4 -> 0 true }
+{ 0 1 aluopex-drop5 -> ffff false }
+{ ffff 1 aluopex-drop5 -> 0 true }
+
+\ ------------------------------------------------------------------------
+\ ALU Immediate (Short) Operations
+
+testing ALUImm instruction optimizations, stack nop.
+{ 1 4 aluimm-nop1 -> 1 2 }
+{ 1 4 aluimm-nop4 -> 1 2 }
+{ 1 4 aluimm-nop5 -> 1 -2 }
+
+testing ALUImm instruction optimizations, stack swap.
+{ 1 4 aluimm-swap1a -> 4 2 }
+{ 1 4 aluimm-swap1b -> 4 -2 }
+{ 0 1 aluimm-swap4 -> 1 2 }
+{ 0 1 aluimm-swap5 -> 1 -2 }
+
+testing ALUImm instruction optimizations, stack push.
+{ 1 4 aluimm-push1a -> 1 4 2 }
+{ 1 4 aluimm-push1b -> 1 4 -2 }
+
+testing ALUImm instruction optimizations, stack pop.
+{ 0 1 aluimm-drop1 -> -1 }
+{ 0 1 aluimm-drop4 -> 2 }
+{ 0 1 aluimm-drop5 -> -2 }
+
+\ ------------------------------------------------------------------------
+\ ALU Immediate (Long) Operations
+
+testing ALUImmL instruction optimizations, stack nop.
+{ 20 50 aluimmlong-nop1 -> 20 10 }
+{ 10 20 aluimmlong-nop4 -> 10 40 }
+{ 10 20 aluimmlong-nop5 -> 10 -40 }
+
+testing ALUImmL instruction optimizations, stack swap.
+{ 20 50 aluimmlong-swap1a -> 50 10 }
+{ 20 50 aluimmlong-swap1b -> 50 -10 }
+{ 10 20 aluimmlong-swap4 -> 20 40 }
+{ 10 20 aluimmlong-swap5 -> 20 -40 }
+
+testing ALUImmL instruction optimizations, stack push.
+{ 20 50 aluimmlong-push1a -> 20 50 10 }
+{ 20 50 aluimmlong-push1b -> 20 50 -10 }
+
+testing ALUImmL instruction optimizations, stack pop.
+{ 20 50 aluimmlong-drop1 -> 10 }
+{ 20 30 aluimmlong-drop4 -> 40 }
+{ 20 30 aluimmlong-drop5 -> -40 }
+
+\ ------------------------------------------------------------------------
+\ ALU Tests
+
+testing ALUTs instruction optimizations, stack nop.
+{ 1 2 aluts-nop1 -> 1 false }
+{ 2 1 aluts-nop1 -> 2 true }
+{ 1 1 aluts-nop3 -> 1 false }
+{ 1 -1 aluts-nop3 -> 1 false }
+{ -1 1 aluts-nop3 -> -1 true }
+{ -1 -1 aluts-nop3 -> -1 true }
+
+testing ALUTs instruction optimizations, stack swap.
+{ 1 2 aluts-swap1 -> 2 true }
+{ 2 1 aluts-swap1 -> 1 false }
+{ 1 1 aluts-swap2 -> 1 false }
+{ 1 -1 aluts-swap2 -> -1 true }
+{ -1 1 aluts-swap2 -> 1 false }
+{ -1 -1 aluts-swap2 -> -1 true }
+{ 1 1 aluts-swap3 -> 1 false }
+{ 1 -1 aluts-swap3 -> -1 false }
+{ -1 1 aluts-swap3 -> 1 true }
+{ -1 -1 aluts-swap3 -> -1 true }
+
+testing ALUTs instruction optimizations, stack push.
+{ 1 2 aluts-push1 -> 1 2 true }
+{ 2 1 aluts-push1 -> 2 1 false }
+{ 1 1 aluts-push2 -> 1 1 false }
+{ 1 -1 aluts-push2 -> 1 -1 true }
+{ -1 1 aluts-push2 -> -1 1 false }
+{ -1 -1 aluts-push2 -> -1 -1 true }
+{ 1 1 aluts-push3 -> 1 1 false }
+{ 1 -1 aluts-push3 -> 1 -1 false }
+{ -1 1 aluts-push3 -> -1 1 true }
+{ -1 -1 aluts-push3 -> -1 -1 true }
+
+testing ALUTs instruction optimizations, stack pop.
+{ 1 2 aluts-drop1 -> false }
+{ 2 1 aluts-drop1 -> true }
+{ 1 1 aluts-drop2 -> false }
+{ 1 -1 aluts-drop2 -> true }
+{ -1 1 aluts-drop2 -> false }
+{ -1 -1 aluts-drop2 -> true }
+{ 1 1 aluts-drop3 -> false }
+{ 1 -1 aluts-drop3 -> false }
+{ -1 1 aluts-drop3 -> true }
+{ -1 -1 aluts-drop3 -> true }
+
+\ ------------------------------------------------------------------------
+\ ALU Extended Tests
+
+testing ALUTsEx instruction optimizations, stack nop.
+{ 1 2 alutsex-nop1 -> 1 2 true }
+{ 2 1 alutsex-nop1 -> 2 1 false }
+{ 0 0 alutsex-nop2 -> 0 0 true }
+{ 0 1 alutsex-nop2 -> 0 1 false }
+{ 1 0 alutsex-nop2 -> 1 0 true }
+{ 1 1 alutsex-nop2 -> 1 1 false }
+{ 0 0 alutsex-nop3 -> 0 0 false }
+{ 0 1 alutsex-nop3 -> 0 1 true }
+{ 1 0 alutsex-nop3 -> 1 0 false }
+{ 1 1 alutsex-nop3 -> 1 1 true }
+{ 0 0 alutsex-nop4 -> 0 0 true }
+{ 0 1 alutsex-nop4 -> 0 1 true }
+{ 1 0 alutsex-nop4 -> 1 0 false }
+{ 1 1 alutsex-nop4 -> 1 1 false }
+{ 0 0 alutsex-nop5 -> 0 0 false }
+{ 0 1 alutsex-nop5 -> 0 1 false }
+{ 1 0 alutsex-nop5 -> 1 0 true }
+{ 1 1 alutsex-nop5 -> 1 1 true }
+
+testing ALUTsEx instruction optimizations, stack swap.
+{ 1 2 alutsex-swap1 -> 2 1 false }
+{ 2 1 alutsex-swap1 -> 1 2 true }
+{ 1 1 alutsex-swap2 -> 1 1 false }
+{ 1 -1 alutsex-swap2 -> -1 1 true }
+{ -1 1 alutsex-swap2 -> 1 -1 false }
+{ -1 -1 alutsex-swap2 -> -1 -1 true }
+{ 0 0 alutsex-swap3 -> 0 0 false }
+{ 0 1 alutsex-swap3 -> 1 0 true }
+{ 1 0 alutsex-swap3 -> 0 1 false }
+{ 1 1 alutsex-swap3 -> 1 1 true }
+{ 1 1 alutsex-swap4 -> 1 1 false }
+{ 1 -1 alutsex-swap4 -> -1 1 false }
+{ -1 1 alutsex-swap4 -> 1 -1 true }
+{ -1 -1 alutsex-swap4 -> -1 -1 true }
+{ 0 0 alutsex-swap5 -> 0 0 false }
+{ 0 1 alutsex-swap5 -> 1 0 false }
+{ 1 0 alutsex-swap5 -> 0 1 true }
+{ 1 1 alutsex-swap5 -> 1 1 true }
+
+testing ALUTsEx instruction optimizations, stack push.
+\ none ...
+
+testing ALUTsEx instruction optimizations, stack pop.
+{ 1 2 alutsex-drop1 -> 1 false }
+{ 2 1 alutsex-drop1 -> 2 true }
+{ 0 0 alutsex-drop2 -> 0 true }
+{ 0 1 alutsex-drop2 -> 0 false }
+{ 1 0 alutsex-drop2 -> 1 true }
+{ 1 1 alutsex-drop2 -> 1 false }
+{ 0 0 alutsex-drop3 -> 0 true }
+{ 0 1 alutsex-drop3 -> 0 true }
+{ 1 0 alutsex-drop3 -> 1 false }
+{ 1 1 alutsex-drop3 -> 1 false }
+{ 0 0 alutsex-drop4 -> 0 false }
+{ 0 1 alutsex-drop4 -> 0 false }
+{ 1 0 alutsex-drop4 -> 1 true }
+{ 1 1 alutsex-drop4 -> 1 true }
+
+\ ------------------------------------------------------------------------
+\ Shift Tests
+
+testing Shift instruction optimizations.
+{ 2 3 shift-nop -> 2 c }
+{ 2 3 shift-drop -> c }
+
+\ ------------------------------------------------------------------------
+\ ShiftImm Tests
+
+testing ShiftImm instruction optimizations.
+{ 1 2 shifti-nop -> 1 4 }
+{ 1 2 shifti-swap -> 2 4 }
+{ 1 2 shifti-push -> 1 2 4 }
+{ 1 2 shifti-drop -> 4 }
+
+\ ------------------------------------------------------------------------
+\ ALUWrReg Tests
+
+testing ALUWrReg instruction optimizations, stack nop.
+{ 1 2 aluwrreg-nop1 get-mem -> 1 2 -1 }
+{ 2 1 aluwrreg-nop1 get-mem -> 2 1 1 }
+{ 1 0 aluwrreg-nop2 get-mem -> 1 0 0 }
+{ 1 0 aluwrreg-nop3 get-mem -> 1 0 ffff }
+{ 1 0 aluwrreg-nop4 get-mem -> 1 0 1 }
+{ 0 1 aluwrreg-nop5 get-mem -> 0 1 ffff }
+
+testing ALUWrReg instruction optimizations, stack swap.
+{ 1 2 aluwrreg-swap1 get-mem -> 2 1 -1 }
+{ 2 1 aluwrreg-swap1 get-mem -> 1 2 1 }
+{ 1 0 aluwrreg-swap2 get-mem -> 0 1 0 }
+{ 1 0 aluwrreg-swap3 get-mem -> 0 1 ffff }
+{ 1 0 aluwrreg-swap4 get-mem -> 0 1 1 }
+{ 0 1 aluwrreg-swap5 get-mem -> 1 0 ffff }
+
+testing ALUWrReg instruction optimizations, stack push.
+{ 1 2 aluwrreg-push1 get-mem -> 1 2 2 -1 }
+{ 2 1 aluwrreg-push1 get-mem -> 2 1 1 1 }
+{ 1 0 aluwrreg-push2 get-mem -> 1 0 0 0 }
+{ 1 0 aluwrreg-push3 get-mem -> 1 0 0 ffff }
+{ 1 0 aluwrreg-push4 get-mem -> 1 0 0 1 }
+{ 0 1 aluwrreg-push5 get-mem -> 0 1 1 ffff }
+
+testing ALUWrReg instruction optimizations, stack pop.
+{ 1 2 aluwrreg-drop1 get-mem -> 1 1 }
+{ 2 1 aluwrreg-drop1 get-mem -> 2 -1 }
+{ 0 1 aluwrreg-drop4 get-mem -> 0 0 }
+{ 0 1 aluwrreg-drop5 get-mem -> 0 ffff }
+
+\ ------------------------------------------------------------------------
+\ ALURdReg Tests
+
+testing ALURdReg instruction optimizations, stack nop.
+{ 0 1 2 set-mem alurdreg-nop1 -> 0 -1 }
+{ 0 2 1 set-mem alurdreg-nop1 -> 0 1 }
+{ 0 1 2 set-mem alurdreg-nop4 -> 0 2 }
+
+testing ALURdReg instruction optimizations, stack swap.
+{ 0 1 2 set-mem alurdreg-swap1a -> 1 -1 }
+{ 0 2 1 set-mem alurdreg-swap1a -> 2 1 }
+{ 0 1 2 set-mem alurdreg-swap1b -> 1 1 }
+{ 0 2 1 set-mem alurdreg-swap1b -> 2 -1 }
+{ 0 1 2 set-mem alurdreg-swap4 -> 1 2 }
+
+testing ALURdReg instruction optimizations, stack push.
+{ 0 1 2 set-mem alurdreg-push1a -> 0 1 -1 }
+{ 0 2 1 set-mem alurdreg-push1a -> 0 2 1 }
+{ 0 1 2 set-mem alurdreg-push1b -> 0 1 1 }
+{ 0 2 1 set-mem alurdreg-push1b -> 0 2 -1 }
+
+testing ALURdReg instruction optimizations, stack pop.
+{ 0 1 2 set-mem alurdreg-drop1 -> -1 }
+{ 0 2 1 set-mem alurdreg-drop1 -> 1 }
+{ 0 1 2 set-mem alurdreg-drop4 -> 2 }
+
+\ ------------------------------------------------------------------------
+\ Load Operations
+
+create load-data 12 c, 34 c, 56 c, 78 c,
+
+testing Load instruction optimizations, stack nop.
+{ 1 load-data load-nop2a -> 1 5678 }
+{ 1 load-data load-nop2b -> 1 34 }
+
+testing Load instruction optimizations, stack swap.
+{ 1 load-data load-swap1 -> load-data 1234 }
+{ 1 load-data load-swap2a -> load-data 5678 }
+{ 1 load-data load-swap2b -> load-data 34 }
+
+testing Load instruction optimizations, stack push.
+{ 1 load-data load-push1 -> 1 load-data 1234 }
+{ 1 load-data load-push2a -> 1 load-data 5678 }
+{ 1 load-data load-push2b -> 1 load-data 34 }
+
+testing Load instruction optimizations, stack pop.
+{ 1 load-data load-drop1 -> 1234 }
+{ 1 load-data load-drop2a -> 5678 }
+{ 1 load-data load-drop2b -> 34 }
+
+\ ------------------------------------------------------------------------
+\ Store Operations
+
+create store-data 2 cells allot
+
+testing Store instruction optimizations.
+{ 1234 store-data store-test1 store-data cell+ @ -> 1234 }
+{ 56 store-data store-test2 store-data 1+ c@ -> 56 }
+{ 1234 store-data store-test3 store-data @ -> 1234 store-data 1234 }
+{ 5678 store-data store-test4 store-data cell+ @ -> 5678 store-data 5678 }
+{ 90 store-data store-test5 store-data 1+ c@ -> 90 store-data 90 }
+
+\ ------------------------------------------------------------------------
+\ Rule-by-rule test
+
+testing rules for ALU instructions.
+{ 1 2 dropdup-test -> 1  1 }
+{ 1 2 nipdup-test -> 2 2 }
+{ 1 2 swapswap-test -> 1 2 }
+{ 1 2 swap<binop>-test1 -> 3 }
+{ 1 2 swap<binop>-test2 -> 1 }
+{ 1 2 over<binop>-test1 -> 1 3 }
+{ 1 2 over<binop>-test2 -> 1 1 }
+{ 1 2 over[over<binop>]-test1 -> 1 2 3 }
+{ 1 2 over[over<binop>]-test2 -> 1 2 -1 }
+{ 1 2 swap[over<binop>]-test1 -> 2 3 }
+{ 1 2 swap[over<binop>]-test2 -> 2 -1 }
+{ 1 0 <nopa>not-test1 -> 0 ffff }
+{ 1 0 <nopa>not-test2 -> 1 0 ffff }
+{ 1 0 <nopa>not-test3 -> ffff }
+{ 0 1 <nopb>not-test1 -> 0 ffff }
+{ 0 1 <nopb>not-test2 -> 0 1 ffff }
+{ 0 1 <nopb>not-test3 -> ffff }
+
+testing rules for test instructions.
+{ 0 1 swap<bincmp>-test1 -> false }
+{ 1 1 swap<bincmp>-test1 -> true }
+{ 0 1 swap<bincmp>-test2 -> false }
+{ 1 0 swap<bincmp>-test2 -> true }
+{ 0 1 over<bincmp>-test1 -> 0 false }
+{ 1 1 over<bincmp>-test1 -> 1 true }
+{ 0 1 over<bincmp>-test2 -> 0 false }
+{ 1 0 over<bincmp>-test2 -> 1 true }
+{ 0 1 over[over<bincmp>]-test1 -> 0 1 false }
+{ 1 1 over[over<bincmp>]-test1 -> 1 1 true }
+{ 0 1 over[over<bincmp>]-test2 -> 0 1 true }
+{ 1 1 over[over<bincmp>]-test2 -> 1 1 false }
+{ 0 1 swap[over<bincmp>]-test1 -> 1 false }
+{ 1 1 swap[over<bincmp>]-test1 -> 1 true }
+{ 0 1 swap[over<bincmp>]-test2 -> 1 true }
+{ 1 1 swap[over<bincmp>]-test2 -> 1 false }
+{ 0 1 <alu><uncmp>-test1 -> 0 1 false }
+{ 1 0 <alu><uncmp>-test1 -> 1 0 true }
+{ -1 0 <alu><uncmp>-test2 -> false }
+{ 0 -1 <alu><uncmp>-test2 -> true }
+{ 0 1 <alu><uncmp>-test3 -> 0 1 true }
+{ 1 0 <alu><uncmp>-test3 -> 1 0 false }
+{ -1 0 <alu><uncmp>-test4 -> true }
+{ 0 -1 <alu><uncmp>-test4 -> false }
+{ 1 2 <cmp>not-test1 -> true }
+{ 1 1 <cmp>not-test1 -> false }
+{ 1 2 <cmp>not-test2 -> false }
+{ 1 1 <cmp>not-test2 -> true }
+
+testing rules for conditional branch instructions.
+{ 0 1 <alu><?br>1-test1 -> 0 1 true }
+{ 1 0 <alu><?br>1-test1 -> 1 0 false }
+{ 0 1 <alu><?br>1-test2 -> 0 1 false }
+{ 1 0 <alu><?br>1-test2 -> 1 0 true }
+{ 0 0 <alu><?br>1-test3 -> 0 0 false }
+{ 0 1 <alu><?br>1-test3 -> 0 1 true }
+{ 1 0 <alu><?br>1-test3 -> 1 0 true }
+{ 0 1 <alu><?br>2-testa -> 0 false }
+{ 1 0 <alu><?br>2-testa -> 1 true }
+{ 0 0 <alu><?br>2-testb -> 0 false }
+{ 0 1 <alu><?br>2-testb -> 0 true }
+{ 1 0 <alu><?br>2-testb -> 1 true }
+{ 1 2 <cmp><?br>1-test -> 1 2 true }
+{ 2 1 <cmp><?br>1-test -> 2 1 false }
+{ 1 2 <cmp><?br>2-test -> 1 false }
+{ 2 1 <cmp><?br>2-test -> 2 true }
+{ 1 2 swap[2dup<bincmp><?br>]-test -> 2 1 false }
+{ 2 1 swap[2dup<bincmp><?br>]-test -> 1 2 true }
+{ -1 1 <alu>[dup<uncmp><?br>]-test1 -> -1 1 1 false }
+{ 1 -1 <alu>[dup<uncmp><?br>]-test1 -> 1 -1 -1 true }
+{ -1 1 <alu>[dup<uncmp><?br>]-test2 -> -1 1 -1 true }
+{ 1 -1 <alu>[dup<uncmp><?br>]-test2 -> 1 -1 1 false }
+{ -1 1 <alu>[dup<uncmp><?br>]-test3 -> 1 -1 true }
+{ 1 -1 <alu>[dup<uncmp><?br>]-test3 -> -1 1 false }
+{ 1 2 <alu>[dup<uncmp><?br>]-test4 -> -1 true }
+{ 2 1 <alu>[dup<uncmp><?br>]-test4 -> 1 false }
+{ 1 2 <alu>[dup<uncmp><?br>]-test5 -> 1 1 false }
+{ 2 1 <alu>[dup<uncmp><?br>]-test5 -> 2 -1 true }
+{ 1 2 <alu>[dup<uncmp><?br>]-test6 -> 1 2 -1 true }
+{ 2 1 <alu>[dup<uncmp><?br>]-test6 -> 2 1 1 false }
+{ 1 -1 [nipdup<uncmp>]<?br>-test -> -1 true }
+{ -1 1 [nipdup<uncmp>]<?br>-test -> 1 false }
+
+testing rules for register access instructions.
+{ 1 2 <alu><reg!>1-test1 get-mem -> 1 2 2 }
+{ 1 2 <alu><reg!>1-test2 get-mem -> 1 2 1 }
+{ 1 2 <alu><reg!>2-test get-mem ->  1 1 }
+{ 1 2 <reg!>swap-test get-mem -> 2 1 2 }
+{ 1 2 <reg!>dup-test get-mem -> 1 2 2 1 }
+{ 1 2 3 set-mem <reg@><binop>-test1 -> 1 -1 }
+{ 1 2 3 set-mem <reg@><binop>-test2 -> 1 2 }
+{ 1 2 3 set-mem <nopa>[<reg@><binop>]-test1 -> 1 2 -1 }
+{ 1 2 3 set-mem <nopa>[<reg@><binop>]-test2 -> 2 -1 }
+{ 1 2 3 set-mem [nip<reg@>]<binop>-test -> -1 }
+{ 1 2 3 set-mem <reg@>[over<binop>]-test -> 1 2 1 }
+{ 1 2 3 set-mem [nip<reg@>][over<binop>]-test -> 2 1 }
+{ 1 2 3 set-mem <reg@><bincmp><?br>-test -> 1 false }
+{ 1 2 2 set-mem <reg@><bincmp><?br>-test -> 1 true }
+{ 1 2 3 set-mem <reg@><bincmp><?br>-test-x -> 1 true }
+{ 1 2 2 set-mem <reg@><bincmp><?br>-test-x -> 1 false }
+{ 1 2 3 set-mem dup<reg@><bincmp>-test -> 1 2 true }
+{ 1 2 2 set-mem dup<reg@><bincmp>-test -> 1 2 false }
+{ 1 2 3 set-mem drop<reg@>-test -> 1 3 }
+{ 1 2 3 set-mem nip<reg@>-test -> 2 3 }
+{ 1 2 3 set-mem drop[drop<reg@>]-test -> 3 }
+{ 1 2 <reg@><reg!>drop-test -> 1 }
+{ 1 2 [drop<reg@>]<reg!>drop-test -> }
+
+testing rules for short literal instructions.
+{ 3 4 <short><binop>-test -> 3 2 }
+{ 3 4 <short>drop-test -> 3 4 }
+{ 3 4 <nopa>[<short><binop>]-test1 -> 3 4 2 }
+{ 3 4 <nopa>[<short><binop>]-test2 -> 4 2 }
+{ 3 4 [nip<short>]<binop>-test -> 2 }
+{ 3 4 <short>[over<binop>]-test -> 3 4 -2 }
+{ 3 4 [nip<short>][over<binop>]-test -> 4 -2 }
+{ 3 4 <short><bincmp><?br>-test -> 3 false }
+{ 3 2 <short><bincmp><?br>-test -> 3 true }
+{ 3 4 <short><bincmp><?br>-test-x -> 3 false }
+{ 3 1 <short><bincmp><?br>-test-x -> 3 true }
+{ 1 2 0<bincmp>-test -> 1 false }
+{ 1 0 0<bincmp>-test -> 1 true }
+{ 3 4 dup<short><bincmp>-test -> 3 4 false }
+{ 3 1 dup<short><bincmp>-test -> 3 1 true }
+{ 3 4 drop<short/i>-test1 -> 3 2 }
+{ 3 4 drop<short/i>-test2 -> 3 -2 }
+{ 3 4 nip<short/i>-test1 -> 4 2 }
+{ 3 4 nip<short/i>-test2 -> 4 -2 }
+{ 3 4 drop[drop<short/i>]-test1 -> 2 }
+{ 3 4 drop[drop<short/i>]-test2 -> -2 }
+
+testing rules for long literal instructions.
+{ 300 400 <long><binop>-test -> 300 200 }
+{ 300 400 <nopa>[<long><binop>]-test1 -> 300 400 200 }
+{ 300 400 <nopa>[<long><binop>]-test2 -> 400 200 }
+{ 300 400 [nip<long>]<binop>-test -> 200 }
+{ 300 400 <long>[over<binop>]-test -> 300 400 -200 }
+{ 300 400 [nip<long>][over<binop>]-test -> 400 -200 }
+{ 300 400 <long><bincmp><?br>-test -> 300 false }
+{ 300 200 <long><bincmp><?br>-test -> 300 true }
+{ 300 400 <long><bincmp><?br>-test-x -> 300 false }
+{ 300 100 <long><bincmp><?br>-test-x -> 300 true }
+{ 300 400 dup<long><bincmp>-test -> 300 400 false }
+{ 300 100 dup<long><bincmp>-test -> 300 100 true }
+{ 300 400 drop<long>-test -> 300 200 }
+{ 300 400 nip<long>-test -> 400 200 }
+{ 300 400 drop[drop<long>]-test -> 200 }
+
+testing rules for load/store instructions.
+1234 ls-target !
+{ 1 ls-target <nopa><load>-test1 -> ls-target 1234 }
+{ 1 ls-target <nopa><load>-test2 -> 1 ls-target 1234 }
+{ 1 ls-target <nopa><load>-test3 -> 1234 }
+{ 1 ls-target [<nopa><short>+]<load>-test1 -> ls-target 34 }
+{ 1 ls-target [<nopa><short>+]<load>-test2 -> 1 ls-target 34 }
+{ 1 ls-target [<nopa><short>+]<load>-test3 -> 34 }
+{ 1 1236 dup<long><load><binop>-test -> 1 1236 2 }
+{ 1 1234 dup<long><load><bincmp>-test -> 1 1234 false }
+{ 1 1233 dup<long><load><bincmp>-test -> 1 1233 true }
+{ 21 ls-target [<short>+]<store>-test ls-target @ -> 1221 }
+{ 1 4321 dup<long><store>drop-test ls-target @ -> 1 4321 4321 }
+{ 1 567 ls-target set-mem dup<reg@><store>drop-test ls-target @ -> 1 567 567 }
+{ 8765 ls-target overover<store>drop-test ls-target @ -> 8765 ls-target 8765 }
+
+testing rules for literal folding.
+{ 2 3 [<nopa><short-op>]<short-op>-test1 -> 2 5 }
+{ 2 3 [<nopa><short-op>]<short-op>-test2 -> 3 5 }
+{ 2 3 [<nopa><short-op>]<short-op>-test3 -> 2 3 5 }
+{ 2 3 [<nopa><short-op>]<short-op>-test4 -> 5 }
+{ 2 3 0+-test -> 2 3 }
+{ 2 3 [<nopa><long-op>]><short-op>-test1 -> 2 104 }
+{ 2 3 [<nopa><long-op>]><short-op>-test2 -> 3 104 }
+{ 2 3 [<nopa><long-op>]><short-op>-test3 -> 2 3 104 }
+{ 2 3 [<nopa><long-op>]><short-op>-test4 -> 104 }
+{ 2 3 [<nopa><short-op>]><long-op>-testa -> 2 104 }
+{ 2 3 [<nopa><short-op>]><long-op>-testb -> 3 104 }
+{ 2 3 [<nopa><short-op>]><long-op>-testc -> 2 3 104 }
+{ 2 3 [<nopa><short-op>]><long-op>-testd -> 104 }
+{ 2 3 [<nopa><long-op>]><long-op>-test1 -> 2 203 }
+{ 2 3 [<nopa><long-op>]><long-op>-test2 -> 3 203 }
+{ 2 3 [<nopa><long-op>]><long-op>-test3 -> 2 3 203 }
+{ 2 3 [<nopa><long-op>]><long-op>-test4 -> 203 }
+{ 1 3 <short><short-op>-test1 -> 1 2 }
+{ 1 3 <short><short-op>-test2 -> 3 2 }
+{ 1 3 <short><short-op>-test3 -> 1 3 2 }
+{ 1 3 <short><short-op>-test4 -> 2 }
+{ 2 3 <short><long-op>-test1 -> 2 101 }
+{ 2 3 <short><long-op>-test2 -> 3 101 }
+{ 2 3 <short><long-op>-test3 -> 2 3 101 }
+{ 2 3 <short><long-op>-test4 -> 101 }
+{ 2 3 <long><short-op>-test1 -> 2 101 }
+{ 2 3 <long><short-op>-test2 -> 3 101 }
+{ 2 3 <long><short-op>-test3 -> 2 3 101 }
+{ 2 3 <long><short-op>-test4 -> 101 }
+{ 2 3 <long><long-op>-test1 -> 2 200 }
+{ 2 3 <long><long-op>-test2 -> 3 200 }
+{ 2 3 <long><long-op>-test3 -> 2 3 200 }
+{ 2 3 <long><long-op>-test4 -> 200 }
+{ 1 3 <short><shifti>-test1 -> 1 2 }
+{ 1 3 <short><shifti>-test2 -> 3 2 }
+{ 1 3 <short><shifti>-test3 -> 1 3 2 }
+{ 1 3 <short><shifti>-test4 -> 2 }
+{ 2 3 <long><shifti>-test1 -> 2 200 }
+{ 2 3 <long><shifti>-test2 -> 3 200 }
+{ 2 3 <long><shifti>-test3 -> 2 3 200 }
+{ 2 3 <long><shifti>-test4 -> 200 }
+{ 3 2 [<nopa><shifti>]<shifti>-test1 -> 3 8 }
+{ 3 2 [<nopa><shifti>]<shifti>-test2 -> 2 8 }
+{ 3 2 [<nopa><shifti>]<shifti>-test3 -> 3 2 8 }
+{ 3 2 [<nopa><shifti>]<shifti>-test4 -> 8 }
+
+testing rules for shift instructions.
+{ 1 2 overswap<shift>-test -> 1 4 }
+{ 1 2 <short>swap<shift>-test -> 1 8 }
+{ 1 2 [nip<short>]swap<shift>-test -> 8 }
+{ 1 2 <short><short><shift>-test -> 1 2 4 }
+{ 1 2 <nopa><shifti>-test1 -> 2 8 }
+{ 1 2 <nopa><shifti>-test2 -> 1 2 8 }
+
+testing rules for more literal folding.
+{ 1 2 <short><short>*-test1 -> 1 d# 12 }
+{ 1 2 <short><short>*-test2 -> 2 d# 20 }
+{ 1 2 <short><short>*-test3 -> 1 2 d# 18 }
+{ 1 2 <short><short>*-test4 -> d# 24 }
+{ 1 2 <short><long>*-test1 -> 1 d# 900 }
+{ 1 2 <short><long>*-test2 -> 2 d# 800 }
+{ 1 2 <short><long>*-test3 -> 1 2 d# 700 }
+{ 1 2 <short><long>*-test4 -> d# 600 }
+{ 1 2 <long><short>*-test1 -> 1 d# 1400 }
+{ 1 2 <long><short>*-test2 -> 2 d# 1200 }
+{ 1 2 <long><short>*-test3 -> 1 2 d# 1000 }
+{ 1 2 <long><short>*-test4 -> d# 800 }
+{ 1 2 <long><long>*-test1 -> 1 d# 10000 }
+{ 1 2 <long><long>*-test2 -> 2 d# 20000 }
+{ 1 2 <long><long>*-test3 -> 1 2 d# 30000 }
+{ 1 2 <long><long>*-test4 -> d# 40000 }

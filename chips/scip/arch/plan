@@ -1,0 +1,16 @@
+1. Compile 16-bit version of processor plus an interrupt controller and
+UART for Xilinx FPGA.  Xilinx (TBD: name) development board with FPGA,
+RAM, EEPROM, and RS-232 I/O will be used.  The processor will be tested
+by loading ANSI Forth regression tests over the RS-232 port.
+
+2. To the above add another UART to the FPGA and New Horizons (NH)
+RS-422 I/O drivers and connector to the board.  Connect to a NH
+spacecraft emulator and GSEOS computer.  Run NH common software on
+processor; test via regression scripts running on GSEOS.
+
+3. To the above add I2C master and John Boldt's backplane bus to the
+chip and connect board to LORRI image interface board.  Run LORRI
+software on processor.
+
+4. Compile a 32-bit version of processor plus an interrupt controller
+and UART.  Test as per number 1 above.

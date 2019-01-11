@@ -1,0 +1,167 @@
+\ (c) 1993 Johns Hopkins University / Applied Physics Laboratory
+\ Initialize multitasking system
+hex
+
+noheads					\ none of these can be accessed by user
+
+\ define size of user space; all user variable must be declared by now
+user-space forth @ host define user-size
+
+\ ------------------------------------------------------------------------
+\ Context switch
+
+\ Note: the following data structure must be allocated immediately following
+\ the user area for any process that will have its stacks swapped off chip.
+structure pd-run-swap			\ extra context for off-chip swap procs.
+   substack-size    cells: .pstack
+   substack-size 2* cells: .rstack	\ rstack in memory: 2 cells per element
+endstructure
+
+\ BUG: could produce big program when substack-size is large; these
+\ may exceed RTX jump range.
+\ BUG: in following, substack-size must be compiled with a hack;
+\ just saying "substack-size" will cause the number of to compiled
+\ into the target code when this cross-compiler macro is executed.
+metaextend
+forth : save-rstack
+   [ substack-size ] literal
+   0 do [target] ipr@ swap !+ r> swap !+ [forth] loop ;
+forth : restore-rstack
+   [ substack-size ] literal 0 do
+      [target] @- swap >r @- swap ipr! [forth]
+   loop ;
+hostinterp
+
+: switch	\ ( addr[pd-run] -- ) Switch context to indicated process.
+   resolves switchto			\ resolve forward reference to here
+\ Note: tricky code. Return to caller's caller.
+\ When sp is saved, return address is lost.
+\  dup >r				\ push return address into RAM
+   lsp@ @run .lsp !			\ save local variable stack pointer
+   sr@ @run .sr !			\ save do-loop cache
+   get-page @run .remote !		\ save remote page pointer
+   gbus1a-val @ @run .gbus1a !		\ save MSI image, ctp select bits
+   @run .sp @ [ psp-stack-mask invert ff and ] literal and
+   if					\ if process locked on-chip
+      sp@ 1+				\ current stack depth (1+ for postpush)
+      @run .sp !			\ remember sp in pd
+   else					\ process is not locked on-chip
+      rdrop sp@ 1- @run .sp !		\ save adjusted stack pointer
+      >r @run user-size + .pstack	\ save parameter stack in memory
+      substack-size 1- times|| !+ || r>
+      @run user-size + .rstack		\ save return stack
+      save-rstack drop
+   then
+   dup !run				\ cproc points to new process
+   .sp @ sp!				\ switch to new stack
+   @run .sp @ [ psp-stack-mask invert ff and ] literal and
+   if					\ if new process locked on-chip
+      rdrop drop drop			\ dump garbage
+   else					\ process is not locked on-chip
+      @run user-size + .rstack substack-size 2* 1- cells +
+      restore-rstack drop		\ restore return stack from memory
+      @run user-size + .pstack substack-size 1- cells +
+      substack-size 1- times|| @- || drop \ restore parameter stack
+   then
+   @run .lsp @ lsp!			\ restore local variable stack pointer
+   @run .sr @ sr!			\ restore do-loop cache
+   @run .remote @ set-page		\ restore remote page pointer
+   @run .gbus1a @ select-img-bufs-i	\ restore MSI image buffer select bits
+;
+
+\ ------------------------------------------------------------------------
+\ Substack allocation
+
+variable next-substack
+   default-sp next-substack !		\ start allocating from default sp
+: allocate-substack \ ( -- init-sp ) Allocate a substack and return initial sp.
+   next-substack @ dup if		\ if last substack allocated was on chip
+      dup [ substack-size dup 8 lshift or ] \ then bump allocator
+      literal - next-substack !		\ and use next substack
+   then ;				\ otherwise use 0 (swappable)
+forth : allocate-substack \ ( -- init-sp ) Allocate a substack and return
+		\ initial sp.
+   [host] next-substack @ dup if	\ if last substack allocated was on chip
+      dup substack-size dup 8 lshift or	\ then bump allocator
+      - next-substack !			\ and use next substack
+   then ;				\ otherwise use 0 (swappable)
+
+\ ------------------------------------------------------------------------
+\ Default and null processes
+
+ram
+label defprocess
+   user-size allot			\ run-time pd of default process
+rom
+
+\ Allocate substack for default process.  We know that this returns
+\ default-sp so it is safe to drop it (see stacks.fr).
+allocate-substack drop
+
+ram
+label nullprocess			\ run-time pd of null process
+   user-size allot
+rom
+
+label nullprocess-init			\ pd initializer for null process
+   nullprocess , 0 , allocate-substack ,
+] begin again [				\ null process does nothing
+
+\ ------------------------------------------------------------------------
+\ Initialization
+
+structure pd-init			\ process descriptor - initializer
+   cell: .pd-run			\ run-time process descriptor
+   cell: .lsp-init			\ initial locals stack pointer
+   cell: .sp-init			\ initial internal stack pointers
+endstructure
+
+: init-cproc	\ ( -- ) Load current process descriptor register.
+   defprocess !run ;
+
+: initprocess	\ ( addr[pd-init] -- ) Initialize run-time data
+		\ structure of a process: the run-time process descriptor
+		\ and the stacks.
+		\ DPR is not initialized, but process will be in near mode.
+   dup @ >r				\ the address of run-time pd
+   0 r@ .next !				\ no link
+   0 r@ .pstate !			\ runnable
+   defprocess pd-run + r@ pd-run +	\ initialize user variables
+      [ user-size pd-run - ] literal cmove \  from default process
+   dup .sp-init @ [ psp-stack-mask invert ff and ] literal and
+   if					\ if process locked on-chip
+      dup .sp-init @ 0202 or r@ .sp !	\ initial stack pointers
+      dup .lsp-init @ r> .lsp !		\ initial locals stack pointer
+      dup pd-init + 1 or >r		\ initial PC of new task, ints enabled
+					\ inherit initial CPR; start with near
+      .sp-init @ 100 +
+      sp@ 1+				\ current stack depth (1+ for postpush)
+      \ N: sp-init T: orig-sp  I: newpc
+      swap sp!				\ switch to new stack
+      \ N: junk T: orig-sp  I: newpc
+      dup >r				\ flush PC into stack RAM
+      sp!				\ switch back to original stack
+      \ N: junk T: orig-sp  I: orig-sp
+      rdrop drop drop			\ discard all junk and continue
+   else					\ process not locked on-chip
+      dup .sp-init @ 0100 or r@ .sp !	\ initial stack pointers
+      dup .lsp-init @ r@ .lsp !		\ initial locals stack pointer
+      pd-init + 1 or			\ initial PC of new task, ints enabled
+	 r@ user-size + .rstack cell+ !
+      cpr@ r> user-size + .rstack !	\ inherit initial CPR; start with near
+   then ;
+
+every-boot:	\ ( -- ) Init current process descriptor  and reset
+		\ null process' stacks and descrpiptor.  Also initialize
+		\ the process list so that the default process is at
+		\ the head and the null process is at the end.
+   nullprocess-init initprocess		\ initialize the null process
+   0 defprocess .pstate !		\ make running process 'runnable'
+   default-sp defprocess .sp !		\ must initialize so switchto can
+					\ know if process is swappable
+   defprocess !head			\ default process at head
+   nullprocess defprocess !		\ followed by null process
+;boot
+
+heads
+

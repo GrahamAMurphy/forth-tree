@@ -1,0 +1,16 @@
+\ (c) 2005 Johns Hopkins University / Applied Physics Laboratory
+\ Polled tty interface
+hex
+
+: emit		\ ( char -- ) Send one character.
+   parin-a# begin			\ poll parallel input port
+      dup w@ uart-tx-int# get-mask and	\   until transmitter ready
+   until
+   drop uart-a# w! ;			\ send character
+
+: key		\ ( -- char ) Read one character.
+   parin-a# begin			\ poll parallel input port
+      dup w@ uart-rx-int# get-mask and	\   until receiver ready
+   until
+   drop uart-a# w@			\ read character
+   dup 0d = if drop 0a then ;		\ map carriage return to linefeed

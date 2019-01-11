@@ -1,0 +1,30 @@
+\ (c) 1994 Johns Hopkins University / Applied Physics Laboratory
+hex
+
+\ Page numbers
+1 define ram-pg#			\ primary RAM page (contains code/data)
+2 define ram2-pg#			\ secondary RAM page
+3 define 1553-pg#			\ 1553 shared RAM page
+
+\ Base of CDH I/O space
+fc00 define cdh-io-base
+
+\ 2661 UART
+ffd8 define uart-data-reg
+ffda define uart-status-reg
+ffdc define uart-mode-reg
+ffde define uart-cmd-reg
+
+\ Configuration register
+fff0 define cdh-config-reg
+
+\ 1553 stuff
+fffa define clr-summit-clr		\ write clears Summit clear FF
+fffc define set-summit-clr		\ write sets Summit clear FF
+
+\ Interrupt numbers
+3 define UARTINT#			\ EI5
+
+\ Useful constants
+100 define FIFOSIZE			\ TTY input buffer, output buffer sizes
+

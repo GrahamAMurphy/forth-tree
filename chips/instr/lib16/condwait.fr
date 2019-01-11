@@ -1,0 +1,20 @@
+\ (c) 1994 Johns Hopkins University / Applied Physics Laboratory
+\ Synchronization primitive
+hex
+
+: wait?		\ ( addr[sem] -- t/f ) Conditionally wait on semaphore.
+		\ If the resource can be acquired without waiting,
+		\ decrement semaphore and return.  If a wait would be
+		\ required, do nothing and return false.
+		\ Locks out context switch by disabling interrupts.
+		\ Shouldn't be used in an interrupt routine or if
+		\ interrupts are already disabled.
+   disable				\ disable interrupts
+   dup @ 1- dup 0<			\ decrement semaphore
+   if					\ if new semaphore value is negative
+      2drop false			\ give up with no changes, return false
+   else					\ if >= 0
+      swap ! true			\ save new value and return success
+   then
+   enable ;
+

@@ -1,0 +1,9 @@
+\ (c) 1994 Johns Hopkins University / Applied Physics Laboratory
+\ Warm reset DPU
+
+: warm-boot	\ ( ... -- ) Jump back to boot ROM.
+   disable cpr@ 0= if			\ if running in page 0
+      0 2018 cr! execute		\ map in boot ROM, jump to reset vector
+   else					\ running in page 1
+      0   0 cpr! execute		\ boot ROM mapped; far jump to reset vec
+   then ;

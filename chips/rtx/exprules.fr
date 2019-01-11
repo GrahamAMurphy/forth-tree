@@ -1,0 +1,45 @@
+\ ------------------------------------------------------------------------
+\ This doesn't work because the optimizer is not applied after a call
+\ is compiled ...
+
+[ifdef] rtx2010
+rule <0><=>
+	<i	b class	e alu	1 sub	0 rbit	0 data	i>
+	<i	0 cbit	' = *callop* cdest	i>
+==>	<o	b class	0 alu	0 sub	0 rbit	0 data	o>
+endrule
+[then]
+
+\ ------------------------------------------------------------------------
+\ user-space 
+
+\ TBD: the following is broken because user-space access 'or's in 
+\ offset instead of adding.  It will work if UBR is 64-byte aligned.
+rule <ubr@>[<short><+>]<@>
+	<i	b class	e alu	0 sub	0 rbit	11 data	i>
+	<i	b class	8 alu	3 sub	0 rbit	?data	i>
+	<i	7 sclss	0 c-acc	e alu	0 sub	0 rbit	i>
+-->	<o	c class	0 alu	0 sub	0 rbit	0 ??	o>
+	\ user memory fetch lands in N!; must swap:
+	<o	a class	e alu	2 sub	0 rbit	0 abit	0 shift o>
+	constraint: 0 even-<64? ;constraint
+endrule
+
+
+rule <ubr@>[<short><+>]<!>
+	<i	b class	e alu	0 sub	0 rbit	11 data	i>
+	<i	b class	8 alu	3 sub	0 rbit	?data	i>
+	<i	7 sclss	0 c-acc	e alu	2 sub	0 rbit	i>
+-->	<o	c class	e alu	2 sub	0 rbit	0 ??	o>
+	constraint: 0 even-<64? ;constraint
+endrule
+
+
+: even-<64?	\ ( wildindex -- t/f ) Return true if indicated wildcard
+		\ is an even number less than 64.  As a side-effect, the number
+		\ is divided by two.
+   cells wildcard-matches + dup >r
+   @ dup 40 u< over 1 and 0= and if	\ if <64 and even
+      2/ r> !  true			\ modify by dividing by 2; return true
+   else rdrop  false			\ false otherwise
+   then ;

@@ -1,0 +1,8 @@
+" blocks.fr" used
+" tester.fr" fload
+
+: \ source >in ! drop ; immediate
+: thru do i load loop ;
+
+8 blocks
+" coretest.bl" r/o open-file drop block-fid !

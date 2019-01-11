@@ -1,0 +1,4 @@
+" /homes/john/forth/ans/tests/tester.fr" fload
+true verbose !
+" size-check.fr" fload
+" rule-check.fr" fload

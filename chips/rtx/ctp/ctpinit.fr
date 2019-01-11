@@ -1,0 +1,9 @@
+\ (c) 1993 Johns Hopkins University / Applied Physics Laboratory
+\ CDH specific initializations, etc.
+hex
+
+every-boot:
+   0 clr-summit-clr !  0 set-summit-clr ! \ power down Summit chip
+\ TBD: mask should be in brdparam.fr?
+   efff imr!				\ enable EI5: UART
+;boot

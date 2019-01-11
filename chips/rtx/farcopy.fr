@@ -1,0 +1,17 @@
+\ (c) 1994 Johns Hopkins University / Applied Physics Laboratory
+hex
+
+nohead	e942 code @+			<exit> inline
+nohead	e5c2 code !-			<exit> inline
+
+: copy-page	\ ( src dst -- ) Copy entire contents of src page to
+		\ dst page.
+   md!  0  far				\ s: src offset  md: dst
+   800 for				\ for each block in page
+      over set-page			\ select source page
+      f times|| @+ ||			\ load 16 cells
+      md@ set-page			\ select destination page
+      2- f times|| !- ||		\ write 16 cells
+      22 +
+   next 2drop
+   near ;

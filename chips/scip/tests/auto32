@@ -1,0 +1,39 @@
+\ Compile Forth for simulator
+
+" target.fr" used
+" scip/32bits" is-target		\ cross compile for Frisc5
+
+\ Configure crosscompiler
+0 set-ram				\ ram-based system
+def interactive
+\ def multitasking			\ include multitasker
+" testplan32.map" is-logfile
+
+\ Load the kernel.
+" kernel1.fr" ftload			\ primitives and extend crosscompiler
+
+\ Load low-level tty code
+" intprims.fr" ftload			\ test interrupt support
+" intuser.mfr" ftload			\    and cross-compiler
+" tty.fr" ftload			\ emit and key through simulator
+
+\ Load the interpreter
+" kernel2.fr" ftload			\ interpreter for Forth, processes, etc.
+[ifdef] interactive
+" fakeio.fr" ftload			\ Unix I/O
+[then]
+
+" testplan32.fr" fload			\ self-test
+" testdone.fr" fload			\   test complete
+" testint.fr" fload			\ interrupt test (part of self-test)
+" multest32.fr" fload			\ multiply test
+" divtest32.fr" fload			\ divide test
+
+\ Load initialization stuff
+" startup.fr" ftload			\ startup
+' doforth is-startup			\ run Forth interpreter
+
+report
+" testplan32.mem" saveobj
+cr .( stack depth = ) depth . cr
+decimal >log rulestats !>log

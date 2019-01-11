@@ -1,0 +1,61 @@
+\ (c) 2004 Johns Hopkins University / Applied Physics Laboratory
+\ Interrupt support
+\ Assumes AMBA APB interrupt controller and set/reset output port for mask:
+\   int-a# returns address of device
+\   two 16-bit locations are used:
+\	R		W
+\ xxx0:	int vector	mask set
+\ xxx1:			mask reset
+\   #ints returns maximum number of interrupts
+
+hex
+
+nohead
+: int-nop	\ ( -- ) Nop for catching undefined interrupts.
+;
+
+\ Compile-time macro to create interrupt vector table.
+forth : gen-vec-table \ ( #ints -- ) Allocate and initialize vector table
+		\ with nops.
+   [host] 0 do				\ for each table slot
+      ['] int-nop ,			\ point to nop
+   loop ;
+
+\ Interrupt vector table.  Indexed by interrupt number.  Vector is pointer
+\ to an interrupt routine.
+rom
+label vector-table
+   #ints gen-vec-table
+ram
+
+\ Global interrupt response.
+rom align label int-response
+t-here *shortcallop* int-vector t-w! ram \ patch interrupt vector
+	<reg@	rtop nopb pushp >.	\ fix return address
+	<lis	2 +# aminusb >.
+	<reg!	nopa rtop popp >.
+	<alu	nopx pushp >.		\ save Flag and MD
+	<reg@	md nopb pushp >.	\   registers
+	int-a# *literal*		\ fetch interrupt vector
+	<@	mem16 >.
+	vector-table *offset*		\ fetch pointer to interrupt routine
+	<@	mem32 >.
+	' execute *call*		\ execute user interrupt routine
+	<reg!	nopa md popp >.		\ restore MD
+	<testx	nopa Zbar popp >.	\   and Flag registers
+	#pcr-ie *literal*
+	<reg@	pcr bora >.		\ start atomic operation
+	<reg!	nopa pcr popp return >.	\ end atomic operation
+
+: get-mask	\ ( u -- mask ) Given an interrupt number, return the
+		\ corresponding interrupt mask.  Note: a '1' in a mask
+		\ enables the corresponding interrupt.
+   1 swap lshift || ; inline
+
+: unmask-int	\ ( mask -- ) Enable indicated interrupt(s).  Note: re-entrant
+		\ and can be used from within an interrupt routine.
+   int-a# w! ;
+
+: mask-int	\ ( mask -- ) Disable indicated interrupt(s).  Note: re-entrant
+		\ and can be used from within an interrupt routine.
+   int-a# 2 + w! ;			\ reset interrupt mask

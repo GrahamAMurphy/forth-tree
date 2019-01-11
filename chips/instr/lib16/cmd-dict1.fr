@@ -1,0 +1,173 @@
+\ (c) 2000 Johns Hopkins University / Applied Physics Laboratory
+\ Command buffer and command database
+hex
+
+module> commands
+
+\ ------------------------------------------------------------------------
+\ Command buffer
+
+\ * Command buffer access.  Some functions return a specific command
+\ * argument.  A general function returns the entire array of arguments.
+
+\ Command structure processed or stored in macro
+structure command-struct
+       cell: .cmd-opcode		\ opcode
+    #max-args
+      chars: .cmd-args			\ arguments, one per byte
+       cell: .cmd-nargs			\ length of args
+endstructure
+
+\ Current command
+command-struct makestruct command-buffer
+
+\ Command result
+variable command-result
+
+\ Set true if command is from macro
+variable in-macro
+
+\ Command buffer accessors
+: set-opcode	\ ( opcode -- ) Store the given opcode into the command buffer.
+   command-buffer .cmd-opcode ! ;
+
+: load-args	\ ( arglist length -- ) Store the given arguments into the
+		\ command buffer.  The length is in bytes.
+   >r command-buffer .cmd-args r@ move	\ copy args into buffer
+   r> command-buffer .cmd-nargs ! ;
+
+: set-cmd-length \ ( length -- ) Set the total length of the command.  The
+		\ length is in bytes.
+   cell- command-buffer .cmd-nargs ! ;
+
+: get-command	\ ( -- buf length ) Return the current command.  Length is
+		\ in bytes.
+   command-buffer dup .cmd-nargs @ cell+ ;
+
+: n-args	\ ( -- n-args ) Return number of arguments of command.
+   command-buffer .cmd-nargs @ ;
+
+public:
+
+: opcode	\ ( -- opcode ) Return opcode of current command.
+   command-buffer .cmd-opcode @ ;
+
+: args		\ ( -- args[] length ) Return argument array.  Useful for
+		\ commands with a variable number of arguments.
+   command-buffer .cmd-args n-args ;
+
+: arg0	command-buffer .cmd-args c@ ;		\ ( -- arg0 ) Argument 0.
+: arg1	command-buffer .cmd-args 1+ c@ ;	\ ( -- arg1 ) Argument 1.
+: arg2	command-buffer .cmd-args 2 + c@ ;	\ ( -- arg2 ) Argument 2.
+: arg3	command-buffer .cmd-args 3 + c@ ;	\ ( -- arg3 ) Argument 3.
+: arg4	command-buffer .cmd-args 4 + c@ ;	\ ( -- arg4 ) Argument 4.
+: arg5	command-buffer .cmd-args 5 + c@ ;	\ ( -- arg5 ) Argument 5.
+: arg6	command-buffer .cmd-args 6 + c@ ;	\ ( -- arg6 ) Argument 6.
+: arg7	command-buffer .cmd-args 7 + c@ ;	\ ( -- arg7 ) Argument 7.
+
+: th-arg	\ ( n -- arg[n] ) Return n'th argument.
+   command-buffer .cmd-args + c@ ;
+
+private:
+
+\ ------------------------------------------------------------------------
+\ Result codes
+
+public:
+
+: cmd-error	\ ( result -- ) Report problem with current command.  The
+		\ given result code will be returned with the command echo.
+   command-result ! ;
+
+private:
+
+\ ------------------------------------------------------------------------
+\ Hash table management
+
+\ * Command database.  You can register commands with the command dispatcher.
+
+structure hash-command-struct		\ hash table collision chain entry
+   cell: .next				\ next entry in chain
+   cell: .opcode			\ opcode of command in entry
+   cell: .nargs				\ number of args. (-1 -> don't check)
+   cell: .vector			\ execution vector of command
+endstructure
+
+variable hash-access			\ hash table access semaphore
+\ Note: hash table size of 16 cells is "wired" in several places.
+create hash-table 10 cells allot	\ hash table; points to collision chains
+
+: hash-opcode	\ ( opcode -- addr ) Given a command opcode, return the
+		\ address in the hash table of the corresponding collision
+		\ chain.
+   f and cells hash-table + ;
+
+: check-cmd	 \ ( cmd -- cmd/0 ) Check command length.  Return command if ok.
+   dup .nargs @ n-args >		\ if no expected args (-1) or 
+   if drop 0 then ;			\  expected <= actual, then ok
+
+: lookup-cmd	\ ( -- cmd/0 ) Lookup the command in the command buffer.
+		\ Return the command record if found; otherwise, return null.
+   opcode dup hash-opcode		\ start of collision chain
+   begin @ dup while			\ while not at end of collision chain
+      2dup .opcode @ =			\ and opcode not found
+   until
+      nip check-cmd			\ if found, check length
+   else
+      nip				\ if not found return null
+   then ;
+
+: trim-args	\ ( cmd -- ) Trim unused arguments from command buffer.
+   .nargs @ dup -1 <> if		\ can only trim if actual number known
+      command-buffer .cmd-nargs !	\ use expected number of args
+   else
+      drop
+   then ;
+
+: exec-cmd	\ ( cmd -- result ) Execute command.
+   #ok-cmd cmd-error			\ assume no error
+   .vector @ execute
+   command-result @ ;			\ find result, if any
+
+: rt-cmd	\ ( cmd -- result ) Execute a real-time command.
+   false in-macro !  exec-cmd ;
+
+: macro-cmd	\ ( cmd -- result ) Execute a macro command.
+   true in-macro !  exec-cmd ;
+
+: init-cmd-table \ ( -- ) Initialize hash table with null pointers.
+   1 hash-access !			\ init. semaphore
+   hash-table 10 cells erase ;
+
+public:
+
+: in-macro?	\ ( -- t/f ) Return true if current command is from macro.
+   in-macro @ ;
+
+: register-cmd/args \ ( xt opcode n-args -- ) Register given command with
+		\ command dispatcher.  If a command with the given opcode
+		\ arrives, the function identified by xt is called.  The
+		\ arguments are available in the command buffer.  The
+		\ function must have a stack picture of ( -- ) and execute
+		\ relatively quickly.  If n-args is other than -1,
+		\ a command will be checked for that many arguments.
+   hash-command-struct here-allot	\ allocate a collision chain entry
+   dup >r .nargs !			\ remember expected no. of args.
+   r@ .opcode !  r@ .vector !		\ remember xt and opcode
+   r@ .opcode @ hash-opcode		\ s: addr[table]
+   hash-access wait			\ atomic update of hash table
+   dup @ r@ .next !			\ point to entry to original chain
+   r> swap !				\ and place entry in table
+   hash-access signal ;
+
+: register-cmd	\ ( xt opcode -- ) Register given command with command
+		\ dispatcher.  If a command with the given opcode arrives,
+		\ the function identified by xt is called.  The arguments
+		\ are available in the command buffer.  The function
+		\ must have a stack picture of ( -- ) and execute
+		\ relatively quickly
+   -1 register-cmd/args ;
+
+private:
+
+endmodule>

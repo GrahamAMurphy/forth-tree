@@ -1,0 +1,30 @@
+\ (c) 1993 Johns Hopkins University / Applied Physics Laboratory
+\ RTX timer utility:  setup an RTX to signal hardwareclock at 8 Hz.
+\ Uses on-chip timer 0.
+hex
+
+\ Usage:
+\ Define a word named clock-rate that returns the system clock rate in
+\ kHz (e.g. 8 Mhz -> 8000)
+\ To start clock: init-clock
+\ The semaphore hardwareclock will be signalled at 8 Hz.
+
+be13 ucode t0@				\ access functions for timer 0
+be93 ucode t0!
+
+variable hardwareclock			\ semaphore signalled at 8 Hz.
+variable milliseconds			\ interrupt routine counts milliseconds
+
+8 int:		\ ( -- ) Interrupt every millisecond.  Every 125 ms.
+		\ signal hardwareclock.
+   milliseconds @ 1+ dup d# 125 =
+   if drop 0  hardwareclock signal then
+   milliseconds !
+;int
+
+: init-clock	\ ( -- ) Start timer interrupting processor.
+   imr@ ff7f and imr!  clock-rate t0! ;
+
+: seconds	\ ( seconds -- ticks ) Given a time in seconds, compute
+		\ corresponding number of 'ticks' of hardwareclock.
+   8 *  ;

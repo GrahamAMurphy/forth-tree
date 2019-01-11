@@ -1,0 +1,113 @@
+\ (c) 2001 Johns Hopkins University / Applied Physics Laboratory
+\ Save/restore macros to EEPROM
+hex
+
+mac extendmodule>
+
+\ ------------------------------------------------------------------------
+\ Data
+
+\ macro save size
+#macro-blocks m-block-struct cell/ *	\   macro blocks
+#macros +				\ + macro pointers
+1 +					\ + macro free list pointer
+1 +					\ + macro free block counter
+1 +					\ + checksum
+   constant #macro-words		\ = total number of macro words saved
+
+\ macro save area
+#macro-words cells macro-arch-mem# far-allot constant macro-archive
+
+\ ------------------------------------------------------------------------
+\ Archiver (wrapper around memory interface)
+
+variable stream-checksum		\ checksum of stream
+
+: open-archive	\ ( addr memid -- ) Open an archive at given location.
+   open-mem  0 stream-checksum !
+   seek-memid seek-memaddr ;
+
+: archive-word	\ ( word -- ) Archive a 16-bit word.
+   dup stream-checksum +!
+   dup 8 rshift >mem ff and >mem ;
+
+: archive-block	\ ( addr memid #words -- ) Archive a block of words from
+		\ the given memory location.
+   get-mem >r swap set-mem		\ read from arbitrary memory
+   0 do dup far@ archive-word cell+ loop \ copy into archive
+   drop r> set-mem ;
+
+\ TBD: add to memory*.fr?
+: mem>		\ ( -- byte ) Return byte from current address and move address.
+   mem-peek 1 step-mem ;
+
+: restore-word	\ ( -- word ) Restore an archived 16-bit word.
+   mem> 8 lshift mem> or ;
+
+: restore-block	\ ( addr memid #words -- ) Restore an archived block of
+		\ words to the given memory location.
+   get-mem >r swap set-mem		\ write to arbitrary memory
+   0 do restore-word over far! cell+ loop \ copy from archive
+   drop r> set-mem ;
+
+: archive-checksum \ ( -- ) Archive the checksum.
+   stream-checksum @ negate archive-word ;
+
+: close-archive	\ ( -- ) Close the archive.
+   close-mem ;
+
+: good-archive?	\ ( addr memid #words -- t/f ) Return true if given archive
+		\ has a good checksum.
+   get-mem >r swap set-mem		\ access remote memory
+   0 -rot far for @+ >r + r> next drop 0=
+   r> set-mem ;
+
+\ ------------------------------------------------------------------------
+\ Macro save/restore
+
+: save-macros	\ ( -- ) Save current macros to archive.
+   macro-archive macro-arch-mem# open-archive	\ prepare to save data
+   mac-free-list @ archive-word
+   mac-free-blocks get archive-word
+   macros get-code #macros archive-block
+   macro-blocks macro-mem# #macro-blocks m-block-struct cell/ * archive-block
+   archive-checksum
+   close-archive ;
+
+: restore-macros \ ( -- ) Restore macros from archive.
+   macro-archive macro-arch-mem# open-archive	\ prepare to read data
+   restore-word mac-free-list !
+   restore-word mac-free-blocks set
+   macros get-code #macros restore-block
+   macro-blocks macro-mem# #macro-blocks m-block-struct cell/ * restore-block
+   close-archive ;
+
+: good-macros?	\ ( -- t/f ) Check checksum of archived macros.  Return true
+		\ iff checksum is good.
+   macro-archive macro-arch-mem# #macro-words good-archive? ;
+
+\ ------------------------------------------------------------------------
+\ Commands
+
+: c-mac-save	\ ( -- ) Save macros to EEPROM archive.
+   save-macros ;
+
+: c-mac-restore	\ ( -- ) Restore macros from EEPROM archive.
+   good-macros? if			\ if EEPROM archive is intact
+      init-macro-run			\ initialize (and kill) macro contexts
+      restore-macros			\ load macros from EEPROM
+   else					\ if bad checksum
+      #macro-check-cmd cmd-error	\ report checksum error
+   then ;
+
+\ ------------------------------------------------------------------------
+\ Initialization
+
+public:
+: init-mac-arch	\ ( -- ) Initialize macro archive.
+   ['] c-mac-save	#mac-save	0 register-cmd/args
+   ['] c-mac-restore	#mac-restore	0 register-cmd/args
+;
+private:
+
+endmodule>

@@ -1,0 +1,164 @@
+Tue Nov  9 16:28:32 EST 1993
+Deleted save of DPR from inter.fr.  This was interacting with
+multitasking version of system.  Is DPR a global resource or a
+per process resource?  If the latter, then wait, signal, etc. must
+also save DPR.  The former seems adequate and is easier.
+
+Thu Feb 17 13:07:54 EST 1994
+Modified spreset and pspreset so that the stack selectors are not
+reset too.  This allows processes other than the default process
+to use these.  There is a corresponding change in safe to zero
+the stack pointer register.  This is so that a reboot uses
+the default process's stacks to be used.
+
+Sun Feb 20 13:53:50 EST 1994
+Completed local variable implementation.  Local stack pointer is in
+UBR (context pointer moved to MXR).  Fixed bugs in optimizer:
+many combinations of <g@><drop> and <dup><g!> are illegal and must
+not be generated.
+
+Sat Mar  5 11:14:07 EST 1994
+Modified process: in process.fr to allocate local variable stack;
+also modified process: to return process descriptor initializer.
+Added ram/rom hints to nullproc.fr for cross-compiling to ROM.
+Modified initprocess (in nullproc.fr), process descriptors, and
+switchto (in sched.fr) to handle local variable stack pointer
+as per process data.  Fixed bug in multitasker: switchto now
+saves do-loop cache register in process descriptor.  Added process.mfr
+to allow cross-compilation of processes; modified kernel2.fr
+appropriately.
+
+Mon Apr  4 10:37:05 EDT 1994
+Changed chars in prims2.fr from immediate to inline.  This has
+no effect, but works around a bug in the crosscompiler when generating
+headless code.
+
+Fri May 20 16:00:52 EDT 1994
+Moved c@/c! definitions from prims.fr and bytesim.fr into
+prims2.fr.
+
+Tue May 24 16:41:30 EDT 1994
+Changed safe in stacks.fr to not change CR other than to disable
+interrupts.  This leaves the boot pin unchanged; the booter is
+assumed to have set the boot pin appropriately.
+
+Fri May 27 13:08:22 EDT 1994
+Fixed horrible bug in loop: loops longer than 32k failed.  The
+loop counter overflow check was wrong.
+
+Thu Jun  9 16:51:06 EDT 1994
+Modified multitasking system so that an arbitrary number of processes
+can be defined.  Seven processes are locked in on-chip stack; all other
+processes are swapped in and and out of a single shared stack.  The
+Forth interpreter is swappable; the null process is locked.
+
+Tue Jul 12 10:57:51 EDT 1994
+Added d< to kernel (in prims2.fr).
+
+Thu Sep 22 09:09:34 EDT 1994
+Modified context switch code in sched.fr: loading a context from
+RAM into return stack is now faster.
+
+Fri Oct  7 15:26:43 EDT 1994
+Modified chpparam.fr, stacks.fr, sched.fr, and nullproc.fr to
+accomodate saving entire return stack context (21 bits) when context
+is off chip.  DPR is also saved on context switch.  Now, each process
+has its own near/far environment: a current remote page (set-page)
+and a stack of near/far attributes.  get-page is available for saving
+DPR in interrupt routines.  Also added s-process: which forces a process 
+to be swappable.
+
+Sat Mar 11 12:38:29 EST 1995
+Fixed bug in nearby? of optcheck.fr.  The check to see that the
+destination block is reachable via a branch was incorrect when
+the branch was the last instruction of a block.
+
+Mon Apr 17 09:19:55 EDT 1995
+Added check to cross-compiler (in model.fr) for branches beyond reach of
+RTX branch instruction.  Added similar check to interactive compiler
+(in compiler.fr).
+
+Tue Apr 18 14:29:49 EDT 1995
+Modified lib/clock.fr such that it requires a predefined word, clock-rate,
+that defines the clock frequency of the processor.
+
+Tue Jul 11 14:47:21 EDT 1995
+Added locxcomp.fr and modified kernel1.fr to load it.  Restructured prims.fr
+and prims2.fr so that locxcomp.fr could refer to (localloc).
+
+Wed Jul 12 13:21:39 EDT 1995
+Modified opt.fr, optcheck.fr, and rules.fr to combine literal followed by
+an inversion.  Also added optimization that catches drop followed by short
+negative literal.
+
+Wed Jul 19 08:43:55 EDT 1995
+Further optimizations in optcheck.fr and rules.fr:  '2*' constant folding,
+and transformation of rule-generated long literals into short inverted literals.
+
+Wed Jan 24 10:30:48 EST 1996
+Added further check to <x><exit> rule: make sure <x> is not a long literal.
+Otherwise, a literal with value a020 will be combined with its argument.
+
+Thu Mar  7 13:02:21 EST 1996
+Added code to inter.fr to log anonymous interrupt routines in memory map file.
+
+Tue Jan 28 13:48:35 EST 1997
+Modified initprocess in nullproc.fr to initialize entire process descriptor
+from defprocess, including the run-time descriptor.  (This doesn't do
+what I had hoped, but does make the code a little smaller.)
+
+Wed Nov 19 10:05:30 EST 1997
+Modified safe in stacks.fr to mask off all interrupts via IMR.
+Added IMR interface words to inter.fr.  These let modules modify the
+mask state of individual interrupts; this allows increased modularity.
+imr@ and imr! should be headless now, but that would undoubtedly
+bread existing code.
+
+Mon Feb  2 09:12:25 EST 1998
+Add inter-fwd.fr.  These are interrupt stubs that forward an interrupt
+to another page.  This is useful for some boot ROMs; see inter-fwd.fr
+for details.  Defining int-fwd in the auto file will use this feature.
+
+Mon Apr 27 13:50:41 EDT 1998
+Renamed inter-fwd.fr to int-fwd.fr (for PC).  Added vector-fwd.fr and
+modified kernel1.fr so that interrupts and/or interrupt forwarding
+can be selected.
+
+Fri May  1 14:32:30 EDT 1998
+Rewrote c!, c!+, and c!- byte simulators.  The original versions required
+the user to ensure that the input byte was in the range 0-255.  This is
+error prone and is not what the native c! does.  The new version masks
+the byte at a cost of one extra clock.
+
+Tue May 19 09:20:46 EDT 1998
+Modified intuser.fr so that int: aligns dictionary before compiling
+interrupt routine.  Made equivalent change to inter.fr for cross version
+of int:.
+
+Wed Mar  3 15:35:30 EST 1999
+Added optimizer rule to combine "@ not" in rules.fr.
+
+Sat Mar 27 21:30:52 EST 1999
+Fixed optimizer bug: <short><drop> => illegal instruction.  The illegal
+instruction executed as a nop fortunately.  Added a rule to delete
+occurrences of <short><drop>.  These crop up occasionally, for example,
+in the default case before endsel.
+
+Wed Oct 27 11:08:39 EDT 1999
+Generalized several optimization rules involving data move followed by
+binop to allow binop to include a shift operation.  This helps only
+in rare circumstances.
+
+Tue May  1 16:05:29 EDT 2001
+Deprecated (i.e. beheaded) imr@ and imr!.  Use get-mask, mask-int, and
+unmask-int instead.
+
+Tue May  1 16:06:32 EDT 2001
+Deprecated get-page and set-page.  Use get-mem and set-mem instead;
+also get-code is preferred over cpr@.  These encompass both the RTX
+page and any secondary bank switching registers.  Since these are
+hardware-specific, they should be defined in brdparam.fr in a
+hardware-specific subdirectory.  Also modified nullproc.fr context
+switch code to use get-mem, etc. instead of get-page; consequently, the
+full memory bank selection will be automatically saved on context
+switch.

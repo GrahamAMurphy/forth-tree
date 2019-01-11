@@ -1,0 +1,8 @@
+\ (c) 1993 Johns Hopkins University / Applied Physics Laboratory
+\ Data structure access primitve.
+\ TBD: should be added to os.fr?
+hex
+
+: offset:	\ ( offset --- ) Create a word that adds offset to the
+		\ top of the stack.
+   header *offset* postpone return inline ;

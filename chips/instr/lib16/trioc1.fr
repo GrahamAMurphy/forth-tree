@@ -1,0 +1,64 @@
+\ (c) 2003 Johns Hopkins University / Applied Physics Laboratory
+\ TRIO - Temperature Remote Input & Output
+\ Note: TRIO-C in fixed mode
+hex
+
+module> trio
+\ Uses i2c-user module
+
+\ The TRIO has a 10-bit A/D and sixteen channels.  The I2C interface to
+\ TRIO is only 8 bits wide.  The ms 8 bits are presented at one address
+\ and the ls 8 bits at the next address.  Our I2C implementation always
+\ reads two bytes.  Therefore, one read returns both bytes and the 10-bit
+\ value can be assembled from these.
+
+\ The TRIO can be configured in hardware to either convert continuously
+\ (scan mode) or convert one channel on command (fixed mode).  Fixed mode
+\ requires extra software work in that each conversion must be requested
+\ but simplifies the readout and assembly of the 10-bit result.  This
+\ implementation assumes fixed mode.
+
+: set-read-src	\ ( chan device -- ) Set read pointer to given channel.
+		\ This is done by writing to one address before the channel's
+		\ address.  However, in the case of channel 0, writing to ff
+		\ will reset the chip, so a write to fd is done followed
+		\ by a dummy read.  Uses 1 bus cycle (2 for channel 0)
+   >r ?dup if				\ if non-zero channel
+      2* 1- 8<< r> i2c!			\ write before; read set as side-effect
+   else					\ if channel zero
+      fd00 r@ i2c! r> i2c@ drop		\ write 3 before and do dummy read
+   then ;
+
+: convert-analog \ ( chan device -- ) Convert analog on given channel.
+		\ Uses 1 bus cycle.
+   >r 7e00 or r> i2c! ;
+
+: as-10b	\ ( xxyy -- 10b ) Assemble 10-bit number from two 8-bit
+		\ numbers.
+   dup 00ff and				\ ms 8 bits followed by ls 8 bits
+      swap ff00 and 6 rshift or ;	\ assemble into 10-bit value
+
+public:
+
+: read-analog	\ ( chan device -- x ) Read analog value from given
+		\ device and channel.  Value ranges from 0 ... 1023.
+		\ Uses 3 bus cycles (4 for channel 0).
+   2dup convert-analog			\ start conversion
+   swap over set-read-src		\ set read pointer to channel
+   i2c@ as-10b ;			\ read and assemble results
+
+: read-sel-analogs \ ( addr device #end+1 #first -- addr' ) Read the selected
+		\ range of analogs (first .. end) from the device and store
+		\ them at the destination address.  Uses #chans*2 + 1 bus
+		\ cycles (+ 1 more if channel 0).
+   over >r dup >r
+   do i over convert-analog loop	\ convert selected values
+   r@ over set-read-src			\ set readback pointer
+   swap r> r> swap do			\ for selected channels
+      over i2c@ as-10b over ! cell+	\ read and assemble
+   loop nip ;
+
+: reset-trio	\ ( device -- ) Reset the selected device.  Uses 1 bus cycle.
+   ff00 swap i2c! ;
+
+endmodule>

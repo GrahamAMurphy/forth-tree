@@ -1,0 +1,11 @@
+verbatim-data
+#include <procutil.h>
+end
+
+code exec-c	\ ( addr -- ) Execute C function at given address.
+	FlushCache();			/* synchronize cache and RAM */
+	DisableInts();			/* don't allow my ints to occur */
+	((void (*)(void))(*psp++))();	/* call function */
+	EnableInts();			/* if we return ... */
+	next;
+end

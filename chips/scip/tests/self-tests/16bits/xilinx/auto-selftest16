@@ -1,0 +1,48 @@
+\ Compile instrument for Xilinx SCIP-16
+
+" target.fr" used
+" scip/16bits/amba/xilinx" is-target	\ cross compile for Xilinx SCIP-16
+
+\ Configure crosscompiler
+hex
+0 set-ram				\ ram-based system
+\ def interactive				\ include Forth interpreter
+\ def multitasking			\ include multitasker
+" selftest16.map" is-logfile
+
+\ Load the kernel.
+" kernel1.fr" ftload			\ primitives and extend crosscompiler
+
+\ Load tty interface
+" brdparam.fr" ftload			\ useful addresses and defines
+" intprims.fr" ftload			\ interrupt support
+" intuser.mfr" ftload			\    and cross-compiler
+" polltty.fr" ftload			\ polled tty driver
+\ " devices/intttyws.fr" ftload		\ interrupt-driven tty driver
+\ " uart.fr" ftload			\    and configration
+
+\ Load rest of kernel and multitasker and interpreter if desired
+" kernel2.fr" ftload			\ interpreter?, multitasker?
+
+\ ------------------------------------------------------------------------
+\ Load application
+
+\ Speed Test
+" teststart16.fr"	fload
+" tests/testplan16.fr"	ftload
+" testdone16.fr"	fload
+
+\ Load startup
+" startup.fr" ftload
+\ ' doforth is-startup		\ start Forth
+test is-startup			\ start test
+
+\ Patch reset vector
+' reboot *callop* w0 forth @ host !
+
+report
+" selftest16.mem" saveobj
+
+cr .( stack depth = ) depth . cr
+
+decimal >log rulestats !>log

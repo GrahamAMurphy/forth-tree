@@ -1,0 +1,23 @@
+hex
+
+variable s1
+variable s2
+variable s3
+
+0 20 20 process: p1
+   begin s1 wait ." 1" again
+;process
+
+0 20 20 process: p2
+   begin s2 wait s1 signal s3 signal ." 2" again
+;process
+
+0 20 20 process: p3
+   begin s3 wait ." 3" again
+;process
+
+: init
+   p1 0 nextprocess
+   p2 p1 nextprocess
+   p3 p2 nextprocess
+   resched ;

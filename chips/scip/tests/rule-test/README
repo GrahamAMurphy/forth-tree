@@ -1,0 +1,11 @@
+This is a test of the peephole optimizer in the SCIP cross-compiler.
+
+Compiling test.
+1. forth auto
+
+Running test.
+1. fsim16 rule-test.mem
+2. xxx start				\ where xxx is address of reboot
+3. 2 simuntil
+4. " test.fr" fload			\ runs test
+5. 0 execute				\ quits

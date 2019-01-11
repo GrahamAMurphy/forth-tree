@@ -1,0 +1,11 @@
+\ (c) 2005 Johns Hopkins University / Applied Physics Laboratory
+\ Finish
+hex
+
+label done
+]  key					\ receive looped back test pattern
+\ TBD: may not have parallel port; delete?
+   dup 10 set-mem 0002 far ! near	\ write test pattern to parallel port
+   invert emit				\ invert and resend test pattern
+   begin again
+[

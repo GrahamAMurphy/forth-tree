@@ -1,0 +1,44 @@
+\ (c) 1993 Johns Hopkins University / Applied Physics Laboratory
+\ Polled serial driver for 8252 on RTX G-bus
+hex
+
+noheads
+
+	be98 code tbr!		<exit> inline
+	be18 code rbr@		<exit> inline
+	be99 code ucr!		<exit> inline
+	be19 code usr@		<exit> inline
+	be9a code mcr!		<exit> inline
+	be9b code brsr!		<exit> inline
+
+every-boot:
+   3c ucr!				\ UCR: 8 bits, no parity, 1 stop
+   a1 brsr!				\ BRSR: BRG, /32, /3 prescale
+\  86 brsr!				\ BRSR: BRG, /4, /4 prescale
+   23 mcr!				\ MCR: DTR, RTS
+;boot
+
+variable rxrdy				\ set if receiver has character
+variable txrdy				\ set if transmitter is empty
+
+: check-usr	\ ( -- ) Crock! The status register's contents are reset
+		\ by reading them.  Bits of interest must be remembered
+		\ for later use.  For example, while polling for the
+		\ receiver ready, transmitter ready must be remembered
+		\ or it will be lost.
+   usr@ dup 40 and if 1 txrdy ! then
+	    80 and if 1 rxrdy ! then ;
+
+heads
+
+: emit		\ ( c -- )
+   begin check-usr txrdy @ until
+   tbr!
+   0 txrdy ! ;
+
+: key		\ ( -- c )
+   begin check-usr rxrdy @ until
+   rbr@ ff and
+   dup 0d = if drop 0a then
+   0 rxrdy !
+;

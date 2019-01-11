@@ -1,0 +1,34 @@
+\ (c) 1998 Johns Hopkins University / Applied Physics Laboratory
+\ Forth tty interface (stand-alone).
+hex
+
+code key	\ ( -- c )
+	*--psp = cmd_getc(); next;
+end
+
+code accept	\ ( c-addr u1 -- u2 ) Note: returns -1 for EOF.  Legal?
+	cell t;
+	t = cmd_getline((char *)(*(psp+1)), (int)(*psp));
+					/* use custom line routine */
+					/* zero indicates end of file */
+	*++psp = t-1; next;		/* return length less EOL char */
+end
+
+code emit	\ ( c -- )
+	cmd_putc((unsigned char)(*psp++)); next;
+end
+
+code type	\ ( addr u -- )
+	cell u = *psp++;
+	cmd_putline((char *)(*psp), (int)u); /* use custom line routine */
+	psp++; next;
+end
+
+0a constant eol
+
+  : cr		\ ( -- ) send newline character.
+     eol emit ;
+
+~ code ioinit	\ ( -- )
+     cmd_ioinit(); next;
+end

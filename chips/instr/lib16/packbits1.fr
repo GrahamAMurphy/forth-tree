@@ -1,0 +1,69 @@
+\ (c) 2002 Johns Hopkins University / Applied Physics Laboratory
+\ * Bit pack data
+decimal
+
+module> bit-pack
+
+\ * Create an output stream that can accept bit writes, e.g. 1 bit, 2 bits,
+\ * etc.  The state of the stream is maintained locally; consequently, the
+\ * code is not re-entrant.
+
+\ -----------------------------------------------------------------------
+\ Packing buffer
+\ A stream of bits to remote memory.
+
+variable bit-mem			\ memory id of remote memory
+variable start-scan			\ pointer to start of remote memory
+variable out-scan			\ scanner of memory
+variable bit-buffer			\ single word buffer
+variable bit-pos			\ bit position in buffer
+
+: reset-pack	\ ( -- ) Reset bit buffer.
+   0 bit-buffer !  16 bit-pos ! ;	\ reset buffer
+
+: pack-write	\ ( x -- ) Write out word x.
+		\ Precondition: remote memory already specified (with set-mem).
+   get-mem swap bit-mem @ set-mem	\ select remote memory
+   out-scan @ dup cell+ out-scan !	\ step scanner
+   far!					\ write out
+   set-mem
+   reset-pack ;
+
+\ -----------------------------------------------------------------------
+\ Packing interface
+
+public:
+
+: open-pack	\ ( a-addr memid -- ) Start bit-packing; initialize bit-writable
+		\ output stream at given location.  The address must be
+		\ word aligned.
+   bit-mem !
+   dup start-scan ! out-scan !  reset-pack ;
+
+: pack-bits	\ ( x n -- ) Pack n bits of x, i.e. append them to
+		\ bit stream.  Unused bits of x must be zero.
+		\ Note: n may range from 0 up to the word size, i.e. 16.
+   dup bit-pos @ u> if			\ if save will overflow bit buffer
+      bit-pos @ - 2dup rshift 		\ fold upper part of x into buffer
+	 bit-buffer @ or pack-write
+   then
+   bit-pos @ swap - dup >r bit-pos !
+   r@ lshift bit-buffer +!		\ fold lower part of x into bit buffer
+   r> 0= if				\ if buffer is full
+      bit-buffer @ pack-write
+   then ;
+
+: pack-bit	\ ( 0/1 -- ) Pack given bit, i.e., append it to the bit stream.
+   1 pack-bits ;
+
+: close-pack	\ ( -- u ) End packing, i.e., flush buffered bits.  Padding
+		\ bits are added until the number of bits is a multiple of 16.
+		\ Return number of bytes written.
+   bit-pos @ 16 <> if			\ if bit buffer not empty
+      bit-buffer @ pack-write		\ write out buffer
+   then
+   out-scan @ start-scan @ - ;
+
+private:
+
+endmodule>

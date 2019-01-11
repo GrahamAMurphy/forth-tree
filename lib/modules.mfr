@@ -1,0 +1,19 @@
+\ (c) 1994 Johns Hopkins University / Applied Physics Laboratory
+\ Modules - Crosscompile modules (see modules.fr)
+
+forth : module>	\ ( --- ) Start a module definition.  Subsequent word
+		\ definitions will be hidden.
+   [host] get-order wordlist dup constant \ module is really a wordlist
+   s" module>" add-log-string
+   dup set-current			\ new definitions are private
+   swap 1+ set-order ;			\ push onto search order stack.
+
+forth : public:	\ ( --- ) Subsequent definitions will be visible outside module.
+   [host] get-order 2pick set-current set-order ;
+
+forth : private: \ ( --- ) Subsequent definitions will be hidden.
+   [host] get-order over set-current set-order	;
+
+forth : endmodule> \ ( --- ) End a module definition.  Restore search
+		\ environment.
+   [host] get-order swap drop 1- over set-current set-order ;

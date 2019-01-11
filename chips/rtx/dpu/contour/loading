@@ -1,0 +1,10 @@
+To load and save Forth in EEPROM:
+
+To boot ROM's '>' prompt, type:
+l				# start load (note no <cr> needed)
+
+Download cxxfore.abs.  Once '>' prompt returns, type:
+c0<cr>40000<cr>4000<cr>		# copy from RAM to EEPROM
+
+Once '>' prompt returns, you are done.  Boot with:
+b

@@ -1,0 +1,11 @@
+\ (c) 1993 Johns Hopkins University / Applied Physics Laboratory
+\ 8254 Timer Control
+\ Set up channel 0 to be baud rate generator: the baud rate is computed
+\ using clock/(16*baud).  The clock is 8MHz.
+hex
+
+every-boot:
+   36 timer-control c!			\ Ch0: lsb/msb, mode 3
+   34 timer-ch0 c!			\ Ch0: 9600 baud
+   00 timer-ch0 c!
+;boot

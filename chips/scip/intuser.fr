@@ -1,0 +1,14 @@
+\ (c) 2004 Johns Hopkins University / Applied Physics Laboratory
+\ Interpreter-level interrupt definitions
+\ This version only supports one interrupt; system-specific overrides
+\ will provide more realistic versions.
+decimal
+
+: int:		\ ( u -- ) Install code in interrupt vector table at given slot.
+   drop					\ only one slot
+\ TBD: kludge
+   align-here 1 rshift int-vector w!	\ patch with short subroutine call
+   postpone int-prologue ] ;		\ compile prologue and response code
+
+: ;int		\ ( -- ) Compile a return from interrupt.
+   postpone int-epilogue postpone [ ; immediate

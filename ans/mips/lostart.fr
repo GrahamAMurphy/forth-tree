@@ -1,0 +1,72 @@
+\ (c) 1992 Johns Hopkins University / Applied Physics Laboratory
+verbatim
+
+EOL = 0xa				/* end of line marker for unix */
+
+/*			startup code */
+	.globl CLAB(init_forth), CLAB(do_forth), CLAB(eval_forth)
+	.seg	"text"
+CLAB(init_forth):
+	save	csp,-96,csp		/* new register window */
+	set	TOPPS,psp		/* parameter stack pointer */
+	set	initforth,tmp		/* execution token of startup */
+	set	pseudoprogram,iar	/* construct a fake colon definition */
+	st	tmp,[iar]
+	set	INTERP,rinterp		/* where the interpreters reside */
+	set	TOPRS,sp		/* return stack location */
+	set	HASHTABLE,tmp
+	/* this hack patches a forward reference; this is only necessary
+	   to accomodate the C version */
+	sethi	%hi(hashtable+4*cells_in_code_field),t0
+	st	tmp,[t0+%lo(hashtable+4*cells_in_code_field)]
+	set	callundoforth,tmp	/* catch return when stack empty */
+	next1
+	next2
+	next3
+	st	tmp,[sp]
+	/* returns to undoforth (see below) */
+
+CLAB(do_forth):
+	save	csp,-96,csp		/* new register window */
+	set	TOPPS-8,psp		/* parameter stack pointer */
+	st	%i0,[psp+4]		/* argc */
+	mov	%i1,tos			/* argv */
+	set	doforth,tmp		/* execution token of doforth */
+	set	pseudoprogram,iar	/* construct a fake colon definition */
+	st	tmp,[iar]
+	set	INTERP,rinterp		/* where the interpreters reside */
+	set	TOPRS,sp		/* return stack location */
+	set	callundoforth,tmp	/* catch return when stack empty */
+	next1
+	next2
+	next3
+	st	tmp,[sp]
+	/* returns to undoforth (see below) */
+
+CLAB(eval_forth):
+	save	csp,-96,csp		/* new register window */
+	set	TOPPS-4,psp		/* parameter stack pointer */
+	mov	%i0,tos			/* eval string address */
+	set	evalforth,tmp		/* execution token of evalforth */
+	set	pseudoprogram,iar	/* construct a fake colon definition */
+	st	tmp,[iar]
+	set	INTERP,rinterp		/* where the interpreters reside */
+	set	TOPRS,sp		/* return stack location */
+	set	callundoforth,tmp	/* catch return when stack empty */
+	next1
+	next2
+	next3
+	st	tmp,[sp]
+	/* returns to undoforth (see below) */
+
+	.seg	"data"
+pseudoprogram:
+	.word	0
+callundoforth:
+	.word	undoforth
+end
+
+~ code undoforth
+	ret
+	restore
+end

@@ -1,0 +1,28 @@
+\ Johns Hopkins University / Applied Physics Laboratory
+\ Local variable pretty syntax:
+\   : foo ( x y z -- )	{ x y z | t -- } \ declares three arguments, a
+\		zero initialized temporary, and no result.
+\ Note that locals are declared in stack-argument order.
+hex
+
+: local
+   bl word count (local) ;
+: |	\ ( -- final-offset )
+   >in @ bl word find
+   if nip execute
+   else drop 0 postpone literal recurse swap >in ! local then ;
+: }		\ ( -- final-offset )
+   >in @ ;
+: --		\ ( -- final-offset )
+   [char] } word drop } ;
+: {helper	\ ( -- final-offset )
+   >in @ bl word find
+   if nip execute
+   else drop recurse swap >in ! local then ;
+: {
+   {helper >in !  0 0 (local) ; immediate
+
+: test { x y z } .( hello) x . y . z . ;
+: test2 { x y z | t } .( hi) x . y . z . t . ;
+: test3 { | t1 t2 } .( wow) t1 . t2 . ;
+: test4 { x y -- z } .( yow) x . y . ;

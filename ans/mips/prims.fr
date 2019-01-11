@@ -1,0 +1,1538 @@
+\ (c) 1992 Johns Hopkins University / Applied Physics Laboratory
+\			SPARC Forth system
+
+verbatim
+/*			data areas			*/
+
+	.seg "data"
+
+TAB = 011
+BLANK = 040
+NAMESIZE = 6
+PTRSIZE = 4
+
+/* These variables are defined here because some assembly language
+   primitives need to access them.  For example, push-stream must
+   save the variables that describe the current input stream */
+CLAB(TIBPTR):	.word	0		/* pointer to text input buffer */
+CLAB(IN):	.word	0		/* >IN buffer offset */
+CLAB(NTIB):	.word	0		/* #tib */
+CLAB(BLK):	.word	0		/* blk */
+CLAB(SFILE):	.word	0		/* 'source-id */
+CLAB(CURREGION):.word	0		/* region pointer */
+CLAB(DEFAULTDOES):
+		.word return		/* thread to return primitive */
+
+		.skip(4096)		/* parameter stack */
+TOPPS:		.skip(8)		/* underflow buffer */
+
+		.skip(4096)		/* return stack */
+TOPRS:		.skip(8)		/* underflow buffer */
+
+end
+
+\		SPARC forth direct threaded code
+\			inner interpreter
+
+\ the basic inner interpreter looks like this:
+\	ld	[iar],t
+\	add	iar,4,iar
+\	jmpl	t,%g0
+\	nop
+\ it is always copied into the primitive.
+
+~ code docolon
+INTERP:
+	jmpl	rinterp+%lo(_colon-INTERP), t0
+	sub	sp,4,sp
+
+_colon:ld	[t0+8],t1
+	st	iar,[sp]
+	jmpl	t1,%g0
+	add	t0,12,iar
+end
+
+~ code return
+	ld	[sp],iar
+	add	sp,4,sp
+	ld	[iar],t0
+	jmpl	t0,%g0
+	add	iar,4,iar
+end
+
+~ code dovariable
+	jmpl	rinterp+%lo(_variable-INTERP), t0
+	sub	psp,4,psp
+
+_variable:
+	st	tos,[psp+4]
+	next1
+	next2
+	next3
+	add	t0,8,tos
+end
+
+~ code doconstant
+	jmpl	rinterp+%lo(_constant-INTERP), t0
+	sub	psp,4,psp
+
+_constant:
+	st	tos,[psp+4]
+	next1
+	next2
+	next3
+	ld	[t0+8],tos
+end
+
+~ code dooffset
+	jmpl	rinterp+%lo(_offset-INTERP), t0
+	next1
+
+_offset:
+	next2
+	ld	[t0+8],t1
+	next3
+	add	t1,tos,tos
+end
+
+~ code docreate
+	jmpl	rinterp+%lo(_create-INTERP), t0
+	sub	sp,4,sp
+
+_create:
+	st	iar,[sp]
+	ld	[t0+8],iar
+	sub	psp,4,psp
+	st	tos,[psp+4]
+	next1
+	next2
+	next3
+	add	t0,12,tos
+end
+\ see also: >body and body>
+
+~ code doforeign
+/* interface to foreign C code. TBD */
+end
+
+\ control flow primitives
+
+~ code (literal)
+	ld	[iar+4],t0
+	sub	psp,4,psp
+	st	tos,[psp+4]
+	ld	[iar],tos
+	jmpl	t0,%g0
+	add	iar,8,iar
+end
+
+~ code branch
+	ld	[iar],iar
+	next1
+	next2
+	next3
+	nop
+end
+
+~ code ?branch
+	addcc	tos,%g0,%g0
+	beq	0f
+	ld	[psp+4],tos
+	ld	[iar+4],t0
+	add	iar,8,iar
+	jmpl	t0,%g0
+	add	psp,4,psp
+
+0:	ld	[iar],iar
+	next1
+	next2
+	next3
+	add	psp,4,psp
+end
+
+code execute
+	mov	tos,t0
+	ld	[psp+4],tos
+	jmpl	t0,%g0
+	add	psp,4,psp
+end
+
+code perform
+	ld	[tos],t0
+	ld	[psp+4],tos
+	jmpl	t0,%g0
+	add	psp,4,psp
+end
+
+~ code (do)
+	sub	sp,8,sp
+	st	rlimit,[sp+4]
+	st	rcount,[sp]
+	ld	[psp+4],rlimit
+	mov	tos,rcount
+	ld	[psp+8],tos
+	add	psp,8,psp
+	sethi	%hi(0x80000000),t0
+	add	t0,rlimit,rlimit	/* limit' = limit + 80000000 */
+	next1
+	next2
+	next3
+	sub	rcount,rlimit,rcount	/* init' = init - limit' */
+end
+
+~ code (loop)
+	addcc	rcount,1,rcount		/* increment loop counter */
+	bvc,a	loopcont		/* loop again of v=0 */
+	ld	[iar],iar
+	ld	[sp],rcount
+	ld	[sp+4],rlimit
+	ld	[iar+4],t0
+	add	iar,8,iar
+	jmpl	t0,%g0
+	add	sp,8,sp
+
+loopcont:
+	next1
+	next2
+	next3
+	nop
+
+end
+
+~ code (+loop)
+	addcc	tos,rcount,rcount
+	bvc	plusloopcont		/* loop again of v=0 */
+	ld	[psp+4],tos
+	ld	[sp],rcount
+	ld	[sp+4],rlimit
+	add	sp,8,sp
+	ld	[iar+4],t0
+	add	iar,8,iar
+	jmpl	t0,%g0
+	add	psp,4,psp
+
+plusloopcont:
+	ld	[iar],iar
+	next1
+	next2
+	next3
+	add	psp,4,psp
+end
+
+code i
+	add	psp,-4,psp
+	st	tos,[psp+4]
+	next1
+	next2
+	next3
+	add	rcount,rlimit,tos	/* i = i' + limit' */
+end
+
+code j
+	ld	[sp],t0
+	ld	[sp+4],t1
+	add	psp,-4,psp
+	st	tos,[psp+4]
+	next1
+	next2
+	next3
+	add	t0,t1,tos		/* j = j' + limit' */
+end
+
+~ code (leave)
+	ld	[iar],iar
+	ld	[sp],rcount
+	ld	[sp+4],rlimit
+	next1
+	next2
+	next3
+	add	sp,8,sp
+end
+
+code unloop
+	ld	[sp],rcount
+	ld	[sp+4],rlimit
+	next1
+	next2
+	next3
+	add	sp,8,sp
+end
+
+verbatim
+/* catch and throw, non-local control flow */
+	.seg "data"
+fp:	.word	0
+catcherpf: .word catcher
+	.seg "text"
+catcher:ld	[sp+4],iar		/* restore iar */
+	ld	[sp+8],t0		/* restore fp */
+	sethi	%hi(fp),t1
+	st	t0,[t1+%lo(fp)]		/* fp in memory */
+	add	sp,12,sp		/* discard frame; psp not restored */
+	sub	psp,4,psp
+	st	tos,[psp+4]
+	next1
+	next2
+	next3
+	mov	%g0,tos			/* return 0 */
+end
+
+code catch
+	mov	tos,t0
+	ld	[psp+4],tos
+	add	psp,4,psp
+	sub	sp,12,sp		/* allocate frame */
+	st	psp,[sp]		/* save psp */
+	sethi	%hi(fp),t1
+	ld	[t1+%lo(fp)],t2
+	st	t2,[sp+8]		/* save old fp */
+	st	iar,[sp+4]		/* save iar */
+	st	sp,[t1+%lo(fp)]		/* save new fp address in memory */
+	sethi	%hi(catcherpf),iar	/* setfault catcher */
+	jmpl	t0,%g0
+	add	iar,%lo(catcherpf),iar
+end
+
+code throw
+	subcc	tos,%g0,%g0
+	be	0f
+	nop
+	sethi	%hi(fp),t0
+	ld	[t0+%lo(fp)],sp		/* restore original stack depth */
+	ld	[sp],psp		/* ... parameter stack too */
+	ld	[sp+4],iar		/* ... and the instructin pointer */
+	ld	[sp+8],t1		/* ... and original frame pointer */
+	st	t1,[t0+%lo(fp)]
+	add	sp,12,sp		/* discard frame */
+	next1
+	next2
+	next3
+	sub	psp,4,psp		/* return throw value */
+
+0:	ld	[psp+4],tos
+	next1
+	next2
+	next3
+	add	psp,4,psp
+end
+
+\ return stack primitives for local variables
+
+code (rfetch)	( --- n )  ( returns return stack item )
+	sub	psp,4,psp
+	st	tos,[psp+4]
+	ld	[iar+4],t0
+	ld	[iar],t1
+	add	iar,8,iar
+	jmpl	t0,%g0
+	ld	[t1+sp],tos
+end
+
+code (rstore)	( n --- )  ( store in return stack )
+	ld	[iar],t1
+	ld	[iar+4],t0
+	st	tos,[t1+sp]
+	ld	[psp+4],tos
+	add	iar,8,iar
+	jmpl	t0,%g0
+	add	psp,4,psp
+end
+
+code (rpop)	( --- )   ( clean up return stack )
+	ld	[iar+4],t0
+	ld	[iar],t1
+	add	iar,8,iar
+	jmpl	t0,%g0
+	add	sp,t1,sp
+end
+
+~ code (initlocals)	\ precondition: argument >= 1
+	ld	[iar],t1
+	add	%g0,4,t2
+	sll	t1,2,t1
+	sub	sp,t1,sp
+	subcc	t1,4,t1
+	be	1f
+	st	tos,[sp+t1]
+
+0:	ld	[psp+t2],t3
+	subcc	t1,4,t1
+	st	t3,[sp+t1]
+	bne	0b
+	add	t2,4,t2
+1:	ld	[psp+t2],tos
+	ld	[iar+4],t0
+	add	iar,8,iar
+	jmpl	t0,%g0
+	add	psp,t2,psp
+end
+
+\ stack primitives
+
+code !
+	ld	[psp+4],t0
+	next1
+	st	t0,[tos]
+	ld	[psp+8],tos
+	next2
+	next3
+	add	psp,8,psp
+end
+
+code !sp
+	mov	tos,psp			/* new stack pointer */
+	next1
+	next2
+	next3
+	ld	[psp],tos
+end
+
+code +
+	ld	[psp+4],t0
+	add	psp,4,psp
+	next1
+	next2
+	next3
+	add	tos,t0,tos
+end
+
+code +!
+	ld	[psp+4],t0
+	ld	[tos],t1
+	next1
+	add	t0,t1,t1
+	st	t1,[tos]
+	ld	[psp+8],tos
+	next2
+	next3
+	add	psp,8,psp
+end
+
+code -
+	ld	[psp+4],t0
+	add	psp,4,psp
+	next1
+	next2
+	next3
+	sub	t0,tos,tos
+end
+
+code -1
+	sub	psp,4,psp
+	st	tos,[psp+4]
+	next1
+	next2
+	next3
+	add	%g0,-1,tos
+end
+
+code -2
+	sub	psp,4,psp
+	st	tos,[psp+4]
+	next1
+	next2
+	next3
+	add	%g0,-2,tos
+end
+
+code -4
+	sub	psp,4,psp
+	st	tos,[psp+4]
+	next1
+	next2
+	next3
+	add	%g0,-4,tos
+end
+
+code 0
+	sub	psp,4,psp
+	st	tos,[psp+4]
+	next1
+	next2
+	next3
+	add	%g0,0,tos
+end
+
+code 0<
+	next1
+	next2
+	next3
+	sra	tos,31,tos
+end
+
+code 0=
+	subcc	%g0,tos,%g0
+	next1
+	next2
+	next3
+	addx	%g0,-1,tos
+end
+
+code 1
+	sub	psp,4,psp
+	st	tos,[psp+4]
+	next1
+	next2
+	next3
+	add	%g0,1,tos
+end
+
+code 1+
+	next1
+	next2
+	next3
+	add	tos,1,tos
+end
+
+code 1-
+	next1
+	next2
+	next3
+	sub	tos,1,tos
+end
+
+code 2
+	sub	psp,4,psp
+	st	tos,[psp+4]
+	next1
+	next2
+	next3
+	add	%g0,2,tos
+end
+
+code 2+
+	next1
+	next2
+	next3
+	add	tos,2,tos
+end
+
+code 2-
+	next1
+	next2
+	next3
+	sub	tos,2,tos
+end
+
+code 2*
+	next1
+	next2
+	next3
+	sll	tos,1,tos
+end
+
+code 2/
+	next1
+	next2
+	next3
+	sra	tos,1,tos
+end
+
+code 2pick
+	sub	psp,4,psp
+	st	tos,[psp+4]
+	next1
+	next2
+	next3
+	ld	[psp+12],tos
+end
+
+code 3pick
+	sub	psp,4,psp
+	st	tos,[psp+4]
+	next1
+	next2
+	next3
+	ld	[psp+16],tos
+end
+
+code 4
+	sub	psp,4,psp
+	st	tos,[psp+4]
+	next1
+	next2
+	next3
+	add	%g0,4,tos
+end
+
+code 4+
+	next1
+	next2
+	next3
+	add	tos,4,tos
+end
+
+code 4-
+	next1
+	next2
+	next3
+	sub	tos,4,tos
+end
+
+code 4*
+	next1
+	next2
+	next3
+	sll	tos,2,tos
+end
+
+code 4/
+	next1
+	next2
+	next3
+	sra	tos,2,tos
+end
+
+code <
+	ld	[psp+4],t0
+	add	psp,4,psp
+	subcc	t0,tos,%g0
+	bl	0f
+	next1
+	next2
+	next3
+	mov	%g0,tos
+
+0:	next2
+	next3
+	add	%g0,-1,tos
+end
+
+code =
+	ld	[psp+4],t0
+	add	psp,4,psp
+	xor	t0,tos,tos
+	subcc	%g0,tos,%g0
+	next1
+	next2
+	next3
+	addx	%g0,-1,tos
+end
+
+code >
+	ld	[psp+4],t0
+	add	psp,4,psp
+	subcc	t0,tos,%g0
+	bg	0f
+	next1
+	next2
+	next3
+	mov	%g0,tos
+
+0:	next2
+	next3
+	add	%g0,-1,tos
+end
+
+code >body
+	next1
+	next2
+	next3
+	add	tos,4*(cells_in_code_field+1),tos
+end
+
+code >r
+	sub	sp,4,sp
+	st	tos,[sp]
+	ld	[psp+4],tos
+	next1
+	next2
+	next3
+	add	psp,4,psp
+end
+
+code ?dup
+	addcc	tos,%g0,%g0
+	beq	0f
+	next1
+	sub	psp,4,psp
+	st	tos,[psp+4]
+0:	next2
+	next3
+	nop	/* could be removed? */
+end
+
+code @
+	next1
+	next2
+	next3
+	ld	[tos],tos
+end
+
+code @sp
+	sub	psp,4,psp
+	st	tos,[psp+4]
+	next1
+	next2
+	next3
+	add	psp,4,tos
+end
+
+code and
+	ld	[psp+4],t0
+	add	psp,4,psp
+	next1
+	next2
+	next3
+	and	tos,t0,tos
+end
+
+code body>
+	next1
+	next2
+	next3
+	sub	tos,4*(cells_in_code_field+1),tos
+end
+
+code char+
+	next1
+	next2
+	next3
+	add	tos,1,tos
+end
+
+code chars
+	next1
+	next2
+	next3
+	nop
+end
+immediate
+
+code cell
+	sub	psp,4,psp
+	st	tos,[psp+4]
+	next1
+	next2
+	next3
+	add	%g0,4,tos
+end
+
+code cell+
+	next1
+	next2
+	next3
+	add	tos,4,tos
+end
+
+code cell-
+	next1
+	next2
+	next3
+	sub	tos,4,tos
+end
+
+code cells
+	next1
+	next2
+	next3
+	sll	tos,2,tos
+end
+
+code cell/
+	next1
+	next2
+	next3
+	sra	tos,2,tos
+end
+
+code c!
+	ld	[psp+4],t0
+	next1
+	stb	t0,[tos]
+	ld	[psp+8],tos
+	next2
+	next3
+	add	psp,8,psp
+end
+
+code c@
+	next1
+	next2
+	next3
+	ldub	[tos],tos
+end
+
+code cmove	\ ( c-addr1 c-addr2 u -- )
+	subcc	%g0,tos,tos		/* negate length */
+	be	1f
+	next1
+	ld	[psp+8],t0		/* source */
+	ld	[psp+4],t1		/* destination */
+cmoveup:
+	sub	t0,tos,t0		/* source + len */
+	sub	t1,tos,t1		/* dest + len */
+	sub	t1,1,t1			/* dest + len - 1 */
+0:	ldub	[t0+tos],t2
+	addcc	tos,1,tos
+	bne	0b
+	stb	t2,[t1+tos]
+1:	ld	[psp+12],tos
+	next2
+	next3
+	add	psp,12,psp
+end
+
+code cmove>	\ ( c-addr1 c-addr2 u -- )
+	subcc	%g0,tos,%g0
+	be	1f
+	next1
+	ld	[psp+8],t0		/* source */
+	ld	[psp+4],t1		/* destination */
+	sub	t0,1,t0			/* source - 1 */
+cmoveback:
+0:	ldub	[t0+tos],t2
+	subcc	tos,1,tos
+	bne	0b
+	stb	t2,[t1+tos]
+1:	ld	[psp+12],tos
+	next2
+	next3
+	add	psp,12,psp
+end
+
+code move	\ ( addr1 addr2 u -- )
+	subcc	%g0,tos,%g0
+	be	1f
+	next1
+	ld	[psp+8],t0		/* source */
+	ld	[psp+4],t1		/* destination */
+	sub	t1,t0,t2		/* d - s */
+	subcc	t2,tos,%g0		/* d-s u< length ? */
+	bcs,a	cmoveback
+	sub	t0,1,t0			/* source - 1 */
+	ba	cmoveup
+	sub	%g0,tos,tos		/* negate length */
+1:	ld	[psp+12],tos
+	next2
+	next3
+	add	psp,12,psp
+end
+	
+~ code codefieldsize	\ return code field size in address units
+	sub	psp,4,psp
+	st	tos,[psp+4]
+	next1
+	next2
+	next3
+	add	%g0,4*cells_in_code_field,tos
+end
+
+code d<					| l1 h1 l2 h2 --- t/f
+	/* TBD */
+end
+
+code dnegate				| ( dl dh --- dl' dh' )
+	ld	[psp+4],t0
+	next1
+	subcc	%g0,t0,t0
+	subx	%g0,tos,tos
+	next2
+	next3
+	st	t0,[psp+4]
+end
+
+code d+				| ( dl1 dh1 dl2 dh2 --- dl3 dh3 )
+	ld	[psp+4],t0
+	ld	[psp+8],t1
+	ld	[psp+12],t2
+	add	psp,8,psp
+	addcc	t2,t0,t0
+	addx	t1,tos,tos
+	next1
+	next2
+	next3
+	st	t0,[psp+4]
+end
+
+code d>s
+	ld	[psp+4],tos
+	next1
+	next2
+	next3
+	add	psp,4,psp
+end
+
+code drop
+	ld	[psp+4],tos
+	next1
+	next2
+	next3
+	add	psp,4,psp
+end
+
+code dup
+	sub	psp,4,psp
+	next1
+	next2
+	next3
+	st	tos,[psp+4]
+end
+
+code invert
+	next1
+	next2
+	next3
+	xnor	tos,%g0,tos
+end
+
+code lshift
+	ld	[psp+4],t0
+	add	psp,4,psp
+	next1
+	next2
+	next3
+	sll	t0,tos,tos
+end
+
+code negate
+	next1
+	next2
+	next3
+	sub	%g0,tos,tos
+end
+
+code nip				( a b --- b )
+	next1
+	next2
+	next3
+	add	psp,4,psp
+end
+
+code not
+	next1
+	next2
+	next3
+	xnor	tos,%g0,tos
+end
+
+code or
+	ld	[psp+4],t0
+	add	psp,4,psp
+	next1
+	next2
+	next3
+	or	tos,t0,tos
+end
+
+code over
+	sub	psp,4,psp
+	st	tos,[psp+4]
+	next1
+	next2
+	next3
+	ld	[psp+8],tos
+end
+
+code r>
+	sub	psp,4,psp
+	st	tos,[psp+4]
+	ld	[sp],tos
+	next1
+	next2
+	next3
+	add	sp,4,sp
+end
+
+code r@
+	sub	psp,4,psp
+	st	tos,[psp+4]
+	next1
+	next2
+	next3
+	ld	[sp],tos
+end
+
+code rdrop
+	next1
+	next2
+	next3
+	add	sp,4,sp
+end
+
+code rshift
+	ld	[psp+4],t0
+	add	psp,4,psp
+	next1
+	next2
+	next3
+	srl	t0,tos,tos
+end
+
+code aligned
+	add	tos,3,tos
+	next1
+	next2
+	next3
+	andn	tos,3,tos
+end
+
+code rot
+	ld	[psp+8],t0
+	ld	[psp+4],t1
+	st	tos,[psp+4]
+	st	t1,[psp+8]
+	next1
+	next2
+	next3
+	mov	t0,tos
+end
+
+code rotate
+	ld	[psp+4],t0
+	add	psp,4,psp
+	sll	t0,tos,t1
+	sub	%g0,tos,tos
+	srl	t0,tos,tos
+	next1
+	next2
+	next3
+	or	t1,tos,tos
+end
+
+
+code sp0	( -- sp0 ) ( return address of bottom of param. stack )
+	sub	psp,4,psp
+	st	tos,[psp+4]
+	sethi	%hi(TOPPS),tos
+	next1
+	next2
+	next3
+	or	tos,%lo(TOPPS),tos
+end
+
+~ code spreset				( --- )   ( reset return stack )
+	set	TOPRS,sp
+	next1
+	next2
+	next3
+	nop
+end
+
+code swap
+	ld	[psp+4],t0
+	st	tos,[psp+4]
+	next1
+	next2
+	next3
+	mov	t0,tos
+end
+
+code tuck				( a b --- b a b )
+	sub	psp,4,psp
+	ld	[psp+8],t0
+	st	tos,[psp+8]
+	next1
+	next2
+	next3
+	st	t0,[psp+4]
+end
+
+code u<
+	ld	[psp+4],t0
+	add	psp,4,psp
+	subcc	t0,tos,%g0
+	next1
+	next2
+	next3
+	subx	%g0,%g0,tos
+end
+
+code u>
+	ld	[psp+4],t0
+	add	psp,4,psp
+	subcc	tos,t0,%g0
+	next1
+	next2
+	next3
+	subx	%g0,%g0,tos
+end
+
+code um*				| ( cd ba --- ul uh )
+	ld	[psp+4],%o0
+
+/* the follow code was copied from The SPARC Architecture Manual V.7 */
+	or	%o0, tos, %o4
+	mov	%o0, %y
+	andncc	%o4, 0xfff, %o5
+	be	mul_shortway
+	andcc	%g0, %g0, %o4
+	mulscc	%o4, tos, %o4
+	mulscc	%o4, tos, %o4
+	mulscc	%o4, tos, %o4
+	mulscc	%o4, tos, %o4
+	mulscc	%o4, tos, %o4
+	mulscc	%o4, tos, %o4
+	mulscc	%o4, tos, %o4
+	mulscc	%o4, tos, %o4
+	mulscc	%o4, tos, %o4
+	mulscc	%o4, tos, %o4
+	mulscc	%o4, tos, %o4
+	mulscc	%o4, tos, %o4
+	mulscc	%o4, tos, %o4
+	mulscc	%o4, tos, %o4
+	mulscc	%o4, tos, %o4
+	mulscc	%o4, tos, %o4
+	mulscc	%o4, tos, %o4
+	mulscc	%o4, tos, %o4
+	mulscc	%o4, tos, %o4
+	mulscc	%o4, tos, %o4
+	mulscc	%o4, tos, %o4
+	mulscc	%o4, tos, %o4
+	mulscc	%o4, tos, %o4
+	mulscc	%o4, tos, %o4
+	mulscc	%o4, tos, %o4
+	mulscc	%o4, tos, %o4
+	mulscc	%o4, tos, %o4
+	mulscc	%o4, tos, %o4
+	mulscc	%o4, tos, %o4
+	mulscc	%o4, tos, %o4
+	mulscc	%o4, tos, %o4
+	mulscc	%o4, tos, %o4
+	mulscc	%o4, %g0, %o4
+	tst	tos
+	bge	1f
+	nop
+	add	%o4, %o0, %o4
+1:	rd	%y, %o0
+	st	%o0, [psp+4]
+	next1
+	next2
+	next3
+	add	%o4, %g0, tos
+
+mul_shortway:
+	mulscc	%o4, tos, %o4
+	mulscc	%o4, tos, %o4
+	mulscc	%o4, tos, %o4
+	mulscc	%o4, tos, %o4
+	mulscc	%o4, tos, %o4
+	mulscc	%o4, tos, %o4
+	mulscc	%o4, tos, %o4
+	mulscc	%o4, tos, %o4
+	mulscc	%o4, tos, %o4
+	mulscc	%o4, tos, %o4
+	mulscc	%o4, tos, %o4
+	mulscc	%o4, tos, %o4
+	mulscc	%o4, %g0, %o4
+	rd	%y, %o5
+	sll	%o4, 12, %o4
+	srl	%o5, 20, %o5
+	or	%o5, %o4, %o0
+	st	%o0, [psp+4]
+	next1
+	next2
+	next3
+	add	%g0, %g0, tos
+end
+
+code um/mod				| ( ud u(div) --- u(rem) u(quot) )
+	ld	[psp+8],t0		/* ls */
+	ld	[psp+4],t1		/* ms */
+	add	psp,4,psp
+	add	%g0,32,t2		/* loop counter */
+	addcc	t0,t0,t0
+0:	addxcc	t1,t1,t1
+	bcs	1f
+	subcc	t1,tos,t1
+	bcs,a	2f
+	add	t1,tos,t1
+1:	add	t0,1,t0
+2:	subcc	t2,1,t2
+	bne,a	0b
+	addcc	t0,t0,t0
+	st	t1,[psp+4]		/* remainder */
+	next1
+	next2
+	next3
+	mov	t0,tos			/* quotient */
+end
+
+code w!
+	ld	[psp+4],t0
+	next1
+	sth	t0,[tos]
+	ld	[psp+8],tos
+	next2
+	next3
+	add	psp,8,psp
+end
+
+code w@
+	next1
+	next2
+	next3
+	lduh	[tos],tos
+end
+
+code within	\ ( a b c -- t/f ) true iff b<=a and a<c
+	ld	[psp+8],t0		/* a */
+	ld	[psp+4],t1		/* b */
+	add	psp,8,psp
+	sub	t0,t1,t0		/* a-b */
+	sub	tos,t1,tos		/* c-b */
+	subcc	t0,tos,%g0
+	next1
+	next2
+	next3
+	subx	%g0,%g0,tos
+end
+
+code xor
+	ld	[psp+4],t0
+	add	psp,4,psp
+	next1
+	next2
+	next3
+	xor	tos,t0,tos
+end
+
+\ '2' words
+code 2>r
+	ld	[psp+4],t0
+	sub	sp,8,sp
+	st	t0,[sp+4]
+	st	tos,[sp]
+	ld	[psp+8],tos
+	next1
+	next2
+	next3
+	add	psp,8,psp
+end
+
+code 2r>
+	sub	psp,8,psp
+	ld	[sp+4],t0
+	st	tos,[psp+8]
+	st	t0,[psp+4]
+	ld	[sp],tos
+	next1
+	next2
+	next3
+	add	sp,8,sp
+end
+
+code 2r@
+	sub	psp,8,psp
+	ld	[sp+4],t0
+	st	tos,[psp+8]
+	st	t0,[psp+4]
+	next1
+	next2
+	next3
+	ld	[sp],tos
+end
+
+code 2drop
+	ld	[psp+8],tos
+	next1
+	next2
+	next3
+	add	psp,8,psp
+end
+
+code 2dup
+	sub	psp,8,psp
+	st	tos,[psp+8]
+	ld	[psp+12],t0
+	next1
+	next2
+	next3
+	st	t0,[psp+4]
+end
+
+code 2over
+	sub	psp,8,psp
+	st	tos,[psp+8]
+	ld	[psp+20],t0
+	ld	[psp+16],tos
+	next1
+	next2
+	next3
+	st	t0,[psp+4]
+end
+
+code 2swap
+	ld	[psp+12],t0
+	ld	[psp+8],t1
+	ld	[psp+4],t2
+	st	t0,[psp+4]
+	st	tos,[psp+8]
+	st	t2,[psp+12]
+	next1
+	next2
+	next3
+	mov	t1,tos
+end
+
+code push-stream ( c-addr u fileid -- )
+	sub	sp,20,sp
+	sethi	%hi(CLAB(TIBPTR)),t0
+	ld	[t0+%lo(CLAB(TIBPTR))],t1
+	ld	[psp+8],t2
+	st	t1,[sp+16]
+	st	t2,[t0+%lo(CLAB(TIBPTR))]
+	sethi	%hi(CLAB(IN)),t0
+	ld	[t0+%lo(CLAB(IN))],t1
+	st	%g0,[t0+%lo(CLAB(IN))]
+	st	t1,[sp+12]
+	sethi	%hi(CLAB(NTIB)),t0
+	ld	[t0+%lo(CLAB(NTIB))],t1
+	ld	[psp+4],t2
+	st	t1,[sp+8]
+	st	t2,[t0+%lo(CLAB(NTIB))]
+	sethi	%hi(CLAB(BLK)),t0
+	ld	[t0+%lo(CLAB(BLK))],t1
+	st	%g0,[t0+%lo(CLAB(BLK))]
+	st	t1,[sp+4]
+	sethi	%hi(CLAB(SFILE)),t0
+	ld	[t0+%lo(CLAB(SFILE))],t1
+	st	tos,[t0+%lo(CLAB(SFILE))]
+	st	t1,[sp]
+	ld	[psp+12],tos
+	next1
+	next2
+	next3
+	add	psp,12,psp
+end
+
+code push-block-stream ( u -- )
+	sub	sp,20,sp
+	sethi	%hi(CLAB(TIBPTR)),t0
+	ld	[t0+%lo(CLAB(TIBPTR))],t1
+	sethi	%hi(CLAB(IN)),t0
+	st	t1,[sp+16]
+	ld	[t0+%lo(CLAB(IN))],t1
+	st	%g0,[t0+%lo(CLAB(IN))]
+	st	t1,[sp+12]
+	sethi	%hi(CLAB(NTIB)),t0
+	ld	[t0+%lo(CLAB(NTIB))],t1
+	sethi	%hi(CLAB(BLK)),t0
+	st	t1,[sp+8]
+	ld	[t0+%lo(CLAB(BLK))],t1
+	st	tos,[t0+%lo(CLAB(BLK))]
+	st	t1,[sp+4]
+	sethi	%hi(CLAB(SFILE)),t0
+	ld	[t0+%lo(CLAB(SFILE))],t1
+	ld	[psp+4],tos
+	st	t1,[sp]
+	next1
+	next2
+	next3
+	add	psp,4,psp
+end
+
+code pop-stream	( -- )
+	ld	[sp],t1
+	sethi	%hi(CLAB(SFILE)),t0
+	st	t1,[t0+%lo(CLAB(SFILE))]
+	ld	[sp+4],t1
+	sethi	%hi(CLAB(BLK)),t0
+	st	t1,[t0+%lo(CLAB(BLK))]
+	ld	[sp+8],t1
+	sethi	%hi(CLAB(NTIB)),t0
+	st	t1,[t0+%lo(CLAB(NTIB))]
+	ld	[sp+12],t1
+	sethi	%hi(CLAB(IN)),t0
+	st	t1,[t0+%lo(CLAB(IN))]
+	ld	[sp+16],t1
+	sethi	%hi(CLAB(TIBPTR)),t0
+	st	t1,[t0+%lo(CLAB(TIBPTR))]
+	next1
+	next2
+	next3
+	add	sp,20,sp
+end
+
+\	high level words code in assembly language for efficiency
+
+\  (find)	( tstring u addr[chain] vocab# -- tstring u addr[chain] false )
+\	   <or> ( tstring u addr[chain] vocab# -- cfa -1 true )
+\	   <or> ( tstring u addr[chain] vocab# -- cfa  1 true )
+~ code (find)
+	ld	[psp+4],t4
+	orcc	t4,t4,%g0		/* test for empty chain */
+	be	3f
+	nop
+	ld	[psp+8],t5
+	ld	[psp+12],t6
+	sub	t6,1,t6
+	mov	t5,t3
+	subcc	t3,5,%g0
+	bg,a	9f
+	add	%g0,5,t3
+9:
+
+0:	lduh	[t4+6],t0
+	subcc	t0,tos,%g0
+	bne	2f
+	nop
+	ldub	[t4],t0
+	and	t0,0x7f,t0
+	subcc	t0,t5,%g0
+	bne	2f
+	nop
+	mov	t3,t2
+1:	ldub	[t4+t2],t0
+	ldub	[t6+t2],t1
+	subcc	t0,t1,%g0
+	bne	2f
+	nop
+	subcc	t2,1,t2
+	bne	1b
+	nop
+	ba	4f
+	nop
+
+2:	ld	[t4+8],t4
+	subcc	t4,%g0,%g0
+	bne	0b
+	nop
+3:	next1
+	next2
+	next3
+	mov	%g0,tos
+
+4:	add	psp,4,psp
+	add	t4,12,t0
+	st	t0,[psp+8]
+	add	%g0,-1,t1
+	ldub	[t4],t0
+	andcc	t0,0x80,%g0
+	be	5f
+	nop
+	add	%g0,1,t1
+5:	st	t1,[psp+4]
+	next1
+	next2
+	next3
+	add	%g0,-1,tos
+end
+
+\	Input stream parsing:  the following routines share these registers:
+\ input: t2: offset tos: buffer length t3: delimiter
+\	t5: buffer start
+\ local: t1: parsed length t4: X
+\ global: tmp: string
+verbatim
+scandel:subcc	t3,BLANK,%g0
+	be	4f
+	mov	%g0,t1
+	ba	1f
+	subcc	t2,tos,%g0
+
+0:	subcc	t3,t4,%g0
+	be	2f
+	add	t2,1,t2
+	add	t1,1,t1
+	subcc	t2,tos,%g0
+1:	bne,a	0b
+	ldub	[t5+t2],t4
+2:	retl
+	nop
+
+3:	subcc	t3,t4,%g0
+	bge	5f
+	add	t2,1,t2
+	add	t1,1,t1
+4:	subcc	t2,tos,%g0
+	bne,a	3b
+	ldub	[t5+t2],t4
+5:	retl
+	nop
+
+skipdel:subcc	t3,BLANK,%g0
+	be	4f
+	subcc	t2,tos,%g0
+	bne,a	0f
+	ldub	[t5+t2],t4
+	retl
+	nop
+
+0:	subcc	t3,t4,%g0
+	bne	2f
+	nop
+	add	t2,1,t2
+	subcc	t2,tos,%g0
+	bne,a	0b
+	ldub	[t5+t2],t4
+2:	retl
+	nop
+
+3:	subcc	t3,t4,%g0
+	bl	5f
+	nop
+	add	t2,1,t2
+	subcc	t2,tos,%g0
+4:	bne,a	3b
+	ldub	[t5+t2],t4
+5:	retl
+	nop
+end
+
+~ code _parse	\ ( char addr1 u1 -- addr2 u2 )
+	ld	[psp+8],t3
+	ld	[psp+4],t5
+	sethi	%hi(CLAB(IN)),t0
+	ld	[t0+%lo(CLAB(IN))],t2
+	add	psp,4,psp
+	add	t5,t2,tmp
+	call	scandel
+	st	tmp,[psp+4]
+	st	t2,[t0+%lo(CLAB(IN))]
+	next1
+	next2
+	next3
+	mov	t1,tos
+end
+
+~ code _parse-word \ ( char addr1 u1 -- addr2 u2 )
+	ld	[psp+8],t3
+	ld	[psp+4],t5
+	sethi	%hi(CLAB(IN)),t0
+	call	skipdel
+	ld	[t0+%lo(CLAB(IN))],t2
+	add	psp,4,psp
+	add	t5,t2,tmp
+	call	scandel
+	st	tmp,[psp+4]
+	st	t2,[t0+%lo(CLAB(IN))]
+	next1
+	next2
+	next3
+	mov	t1,tos
+end
+
+~ code _word	\ ( char addr1 u1 -- addr2 )
+	ld	[psp+8],t3
+	ld	[psp+4],t5
+	add	psp,8,psp
+	sethi	%hi(CLAB(IN)),t0
+	call	skipdel
+	ld	[t0+%lo(CLAB(IN))],t2
+	call	scandel
+	add	t5,t2,tmp
+	st	t2,[t0+%lo(CLAB(IN))]
+
+	sethi	%hi(CLAB(CURREGION)),t2
+	ld	[t2+%lo(CLAB(CURREGION))],t2
+	ld	[t2],t2
+	mov	t2,tos
+	stb	t1,[t2]
+	add	t2,1,t2
+	add	%g0,BLANK,t0
+	subcc	t1,%g0,%g0
+	be	1f
+	stb	t0,[t2+t1]
+
+	subcc	t1,1,t1
+0:	ldub	[tmp+t1],t0
+	stb	t0,[t2+t1]
+	bne,a	0b
+	subcc	t1,1,t1
+1:	next1
+	next2
+	next3
+	nop
+end
+

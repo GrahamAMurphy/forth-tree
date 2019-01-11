@@ -1,0 +1,13 @@
+\ (c) 1993 Johns Hopkins University / Applied Physics Laboratory
+\ Rtx meta assembler.
+hostinterp			\ search host then forth, defintions in host
+
+: code		\ ( opcode -- )
+ header t-, s" code" add-log-string ;
+
+: <exit>
+ a020 t-, ;			\ RTX return instruction
+;
+
+: ucode		\ ( opcode "name" -- )
+ code <exit> inline ;

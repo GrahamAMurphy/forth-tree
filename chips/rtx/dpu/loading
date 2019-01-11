@@ -1,0 +1,22 @@
+To save forth in DPU EEPROM:
+
+1.  ftp to ulysses:
+	cd /homes/john/forth/chips/rtx/dpu
+	get dpudir.int
+	get dpudat.int
+	bye
+
+2.  Put ftp'ed files onto GSE host computer.
+
+3.  Reset DPU and send null command within 10 seconds.
+
+4.  Load files (dpudir.int and dpudat.int) over 1553 bus to boot ROM.
+Use the file_open menu item in GSEOS with .int (Intel) mode.
+
+
+Note:  At the time I left for Huntsville, only the XGRS version of
+GSEOS supported Intel loads.  Al and Thomas planned to update
+the other GSEOS versions.  If this has not happened, there are numerous
+alternative ways to load the DPU (e.g. over the serial port).
+
+- John

@@ -1,0 +1,116 @@
+\ (c) 1993 Johns Hopkins University / Applied Physics Laboratory
+\ More RTX primtives
+\ Many of these 'primitives' are written in Forth with the assumption that
+\ a peephole optimizer will generate code as good as could be written
+\ by hand.  The spacing between words indicates whether I expect
+\ the optimizer to combine words into a single RTX instruction:
+\ one space indicates that combination is possible, two spaces otherwise.
+hex
+
+	fe00 code c@			<exit> inline
+nohead	f941 code c@+			<exit> inline
+nohead	f541 code c@-			<exit> inline
+
+[ifndef] bytesim
+	fe80 code c!			<exit> inline
+nohead	f9c1 code c!+			<exit> inline
+nohead	f5c1 code c!-			<exit> inline
+
+[else]
+
+\ If RTX byte strobes are not hooked up, bytes may be accessed
+\ with the following hacks:
+\ c! is implemented using word accesses and shift and mask operations.
+\ c@ is implemented using native c@; the RTX does the shift and mask.
+: c!		\ ( c addr -- )
+		\ Note: sq! ... md@ shifts left 8 bits effectively masking c.
+   swap  sq!  dup  @  ff and  md@ or  swap  ! ;
+nohead
+: c!+		\ ( c addr -- addr' )
+   swap  sq!  dup  @  ff and  md@ or  over  !  1+ ;
+nohead
+: c!-		\ ( c addr -- addr' )
+   swap  sq!  dup  @  ff and  md@ or  over  !  1- ;
+[then]
+
+: +!	( x addr -- )		dup >r  @ +  r>  ! ;
+: rot	( x y z -- y z x )	>r  swap  r>  swap ;
+: -rot	( x y z -- z x y ) 	swap  >r  swap  r>  ;
+[ifdef] rtx2010
+b008 code 0=			<exit>	inline
+[else]
+: 0=	( x -- flag )		if  0 exit  then  -1 ;
+[then]
+\ : =	( x y -- flag )		-  if  0 exit then  -1 ;
+: <>	( x y -- flag )		-  if  -1 exit then  0 ;
+: <	( n1 n2 -- flag )	over over xor 0<
+				if  drop 0< exit then  - 0< ;
+: >	( n1 n2 -- flag )	over over xor 0<
+				if  nip 0< exit then  swap - 0< ;
+: 0>	( n -- flag )		0  > ;
+: u<	( u1 u2 -- flag )	- cu2/  invert 0< ;
+: u>	( u1 u2 -- flag )	swap - cu2/  invert 0< ;
+: 2over	( w x y z -- w x y z w x )
+				>r  >r  dup md!  over  r>  swap  r>  swap  md@ ;
+: 2swap	( w x y z -- y z w x )	md!  swap  >r  swap  >r  md@  r>  r>  ;
+: 2pick	( x y z -- x y z x )	>r  over  r>  swap ;
+: 3pick	( w x y z -- w x y z w ) >r  >r  over  r>  swap  r>  swap ;
+: aligned ( addr -- addr' )	1+  2/  2* ;
+: chars	( -- )			; inline
+: touch	( addr -- )		@  drop ;
+: within ( x y z -- flag )	over -  >r  -  r>  u< ;
+
+\ TBD lshift could be improved by using "?dup if".
+: lshift ( x u -- x' )		dup if  1-  times|| 2*  || exit then drop ;
+: rshift ( x u -- x' )		dup if  1-  times|| u2/ || exit then drop ;
+: rotate ( x u -- x' )		f and  for  2*c  0+c  next ;
+
+\ double math
+: d+	( d1 d2 -- d3 )		md!  swap  >r  +  r>  md@ +cry ;
+: dnegate ( d1 -- d2 )		>r  0 swap -  r>  0 swap -cry ;
+: d<	( d1 d2 -- t/f )
+   md!  over  md@			\ if ms not equal
+   ( <> ) - if  drop  nip  md@  <	\ do signed compare of ms
+   else nip  u<				\ otherwise, do unsigned compare of ls
+   then ;
+
+: um*	( u1 u2 -- ud )		mulu  mlr@  mhr@ ;
+: m*	( n1 n2 -- d )		muls  mlr@  mhr@ ;
+: um/mod ( ud u -- ur uq )	md!  d2*  /1  d  times|| /2 ||  /3  swap ;
+
+\ local variables
+\ hand compiled in prims.fr
+\ nohead : (localloc) \ ( ... u -- ) Allocate space for u local variables and
+\ 		\ initialize from parameter stack.
+\    >r  lsp@  dup r@2* -  lsp!  cell-	\ allocate space
+\    r>  1-  times|| !- ||  drop ;	\ initialize
+
+\ do - loops
+\ The adjusted loop counter is kept in the sr register and the unadjuster
+\ is on top of the return stack.  i is an inline sequence that adds the two
+\ numbers; it should optimize to two instructions.  (loop) inlines to
+\ a call to ((loop)) and a conditional branch; this should execute in
+\ six clocks.
+\ The first group of primitives (e.g. (do)) are commented out; they
+\ reside in prims.fr as hand-compiled code.  This is because they must
+\ be defined for meta2.fr
+\ : (do) ( limit init -- )	swap  8000  +  r>  sr@  >r  over  >r  >r
+\ 				-  sr! ;
+\ : unloop			r>  rdrop  r>  sr!  >r ;
+\ : ((loop)) ( -- flag )	sr@  dup 1+  dup sr! invert  nor 0< ;
+\ : (loop)			((loop))  ?branch  || ; inline
+\ : ((+loop)) ( n -- flag )	sr@  over over +  sr!  dup >r
+\				xor invert  r>  sr@ xor  and 0< ;
+\ : (+loop) ( n -- )		((+loop))  ?branch  || ; inline
+: i	( -- index )		sr@  r@ +  || ; inline
+: j	( -- index )		r>  r>  r>  dup r@ +  swap  >r  swap  >r
+				swap  >r ;
+
+: cmove	( src dst len -- )	for  >r  c@+  swap  r>  c!+  next  drop  drop ;
+: cmove> ( src dst len -- )	>r  swap  r@  1-  +  swap  r@  1-  +  r>
+				for  >r  c@-  swap  r>  c!-  next  drop  drop ;
+: move	( src dst len -- )	>r  dup md!  over -  r@  u<
+				if  md@  r>  cmove>  else  md@  r>  cmove then ;
+
+: enable			cr@	    cr! ;
+: disable			cr@  10 or  cr! ;

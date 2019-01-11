@@ -1,0 +1,11 @@
+decimal
+: foo1   2 3 * || ;
+: foo2   drop 2 3 * || ;
+: foo3   drop drop 2 3 * || ;
+: foo4   nip 2 3 * || ;
+
+: goo1   2 -40 * || ;
+
+: hoo1   -40 2 * || ;
+
+: loo1   40 20 * || ;

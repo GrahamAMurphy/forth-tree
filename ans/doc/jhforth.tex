@@ -1,0 +1,274 @@
+\documentstyle[fancyheadings]{article}
+\raggedbottom
+\textwidth 6.5in
+\oddsidemargin 0.0in
+\evensidemargin 0.0in
+\topmargin 0.0in
+\textheight 9.0in
+
+\pagestyle{fancy}
+\newcommand{\memonum}{TSS-94-???}
+\newcommand{\issuedate}{March 4, 1994}
+\lhead{DRAFT}
+\chead{}
+\rhead{\memonum\\\ifnum\value{page}=1\issuedate\else Page \thepage\fi}
+\lfoot{}
+\cfoot{}
+\rfoot{}
+\addtolength{\headheight}{12pt}
+
+\newcommand{\memoaddrlabel}[1]{\mbox{\bf #1}\hfil}
+\newenvironment{memoaddress}{%
+\begin{list}{}
+	{
+		\let\makelabel\memoaddrlabel
+		\setlength{\labelwidth}{1in}
+		\setlength{\leftmargin}{1in}
+		\setlength{\labelsep}{0in}
+		\setlength{\itemsep}{0in}
+	}
+}{%
+\end{list}}
+
+\newcommand{\doctype}{memo}			% memo/article/paper
+
+% namelist environment: from LaTex for Scientists and Engineers.
+\newcommand{\namelistlabel}[1]{\mbox{#1:}\hfil}
+\newenvironment{namelist}[1]{%
+\begin{list}{}
+   {
+      \let\makelabel\namelistlabel
+      \settowidth{\labelwidth}{#1}
+      \setlength{\leftmargin}{1.1\labelwidth}
+   }
+}{%
+\end{list}}
+
+\begin{document}
+\begin{memoaddress}
+	\item[To:] Distribution
+	\item[Via:] R. M. Henshaw
+	\item[From:] J. R. Hayes
+	\item[Subject:] JH Forth Programmer's Manual
+	\item[References:] Tracy, M., Anderson, A.,
+	   \underline{Mastering Forth}, Brady Books, 1989.
+	\item[] Hayes, J.R., ``Object-Oriented Programming for Small
+	   Systems'', TES-91-182, November 1, 1991.
+	\item[] Programming Languages - Forth, draft proposed
+	   American National Standard for Information Systems,
+	   X3J14 dpANS-6, June 30, 1993.
+\end{memoaddress}
+
+\newcommand{\fw}[1]{{\bf #1}}			% Forth words are in bold
+
+\section{Introduction}
+This \doctype\ describes the unique features of JH Forth.
+JH Forth follows the ANS Forth standard.
+Most of this manual is devoted to listing the optional parts of ANS
+Forth that have been implemented in JH Forth and in
+describing JH Forth's extensions to ANS Forth.
+
+This manual is not a tutorial on Forth.  There are already a number of
+introductory Forth textbooks.  ``Mastering Forth'' by Martin Tracy is a
+good book for the novice.  Nor is this manual a tutorial on ANS Forth.
+The code examples used in ``Mastering Forth'' are close enough to
+ANS Forth that the book can be used with an ANS Forth system.
+
+\section{ANS Forth}
+Since JH Forth complies with the ANS Forth standard, the ANS
+Forth standard document can be used as a reference manual for JH
+Forth.  JH Forth implements the ANS Forth Core, Locals,
+Search-Order, File-Access, Block, and Memory Allocation
+word sets.
+
+There is one area in which JH Forth does not conform to ANS Forth.
+At APL, Forth source code is maintained as text files.
+Handling traditional upper-case Forth source code with
+the Unix utilities is awkward.  Consequently, lower-case is used
+and JH Forth expects
+lower-case source code instead of the upper-case source required
+by ANS Forth.
+
+In addition to words of the Core, Locals, Search-Order,
+File-Access, Block, and Memory Allocation word sets,
+JH Forth provides some useful words from other ANS Forth
+word sets.  From the Core Extensions word set are:
+\begin{center}
+\fw{.(}\ \ \ \fw{.r}\ \ \ \fw{0$>$}\ \ \ 
+\fw{:noname}\ \ \ \fw{$<>$}\ \ \ \fw{again}\ \ \ \fw{compile,} \\
+\fw{convert}\ \ \
+\fw{false}\ \ \ \fw{hex}\ \ \ \fw{nip}\ \ \ \fw{pad}\ \ \ 
+\fw{parse}\ \ \ \fw{pick}\ \ \ \fw{roll}\ \ \ \fw{true}\ \ \ \fw{u.r}\ \ \ 
+\fw{u$>$}\ \ \ \fw{within}\ \ \ \fw{\\}
+\end{center}
+
+From the Double-Number word set are:
+\begin{center}
+\fw{2variable}\ \ \ \fw{d+}\ \ \ \fw{d.}\ \ \ \fw{d.r}\ \ \ \fw{d$<$}\ \ \ 
+\fw{dabs}\ \ \ \fw{dnegate}
+\end{center}
+
+From the Programming-Tools word set are:
+\begin{center}
+\fw{.s}\ \ \ \fw{?}\ \ \ \fw{bye}\ \ \ \fw{dump}\ \ \ \fw{forget}
+\end{center}
+
+From the String word set are:
+\begin{center}
+\fw{/string}\ \ \ \fw{cmove}\ \ \ \fw{cmove$>$}
+\end{center}
+
+\section{More Words}
+JH Forth contains a number of words that have proven useful over
+the years, but are not present in ANS Forth.
+These words are documented
+in an appended glossary.  Some of these words are also discussed in more
+depth below.
+
+\subsection{Cell-Size Independence}
+ANS Forth provides two words, \fw{cell+} and \fw{cells}, for doing
+cell-size independent address calculations.  JH Forth provides
+a few extra operators in the same vein.  \fw{cell} returns the size
+of a cell in address units, \fw{cell-} computes the address of the
+preceding cell, and \fw{cell/} computes the number of cells
+that could fit in a given number of address units.  The ANS Forth
+Portability Guide is recommended reading for understanding how
+to write cell-size independent code and portable Forth code in
+general.
+
+\subsection{Case Structure}
+The case selection structure used in JH Forth is different from
+the one most used by Forth programmers and merits some
+explanation.  A simple example illustrates most of the capabilities of
+the case structure:
+\begin{verbatim}
+   : .number       ( n --- )
+      sel
+         << 1    ==> ." one" >>
+         << 2    ==> ." two" >>
+         dup . ." is illegal"
+      endsel ;
+\end{verbatim}
+The word \fw{.number} tests its argument and prints the string ``one''
+if the value is one, ``two'' if it is two, and otherwise prints the
+argument followed by the message ``is illegal''.  When the case
+structure is entered at \fw{sel}, a case selector is on the top of the
+data stack.  For each case, the selector is compared
+non-destructively to its selection value between \fw{$<<$} and
+\fw{==$>$}.  If the comparison returns true, the selector is destroyed
+(\fw{drop}), the corresponding code between \fw{==$>$} and \fw{$>>$}
+is executed, and execution continues after \fw{endsel}.  The use of
+literals as a selection value is for illustration only.  Any Forth word
+that returns a single value can be used.  If no match is found, an
+optional fall-through clause is executed.  In the example, a
+copy of the selector is made (\fw{dup}) for use by the code
+in the clause.
+Finally, \fw{endsel}, which is executed only if none of the cases
+matched, destroys the case selector.
+
+An extension to this structure is \fw{=$>$}, which allows more general
+testing for a case.  Another version of \fw{.number} demonstrates its
+use:
+\begin{verbatim}
+   : .number       ( n --- )
+      sel
+         << 0<           => ." negative" >>
+         << 0=           => ." zero" >>
+         << 1 6 within   => ." one through five" >>
+      endsel ;
+\end{verbatim}
+\fw{$<<$} makes a copy of the case selector for testing.  The code
+between \fw{$<<$} and \fw{=$>$} destructively tests the copy leaving true
+or false on the stack.
+
+\subsection{Context-independent Numbers}
+The context-dependence of literal number interpretation can
+detract from the readability of Forth programs.  The meaning
+of ``10'', for example, depends on the current value of \fw{base};
+if \fw{base} is hexadecimal, ``10'' is sixteen, but if \fw{base}
+is decimal, ``10'' is ten.  Someone perusing a program has to
+search back from the occurrence of a literal number and find
+where \fw{base} is set to determine a literal's value.
+
+In JH Forth, the words \fw{h } and \fw{d } are available
+to momentarily override the current \fw{base} and force the interpretation
+of the following number of be in hexadecimal or decimal respectively.
+Example usage is as follows:
+\begin{verbatim}
+   h# 10 constant sixteen
+   : foo       ( --- )
+      sixteen d# 100 foobar	\ pass 16 and 100 to foobar
+   ;
+\end{verbatim}
+
+\section{Source Code Libraries}
+A number of utilities are provided in JH Forth in source code
+form.
+\begin{namelist}{xxxxxxxxxxxx}
+	\item[blocks.fr] ANS Forth Block word set
+	\item[env.fr] ANS environment query word: \fw{environment?}
+        \item[locals.fr] ANS User-level local variable syntax
+	\item[locals2.fr] Alternate user-level local variable syntax
+	\item[modules.fr] Modules
+        \item[onlyalso.fr] Vocabularies and \fw{only},
+                \fw{also}, and \fw{previous}
+        \item[struct.fr] Data structure defining words
+        \item[eaker.fr] An alternative case structure (by Eaker)
+        \item[foop3-1.fr] Forth Object-Oriented Programming (FOOP) system
+\end{namelist}
+
+JH Forth does not come with a block system installed;
+an ANS Forth Block word set implementation can be found in ``blocks.fr''.
+The ANS Forth environmental query word \fw{environment?} is implemented
+in ``env.fr''.
+The ANS Forth Locals word set provides a low-level local variable
+construction utility.  A higher-level interface is defined in the Local
+Extension word set and implemented in ``locals.fr''.  An alternative
+interface is provided in ``locals2.fr''.  
+The ANS Forth Search-Order word set
+provides low-level control of word name scope and system search order.
+A \fw{vocabulary} system with \fw{only}, \fw{also},
+and \fw{previous}, a module mechanism, or an entire
+object-oriented programming system
+can be constructed using the Search Order word set.  JH Forth
+sources for such systems are in the files ``onlyalso.fr'', ``modules.fr''
+and ``foop3-1.fr'' respectively.
+Usage of each utility is documented in its source code except for
+the FOOP system, which is described in
+``Object-oriented programming for Small Systems''.
+
+These utilities can be loaded via \fw{used}, (e.g. \fw{" struct.fr" used}).
+The arguments to \fw{used} are the address and length of a string
+naming a file (as in \fw{included}.  \fw{used} searches for the file
+using a list of directories.  The list of directories is obtained from
+an environment variable named FPATH.  FPATH should contain directory
+names separated by a space character; the list is examined left to right.
+FPATH
+should be set in your login startup script (e.g. .profile, .login,
+autoexec.bat, etc.)
+and contain the system-dependent location of the source code libraries.
+
+\section{Invocation}
+JH Forth is invoked from you shell's command libe by typing 'forth'.
+This results in an interactive Forth session.  The session may be
+terminated by typing your end-of-file character (typically \verb|^|D).  JH
+Forth may also be run non-interactively by typing 'forth' followed
+by the names of one or more files containing Forth source code.
+The Forth system interprets the contents of each file without producing
+any prompts.
+
+\vspace{1in}
+\hspace{4in}John R. Hayes
+
+\begin{flushleft}
+{\bf Distribution:} \\
+BWBallard \\
+HKCharles, Jr. \\
+JRDettmer \\
+MEFraeman \\
+RMHenshaw \\
+GDWagner \\
+TES Files \\
+Archives \\
+\end{flushleft}
+\end{document}

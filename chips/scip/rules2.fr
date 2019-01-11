@@ -1,0 +1,46 @@
+\ (c) 2009 Johns Hopkins University / Applied Physics Laboratory
+hex
+
+\ ------------------------------------------------------------------------
+\ Rules for literal folding
+
+\ Note: produces <long>; other rules could reduce back to <short>
+rule <short><short>*
+	<lis	?lit nopb ?stackop >,
+	<lis	?lit nopb pushp >,
+	['] * *callop*
+0 2 lit-*-melds? isconstraint
+-->	<lil	nopb 1 ?? >.
+	0 0 ?? >.
+endrule
+
+rule <short><long>*
+	<lis	?lit nopb ?stackop >,
+	<lil	nopb pushp >,
+	0 ?all >,
+	['] * *callop*
+0 2 lit-*-melds? isconstraint
+-->	<lil	nopb 1 ?? >.
+	0 0 ?? >.
+endrule
+
+rule <long><short>*
+	<lil	nopb ?stackop >,
+	0 ?all >,
+	<lis	?lit nopb pushp >,
+	['] * *callop*
+1 2 lit-*-melds? isconstraint
+-->	<lil	nopb 0 ?? >.
+	0 1 ?? >.
+endrule
+
+rule <long><long>*
+	<lil	nopb ?stackop >,
+	0 ?all >,
+	<lil	nopb pushp >,
+	0 ?all >,
+	['] * *callop*
+1 2 lit-*-melds? isconstraint
+-->	<lil	nopb 0 ?? >.
+	0 1 ?? >.
+endrule

@@ -1,0 +1,105 @@
+\ (c) 1997 Johns Hopkins University / Applied Physics Laboratory
+\ Intel-32 loader; this one is RTX specific.
+\ This is intended to be a component for a boot ROM and consequently
+\ does little error reporting.
+hex
+
+variable checksum			\ checksum of a record
+
+\ ------------------------------------------------------------------------
+\ Errors
+
+variable err-cnt
+
+: error-reset	\ ( -- ) Reset error log.
+   0 err-cnt ! ;
+
+: error		\ ( -- ) Log an error.  Errors are not reported until
+		\ load is complete.
+   1 err-cnt +! ;
+
+: error-report	\ ( -- ) If there are errors, report them.
+   err-cnt @ if [char] ? emit then ;
+
+\ ------------------------------------------------------------------------
+\ Low-level input
+
+: tolower	\ ( char1 -- char2 ) Convert character to lower case.
+   dup [char] A [char] Z between if 20 + then ;
+
+: hexdigit      \ ( chr --- n[0-f] true  <or>  false ) attempts to convert
+		\ 1 ascii hex digit to binary.  if chr is a valid ascii
+		\ hex digit, returns result and true.  otherwise, returns
+		\ only false.
+   dup
+   sel
+      << [char] 0 [char] 9 between =>	\ 0-9: valid
+		[char] 0 - true >>
+      << [char] a [char] f between =>	\ a-f: valid
+		[char] a - 0a + true >>
+      drop false swap			\ otherwise invalid
+   endsel ;
+
+: read-digit	\ ( -- digit ) Read and convert a hex digit.
+   key tolower hexdigit not if error 0 then ;
+
+: read-byte	\ ( -- byte ) Read two hex characters from the tty and convert
+		\ them to a byte.
+   read-digit 4 rotate read-digit or dup checksum +! ;
+
+: read-addr16	\ ( -- addr16 ) Read four hex characters from the tty and
+		\ convert them to 16 bit address.
+   read-byte 8 rotate read-byte or ;
+
+\ ------------------------------------------------------------------------
+\ Loader itself
+
+create rbuffer 100 allot		\ receive buffer: max of 256 data bytes
+
+: search-for-record \ ( -- ) Search for a : record.
+   begin key [char] : = until ;
+
+: read-record	\ ( -- addr count type checksum ) Read a record into a buffer
+		\ and return the record's destination address, length (in
+		\ bytes), record type, and checksum.  Zero is a good checksum.
+   0 checksum !				\ reset checksum
+   read-byte read-addr16		\ read length and address
+   read-byte >r >r			\ read record type
+   dup if				\ if non-zero length
+      rbuffer over + rbuffer
+      do				\ for each byte in record
+         read-byte i c!			\ read and record
+      loop
+   then
+   r> swap r>
+   read-byte drop checksum @ ff and ;	\ s: addr count checksum
+
+: save-record	\ ( addr count -- ) Save the count bytes in the receive
+		\ buffer at addr + base.
+   rbuffer + rbuffer
+   do i c@ over far c! near 1+ loop drop ;
+
+: process-record \ ( addr count type -- t/f ) Process record saved
+		\ in buffer.  If its checksum is valid (i.e. zero), the
+		\ record is saved permanently.
+   sel
+      << 0 ==> save-record  false >>
+      << 1 ==> 2drop  true >>
+      << 4 ==> 2drop rbuffer @ set-mem  false >>
+      error  false swap
+   endsel ;
+
+: intel		\ ( -- ) Load an Intel hex file.
+   error-reset
+   get-code set-mem			\ load to code page by default
+   begin
+      search-for-record
+      read-record			\ read one record
+      if 				\ if bad (i.e. non-zero) checksum
+	 drop drop drop error
+	 false
+      else
+	 process-record
+      then
+   until key drop			\ consume last linefeed
+   error-report ;

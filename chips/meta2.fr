@@ -1,0 +1,326 @@
+\ (c) 1988 Johns Hopkins University / Applied Physics Laboratory
+\ metacompiler, part 2 -- allows metacompilation of : definitions,
+\ variables and constants in a single vocabulary
+hostinterp				\ search host then forth, defs in host
+hex
+
+variable meta-clue			\ link forward control references
+
+: *instr*	\ ( x --- ) Compile and optimize instruction x.
+   t-i, optimize ;
+
+: *objcode*	\ ( cfa --- ) copy an inline body out of target space.
+   ['] return				\ cfa return-cfa
+   2dup = if drop t-i@ *instr*		\ if return, compile return code
+   else t-i@ swap			\ return-code cfa
+   begin
+      2dup t-i@ <> while		\ while not return
+      dup t-i@ *instr* t-i+
+   repeat 2drop
+   then
+   ;
+also forth ' *objcode* '*code* ! hostinterp \ resolve forward reference
+
+: *objcodehost*	\ ( cfa --- ) copy an inline body out of host space.
+		\ the cfa is a host address.
+   ['] return t-i@ swap			\ return-code cfa
+   begin
+      2dup [forth] @ [host] <> while	\ while not return
+      dup [forth] @ [host] *instr* [forth] cell+ [host]
+   repeat 2drop
+   ;
+also forth ' *objcodehost* '*codehost* ! hostinterp \ resolve forward reference
+
+\ Local variable compiler
+[ifdef] locals
+
+variable #x-locals			\ number of cross compiled locals
+
+: make-local	\ ( c-addr u -- )
+   2dup log-name-str
+   s" (local)" add-log-string #x-locals [forth] @ [host] add-log-number
+   -1 push-stream			\ input string becomes input stream
+   locregion allocatefrom		\ compile into local region
+   create-target			\ local name is in target wordlist
+   #x-locals [forth] @ dup , 1+ [host] #x-locals [forth] ! [host]
+   stdregion allocatefrom  pop-stream
+   t-does>
+      #x-locals [forth] @ swap @ - 1-
+      to? @ if				\ if local is preceded by 'to'
+	 [host] *locstore* [forth]  0 to? ! \ compile store operation
+       else
+	 [host] *locload*		\ otherwise, compile fetch
+      then ;
+
+: (local)	\ ( c-addr u -- ) Create a local named by given string.
+		\ If string has zero length, the last local has been declared.
+   ?dup
+   if last [forth] @ [host] >r make-local r> last [forth] ! [host]
+   else drop #x-locals [forth] @ [host] ?dup if *locinit* then
+   then ;
+
+: free-locals	\ ( -- ) Arrange for run time local variable data structure
+		\ to be freed.
+   #x-locals [forth] @ ?dup if [host] *locfree* then ;
+
+: end-scope	\ ( -- ) End the local variable scope.  Reclaim compile
+		\ time data structures and arrange for run time structures
+		\ to be freed.
+   #x-locals [forth] @ if
+      locregion allocatefrom
+      locregion cell+ (forget)	( TBD)
+      stdregion allocatefrom
+      [host] free-locals
+      0 #x-locals [forth] !
+   then [host] ;
+
+[else]
+\ Use stubs
+: free-locals ;
+: end-scope ;
+[then]
+
+: ]             \ ( --- ) main metacompiler interpretation loop
+   true metastate [forth] !  metacomp
+   begin
+      metastate @ while
+      bl word dup c@ while
+      find if
+         execute
+      else
+         number if
+            [host] *literal*
+         else
+            [forth] s" ?" cross-error
+         then
+      then optimize
+      ?stack if ."  stack empty [meta]" cr then \ TBD should also reset stack
+   repeat drop then [host] ;
+
+: sinclude	\ ( fileid -- ) Interpret indicated file from its current
+		\ position.  Close the file when finished.
+   >r get-line-buffer dup 0 r> push-stream
+   >r begin
+      r@ 80 source-id read-line ?error while \ while not end of file
+      reset-stream
+      metastate [forth] @ [host] if ] then interpret
+   repeat drop source-id close-file ?error
+   r> free-line-buffer
+   pop-stream ;
+
+: fload         ( c-addr u --- )
+   open-include sinclude ;
+
+: sload         ( c-addr u --- )
+   open-up sinclude ;
+
+: ftload        ( c-addr u --- )
+   open-ft sinclude ;
+
+: used		( c-addr u --- )
+   "" FTPATH" open-path sinclude ;
+
+\ metacompiler directives
+metaextend
+: ||			( --- )   ( flush optimization queue )
+   t-here ?code [forth] ! [meta] ;
+hostinterp
+
+: <mark  t-here [meta] || [host] ;
+: <resolve  t-here t-i- swap *branch-dest* ;
+: >mark  t-here t-i- ;
+: >resolve  t-here *branch-dest* [meta] || [host] ;
+: >>mark  <resolve t-here t-i- ;
+: >>resolve
+   begin
+      dup while
+      dup *branch-unpack* >r
+      t-here *branch-dest*
+      r>
+   repeat drop [meta] || [host] ;
+
+metaextend
+: literal	\ ( word --- ) add word as literal
+   *literal* optimize ;
+
+: h#		\ ( "string" -- )
+   [forth] base @ hex [meta]
+   bl word number
+   if *literal* optimize
+   else [forth] s" ?" cross-error
+   then
+   base ! [meta] ;
+
+: d#		\ ( "string" -- )
+   [forth] base @ decimal [meta]
+   bl word number
+   if *literal* optimize
+   else [forth] s" ?" cross-error
+   then
+   base ! [meta] ;
+
+: [char]	\ ( --- ) compile first character of next word in input
+		\ stream as a literal.
+   char literal ;
+: [ascii]	\ ( --- ) same as [char], but for compiling old programs.
+   char literal ;
+
+: [		\ ( --- ) exit metacompiler loop ']'
+   metainterp [forth] false metastate ! [meta] ;
+: (  29 word drop ;			\ start of comment
+: \  postpone \ ;			\ alternative comment
+
+: if  [target] ?branch [meta] >mark ;
+: else  [target] branch [meta] >mark  swap >resolve ;
+: then  >resolve ;
+: begin  <mark ;
+: while  [target] ?branch [meta] >mark swap ;
+: until  [target] ?branch [meta] <resolve ;
+: repeat [target]  branch [meta] <resolve >resolve ;
+: again  [target]  branch [meta] <resolve ;
+: do  [target] (do) [forth] meta-clue @ 0 meta-clue ! [meta] <mark ;
+: loop  [target] (loop) [meta] <resolve
+   [forth] meta-clue @ [meta] >>resolve
+   [target] unloop [meta]
+[ifdef] rtx  ||  [then]
+   [forth] meta-clue ! [meta] ;
+: +loop  [target] (+loop) [meta] <resolve
+   [forth] meta-clue @ [meta] >>resolve
+   [target] unloop [meta]
+[ifdef] rtx  ||  [then]
+   [forth] meta-clue ! [meta] ;
+: leave [target] branch [forth] meta-clue @ [meta] >>mark
+   [forth] meta-clue ! [meta] ;
+: recurse t-cfa *call* ;
+: sel  0 ;
+: <<  [target] dup [meta] ;
+: =>  [target] ?branch [meta] >mark [target] drop [meta] ;
+: ==>  [target] = [meta] => ;
+: >>  >r [target] branch [meta] >>mark r> >resolve ;
+: otherwise  [target] dup [meta] ;
+: endsel  [target] drop [meta] >>resolve ;
+: for  [target] >r branch [meta] >mark <mark ;
+: next  swap >resolve [target] (next) [meta] <resolve
+   [ifdef] scip [target] unnext [meta] [then] ;
+: [']
+   ' *literal* optimize ;
+
+: [if]  postpone [if] ;
+: [else]  postpone [else] ;
+: [then]  postpone [then] ;
+: [ifdef]  postpone [ifdef] ;
+: [ifndef] postpone [ifndef] ;
+
+: to	true [forth] to? ! [meta] ;
+
+: exit  free-locals [target] return [meta] ;
+: ;     end-scope   [target] return [meta] reveal [ ;
+
+hostinterp
+
+\ metacompiler immediator
+
+: immediate       \ ( --- ) sets immediate bit in latest target head
+   [forth] head? @ [host] if		\ if word has a head
+      t-cfa >name			\ set precedence bit in target memory
+      dup c@ t-prec-bit or swap c!
+   then
+\ TBD: Why s.o. switch below?
+   [forth] immediate-target latest-target-data @ cell+ ! [host] ;
+
+\ defining words
+
+: \constant     \ ( n --- ) defines the next input word as a constant
+		\ 'n' in the resident system's current vocabulary
+		\ without moving the input pointer '>in'.
+   >in [forth] @  swap constant >in ! [host] ;
+
+: constant
+   dup \constant
+   header s" constant" add-log-string dup add-log-number
+   *literal* [meta] || [target] return [host] inline ;
+
+: :noname	\ ( -- w ) Create an execution token w.
+   t-align t-here dup log-anon		\ generate log entry
+   s" :noname" add-log-string
+   [meta] || [host] ] ;			\ compile anonymous code
+
+: :
+   header hide s" :" add-log-string  [meta] || [host] ] ;
+
+forth : create's-does
+   [host] t-does>
+      [forth] @ metastate @ if			\ if metacompiling
+         [host] *call*				\ compile a call
+      else
+         >body					\ otherwise, return address
+      then ;
+
+forth : t-create	\ ( --- ) creates object with data adjacent to code
+   [forth] >in @ : >in !			\ host version
+   here cell+ cell+ name> , postpone ; [host]	\ code to call target version
+   header s" create(adjacent)" add-log-string	\ target version
+   [target] does-default [host]			\ data space will adjoin code
+   t-here add-log-number
+   create's-does ;
+
+forth : remote-create	\ ( --- ) creates object with data remote from code
+   [forth] >in @ : >in !			\ host version
+   here cell+ cell+ name> , postpone ; [host]	\ code to call target version
+   header s" create(remote-ram)" add-log-string	\ target version
+   [target] remote-does-default [host]
+   ram-align ram-here dup t-,			\ points to aligned ram
+   add-log-number
+   create's-does ;
+
+forth : ram-create	\ ( --- ) creates object in RAM memory; if everything
+			\ is in RAM, it uses the more efficient representation
+			\ of t-create.
+   [ifdef] ramobject  [host] t-create  [else]  [host] remote-create  [then]  ;
+
+forth : remote-t-create	\ ( --- ) creates object with data remote from code
+   [forth] >in @ : >in !			\ host version
+   here cell+ cell+ name> , postpone ; [host]	\ code to call target version
+   header s" create(remote-rom)" add-log-string	\ target version
+   [target] remote-does-default [host]
+   t-here t-cell+ dup t-,			\ points to target memory
+   add-log-number
+   create's-does ;
+
+forth : rom-create	\ ( --- ) creates object in ROM memory; if everything
+			\ is in RAM, it still the more efficient representation
+			\ of t-create.
+   [ifdef] ramobject  [host] t-create  [else]  [host] remote-t-create  [then] ;
+
+forth : create		\ ( -- ) creates object based on current allocation
+			\ mode.
+   [host] here t-here =				\ if in rom allocate mode
+   if t-create					\ use most efficient version
+   else remote-create
+   then ;
+
+forth :noname
+   [forth] @ metastate @ if			\ if metacompiling
+      [meta] literal [host]
+   then ;
+'define forth ! host
+
+forth : variable        \ ( --- ) creates object variable init'ed to 0
+   [host]
+[ifdef] ramobject  t-align t-here 0 t-,			\ ram version
+[else]		   ram-align ram-here cell ram-allot	\ prom version
+[then] 
+   constant s" variable" add-log-string ;
+
+forth : 2variable       \ ( --- ) creates object 2variable init'ed to 0
+   [host]
+[ifdef]  ramobject  t-align t-here 0 t-, 0 t-,		\ ram version
+[else]		    ram-align ram-here 2 cells ram-allot \ prom version
+[then]
+   constant s" 2variable" add-log-string ;
+
+forth : region		\ ( n --- ) create an allocation region of n words
+   [host] ram-create ram-here >r cell+ ram-allot r@ cell+ r> ! ;
+
+forth : heap		\ ( n --- ) create heap with blocks n words long.
+   [host] create 0 , , ;

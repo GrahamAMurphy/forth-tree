@@ -1,0 +1,36 @@
+\ (c) 2002 Johns Hopkins University / Applied Physics Laboratory
+\ 1 Hz monitoring process
+decimal
+
+module> 1hz
+
+\ ------------------------------------------------------------------------
+\ Collection process
+
+timer 1hz-proc-timer			\ 1 Hz process control timer
+
+: monitor-analogs \ ( -- ) Monitor analog values.  For test purpose, constant
+		\ values are "monitored".
+   128 0 monitor			\ monitor constant values;
+   128 1 monitor			\  to test monitoring, must set
+   128 2 monitor ;			\  different alarm limits
+
+public:
+0 20 20 process: 1hz-process		\ ( -- pid ) 1 Hz process.
+   1hz-proc-timer every 1 seconds wake	\ run once per second
+   begin
+      1hz-proc-timer wait		\ wait
+      monitor-analogs			\ monitor the collected data
+   again ;process
+private:
+
+\ ------------------------------------------------------------------------
+\ Initialization
+
+public:
+: init-1hz	\ ( -- ) Initialize 1 Hz process.
+   ( nop )
+;
+private:
+
+endmodule>

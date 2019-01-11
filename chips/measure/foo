@@ -1,0 +1,40 @@
+void
+SimulateMixedMissAllocV2(fp,remainingaccess)
+FILE *fp;
+unsigned int remainingaccess;
+{
+	unsigned int trace, x;
+
+	while(!feof(fp) && remainingaccess){
+		cpucycle++;
+		trace = getw(fp);
+		x = ADDR(trace);
+		if(READ(trace)){
+			if(LINEMISS(x)){
+				miss++;
+				readupdate++;
+				ALLOCLINE(x);
+				ADDTOLINE(x);
+			} else if(SUBMISS(x)){
+				miss++;
+				readupdate++;
+				ADDTOLINE(x);
+			}
+		} else {
+			if(LINEMISS(x)){
+				miss++;
+				writeupdate++;
+				ALLOCLINE(x);
+				ADDTOLINE(x);
+			} else if(SUBMISS(x)){
+				miss++;
+				writeupdate++;
+				ADDTOLINE(x);
+			} else {
+				externalwrite++;
+			}
+		}
+		remainingaccess--;
+	}
+}
+

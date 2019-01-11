@@ -1,0 +1,56 @@
+\ (c) 2009 Johns Hopkins University / Applied Physics Laboratory
+\ Stack tests: usage and depth.
+\ Note: must be cross-compiled.
+decimal
+
+\ ------------------------------------------------------------------------
+\ Measure stack usage
+
+\ Notes:
+\ - The stacks have dummy values (4 for parameter, 3 for return) at the
+\ "bottom" of the stack.  These are needed for stack caches.
+\ - The return stack dummy values will be "dead".  So, finding the
+\ maximum stack used must start above the "top" of the stack searching
+\ downward.
+\ - The parameter stack dummy values will start "dead".  However, if the
+\ process does a pspreset, these "dead" values will be overwritten by
+\ other values.
+\ - Null process can be tested by doing "nullprocess-init
+\ monitor-process" followed by "nullprocess-init initprocess" if this is
+\ done after kernel has initialized nullprocess but before nullprocess
+\ has had a chance to run.
+
+: fill-stack	\ ( addr cells -- ) Fill stack with test pattern.
+   0 do					\ for each cell
+      cell-  h# dead over !		\ fill stack, moving down in memory
+   loop drop ;
+
+: stack-used	\ ( addr cells -- cells' ) Measure amount of stack used.
+   >r dup r@ cells - r> 0 do		\ for each cell
+      dup @ h# dead <> if leave then	\ search for absence of pattern
+      cell+				\   moving up in memory
+   loop
+   - cell/ ;				\ compute stack usage
+
+: monitor-process \ ( pcells rcells procinit -- ) Set up to monitor stacks
+		\ of given process.  Must be called before process is started.
+   dup >r .rsp-init @ swap fill-stack	\ fill in return stack
+   r> .psp-init @ swap fill-stack ;	\   and parameter stack
+
+: report-process \ ( pcells rcells procinit -- ) Report stack usage of
+		\ given process.
+   dup >r  .psp-init @ 2pick		\ print size of parameter stack
+       ." p: " stack-used .  ." / " swap .
+   r> .rsp-init @ over			\ print size of return stack
+      ." r: " stack-used .  ." / " . ;
+
+\ ------------------------------------------------------------------------
+\ Find stack depths
+
+: rdepth	\ ( pd-init -- cells ) Find return stack depth of given
+		\ swapped out process.
+   dup .rsp-init @ swap @ .rsp @ - cell/ ;
+
+: pdepth	\ ( pd-init -- cells ) Find parameter stack depth of given
+		\ swapped out process.
+   dup .psp-init @ swap @ .psp @ - cell/ ;

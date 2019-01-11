@@ -1,0 +1,14 @@
+\ (c) 2002 Johns Hopkins University / Applied Physics Laboratory
+\ Stack error checking
+hex
+
+variable stack-errors
+
+: check-stack	\ ( -- ) Make sure that the current RTX data stack pointer
+		\ indicates that the stack is empty.  Note: does not check
+		\ the return stack because a return stack error is probably
+		\ fatal.
+   sp@ psp-stack-mask and if		\ if data stack is not empty
+      pspreset				\ clear stack
+      1 stack-errors +!			\ and log error
+   then ;

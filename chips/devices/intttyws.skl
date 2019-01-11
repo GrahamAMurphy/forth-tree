@@ -1,0 +1,49 @@
+\ (c) 1993 Johns Hopkins University / Applied Physics Laboratory
+\ Serial device driver interface skeleton for intttyws.fr
+\ Fill in the things between <brackets>.
+hex
+
+noheads
+
+\ ------------------------------------------------------------------------
+\ Device configuration
+
+ttystruct makestruct <your-device>
+
+\ ------------------------------------------------------------------------
+\ Low-level UART access routines
+
+: uart!		\ ( c -- ) Write a character to UART.
+   <TBD write a character to UART>
+
+: uart-first!	\ ( c -- ) Write first character to UART.
+   <TBD write first character to UART, possibly enabling transmitter>
+
+: uart@		\ ( -- c ) Read a character from UART.
+   <TBD read a character from UART>
+
+: stop-transints \ ( -- ) Disable further transmit interrupts.
+   <TBD Disable further transmit interrupts (possibly a nop on some systems)>
+
+\ ------------------------------------------------------------------------
+\ Interrupt routines
+
+<UARTint#> int: \ ( -- )
+   <TBD can call tty-transint, tty-rcvint, and/or tty-rcvrawint>
+
+\ ------------------------------------------------------------------------
+\ Initialization
+
+every-boot:	\ ( -- )
+<TBD but probably including:>
+   ['] uart!  ['] uart-first!  ['] uart@  ['] stop-transints
+      <yourdevice> tty-init
+;boot
+
+\ ------------------------------------------------------------------------
+\ High level driver interface routines
+
+heads
+
+<TBD interface routines (e.g. emit, key, etc.) can call tty-putc, tty-getc >
+

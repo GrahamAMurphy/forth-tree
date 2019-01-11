@@ -1,0 +1,34 @@
+\documentstyle[fancyheadings]{article}
+\raggedbottom
+\textwidth 6.5in
+\oddsidemargin 0.0in
+\evensidemargin 0.0in
+\topmargin 0.0in
+\textheight 9.0in
+
+% don't indent paragraphs
+\setlength{\parindent}{0.0in}
+
+\pagestyle{fancy}
+\lhead{}
+\chead{JH Forth Glossary}
+\rhead{Page \thepage}
+\lfoot{}
+\cfoot{}
+\rfoot{}
+\addtolength{\headheight}{12pt}
+
+\newcommand{\fw}[1]{{\bf #1}}			% Forth words are in bold
+\newcommand{\type}[1]{{\it #1\/}}		% data types are italic
+
+\newenvironment{cgloss}[3]{%
+\makebox[1in][l]{{\tt#1}}%
+\makebox[2in][l]{({\it#2\ })}C: ({\it#3\ })\begin{quote}}{\end{quote}}
+
+\newenvironment{gloss}[2]{%
+\makebox[1in][l]{{\tt#1}}({\it#2\ })\begin{quote}}{\end{quote}}
+
+\begin{document}
+
+\input{glossary.tex}
+\end{document}

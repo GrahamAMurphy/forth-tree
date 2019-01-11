@@ -1,0 +1,13 @@
+\ Johns Hopkins University / Applied Physics Laboratory
+\ Cross-compile locals (see locals.fr)
+hex
+
+only forth  also host  also meta  definitions
+forth : {
+   begin
+      bl word count
+      over c@ [char] } <> while
+      [host] (local)
+   repeat
+   drop 0 (local) [forth] ;
+hostinterp

@@ -1,0 +1,40 @@
+\ Compile Forth for simulator
+
+" target.fr" used
+" Frisc5/16bits" is-target		\ cross compile for 16-bit Frisc5
+
+\ Configure crosscompiler
+hex
+0 set-ram				\ ram-based system
+\ 0 8000 set-rom/ram			\ rom-based system
+\ def interactive
+def multitasking			\ include multitasker
+" newmap" is-logfile
+
+\ Load the kernel.
+" kernel1.fr" ftload			\ primitives and extend crosscompiler
+
+\ Load low-level tty code
+" tty.fr" ftload			\ emit and key through simulator
+
+\ Load the interpreter
+" kernel2.fr" ftload			\ interpreter for Forth, processes, etc.
+[ifdef] interactive
+" fakeio.fr" ftload
+[then]
+
+\ ------------------------------------------------------------------------
+\ Load application
+
+\ Steal useful I/O routines
+" forthio.fr"		ftload
+
+\ Libraries, etc.
+" modules2.mfr"		used
+" timers2a.fr"		used
+" timers.mfr"		fload		\ local version: do: only
+" far2.fr"		used
+" farallot2.fr"		used
+" farallot2.mfr"	used
+" farqueue2.fr"		used
+

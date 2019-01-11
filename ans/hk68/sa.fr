@@ -1,0 +1,97 @@
+\			I/O interface 
+hex
+
+code fexpect				\ ( addr count ttyno --- length )
+	movl	psp@+,sp@-		/* ttyno */
+	movl	psp@+,sp@-		/* count */
+	movl	psp@,sp@-		/* address of buffer */
+	jsr	_forthread		/* read written in c */
+	lea	sp@(12),sp		/* pop stack */
+	movl	d0,psp@
+	next
+end
+
+code rawread				\ ( addr ttyno --- )
+	movl	psp@+,sp@-		/* ttyno */
+	movl	psp@+,sp@-		/* address of buffer */
+	jsr	_forthload		/* load written in c */
+	addql	#8,sp			/* pop stack */
+	next
+end
+
+code fkey				\ ( ttyno --- char )
+	movl	psp@,sp@-		/* ttyno */
+	jsr	_forthfkey		/* fkey written in c */
+	addql	#4,sp			/* pop stack */
+	movl	d0,psp@			/* return char */
+	next
+end
+
+code ?fkey				\ ( ttyno --- count )
+	movl	psp@,sp@-		/* ttyno */
+	jsr	_forthqfkey		/* ?fkey written in c */
+	addql	#4,sp			/* pop stack */
+	movl	d0,psp@			/* return count */
+	next
+end
+
+code frwrite				\ ( addr count ttyno --- )
+	movl	psp@+,sp@-		/* ttyno */
+	movl	psp@+,sp@-		/* count */
+	movl	psp@+,sp@-		/* address of buffer */
+	jsr	_forthwrite		/* write written in c */
+	lea	sp@(12),sp		/* pop stack */
+	next
+end
+
+code femit	\ ( char ttyno -- )
+	movl	psp@+,sp@-		/* ttyno */
+	movl	psp@+,sp@-		/* char */
+	jsr	_forthemit		/* emit in c */
+	lea	sp@(8),sp		/* pop stack */
+	next
+end
+
+0 constant stdin
+
+: type					( addr count --- )
+   stdin frwrite ;
+
+: emit		\ ( char -- )
+   stdin femit ;
+
+: cr					( --- )   ( send newline characters )
+   0d emit 0a emit ;
+
+: accept				( addr len --- len' )
+   stdin fexpect ;
+
+: read-line	\ ( addr u1 ttyno -- u2 flag ior )
+   fexpect -1 0 ;
+
+: ?error	\ ( ior -- ) Unsophisticated error handling.
+   drop ;
+
+: key					( --- char )   ( return a character )
+					( fro standard input.		    )
+   stdin fkey ;
+
+: ?key					( --- count )   ( return number of )
+					( characters in type ahead buffer. )
+   stdin ?fkey ;
+
+: terminate ;				( total KLUDGE: fix this! )
+
+: mcload				( --- ) ( load from channel 0 )
+   tib >r >in @ >r			( save old input context )
+   here 10000 + dup stdin  rawread	( read in entire file )
+   begin
+      dup c@ 4 <> while			( while no ^D )
+      tibptr ! 0 >in !			( get ready to scan )
+      interpret
+      tib >in @ 1+ +			( compute next buffer address )
+   repeat
+   drop r> >in ! r> tibptr ! ;		( restore old input context )
+
+( Initialize any I/O subsystems that need it )
+: ioinit ;				( --- )

@@ -1,0 +1,51 @@
+\ (c) 2012 Johns Hopkins University / Applied Physics Laboratory
+\ Test memory of 16-bit SCIP.  Tests off-chip RAM.  Assumes memtestword
+\ defined elsewhere.  Program executes off end of file; this assumes
+\ there are further tests following it.
+hex
+
+label TBDtest
+	<br	>. 1 fwd			\ jump over helper functions
+
+label memtestword 1234 ,
+
+label testmemory \ ( page -- )
+	<reg!	nopa dpr popp >.		\ save input page
+	<spec	farmode >.			\ all accesses are far
+	55aa *literal*				\ test pattern is 55aa
+	memtestword *literal*			\ address to test
+	<reg!	nopa udr >.			\ copy into UDR
+	<!	0 +# mem16 popp >.		\ write 16 bits
+	<reg@	udr nopb pushp >.
+	<@	0 +# mem16 pushp >.		\ read back 16 bits and verify
+	<lil	aminusb >.	55aa >.
+	<testx	nopa EQ popp >.
+0 l:	<?br	>.	0 back
+	<!	0 +# mem8 popp >.		\ write low-address 8 bits
+	<alu	nota >.				\ test pattern now aa55
+	<reg@	udr nopb pushp >.
+	<!	1 +# mem8 popp >.		\ write high-address 8 bits
+	<reg@	udr nopb pushp >.
+	<@	0 +# mem8 pushp >.		\ read back 8 bits and verify
+	<lil	aminusb >.	00aa >.
+	<testx	nopa EQ popp >.
+0 l:	<?br	>.	0 back
+	<@	1 +# mem8 pushp >.		\ read back 8 bits and verify
+	<lil	aminusb >.	0055 >.
+	<testx	nopa EQ popp >.
+0 l:	<?br	>.	0 back
+	<@	0 +# mem16 >.			\ read back 16 bits and verify
+	<lil	aminusb >.	aa55 >.
+	<testx	nopa EQ popp >.
+0 l:	<?br	>.	0 back
+\ clean up
+	<alu	nopb popp return >.		\ discard test pattern
+\	<spec	nearmode >.			\ all accesses are near
+
+\ TBD
+1 l:
+	1 *literal*
+	testmemory *call*
+	0 *literal*
+	testmemory *call*
+0 l:	<br	>.	0 back

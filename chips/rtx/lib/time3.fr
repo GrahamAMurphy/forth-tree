@@ -1,0 +1,34 @@
+\ (c) 1998 Johns Hopkins University / Applied Physics Laboratory
+\ Time a word on the RTX.
+\ Uses on-chip timer 0.
+\ Assumes 6 MHz RTX.
+hex
+
+be13 ucode t0@				\ access functions for timer 0
+be93 ucode t0!
+
+variable ticks				\ count interrupts every 10 ms
+variable int-occurred			\ true if interrupt occurred
+
+8 int:		\ ( -- ) Interrupt every ten milliseconds.
+   1 ticks +!  true int-occurred !
+;int
+
+: init-time	\ ( -- ) Start timer interrupting processor.
+   imr@ ff7f and imr!  d# 59999 t0! ;
+
+: get-ticks	\ ( -- t-ls t-ms ) Return current tick count.
+   begin
+      false int-occurred !		\ prepare to read
+      t0@ ticks @			\ read hardware and software counters
+      int-occurred @ while		\ if reading is suspect
+      2drop				\ try again
+   repeat
+   >r d# 59999 swap - 0 r> d# 60000 um* d+ ;
+
+: time		\ ( "name" -- t-ls t-ms ) Time the next word in the input
+		\ stream.  Return the time needed to execute it measured
+		\ in microseconds.
+   ' get-ticks >r >r execute get-ticks r> r> dnegate d+
+   d# -38 s>d d+ ;			\ remove test overhead
+

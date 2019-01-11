@@ -1,0 +1,33 @@
+\ (c) 2005 Johns Hopkins University / Applied Physics Laboratory
+\		Generic Polled Character Device Driver
+\	This version of the driver supports the following features:
+\		polled I/O
+\		maps <cr> to <nl> on input
+\ Note: this version is similar to polltty3.fr but does explicit
+\ memory-mapped I/O.
+\ Note/TBD: missing key?.
+hex
+
+\ The following defines are required to use this program:
+\  io-mem#  - Page number of UART
+\  parin-a# - Address of status
+\  uart-a# - Address of UART
+\  uart-tx-int# - Active high bit identifying transmitter ready bit in status
+\  uart-rx-int# - Active high bit identifying receiver ready bit in status
+
+: emit		\ ( char -- ) Send one character.
+   get-mem swap io-mem# set-mem far	\ remote memory-mapped I/O
+   parin-a# begin			\ poll parallel input port
+      dup @ uart-tx-int# get-mask and	\   until transmitter ready
+   until
+   drop uart-a# !			\ send character
+   set-mem ;
+
+: key		\ ( -- char ) Read one character.
+   get-mem io-mem# set-mem far		\ remote memory-mapped I/O
+   parin-a# begin			\ poll parallel input port
+      dup @ uart-rx-int# get-mask and	\   until receiver ready
+   until
+   drop uart-a# @			\ read character
+   dup 0d = if drop 0a then		\ map carriage return to linefeed
+   swap set-mem ;

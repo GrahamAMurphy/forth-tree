@@ -1,0 +1,8 @@
+Tue Jul  2 10:51:27 EDT 2013
+Created.  This is common design 1, with the following features:
+- Memory-mapped I/O at page 0x10
+   - UART at 0.
+   - Interrupt controller at 4 and 6.
+- 12 interrupts
+   - UART receive is interrupt 0.
+   - UART transmit is interrupt 1.

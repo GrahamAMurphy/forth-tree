@@ -1,0 +1,50 @@
+\ (c) 2005 Johns Hopkins University / Applied Physics Laboratory
+\ Test TBD
+hex
+
+\ reset vector
+2 allot
+
+label setbit	\ ( mask baseaddr -- mask' baseaddr )
+	<reg!	nopa pushr >.			\ save copy of address
+	<!	10 +# mem16 popp >.		\ set bit indicated by mask
+	<shifti	lsl 1 <<# >.			\ shift mask left 1 bit
+	<reg@	popr nopb pushp >.
+	<exit>
+
+label iotest
+here *callop* w0 forth @ host t-w!		\ patch reset vector
+	<lis	4 +# nopb pushp >.		\ all accesses to page 4
+	<reg!	nopa dpr popp >.		\   everything is far
+	<spec	farmode >.
+	<lis	1 +# nopb pushp >.		\ test mask
+	<lis	0 +# nopb pushp >.		\ I/O base address
+	setbit *call*				\ test interrupt 1
+	<@	10 +# mem16 pushp >.		\ check vector
+	<lis	0 2* +# aminusb >.
+	<testx	nopa EQ popp >.
+0 l:	<?br	>.	0 back
+	setbit *call*				\ test interrupt 2
+	<@	10 +# mem16 pushp >.		\ check vector
+	<lis	1 2* +# aminusb >.
+	<testx	nopa EQ popp >.
+0 l:	<?br	>.	0 back
+	setbit *call*				\ test interrupt 3
+	<@	10 +# mem16 pushp >.		\ check vector
+	<lis	2 2* +# aminusb >.
+	<testx	nopa EQ popp >.
+0 l:	<?br	>.	0 back
+	setbit *call*				\ test interrupt 4
+	<@	10 +# mem16 pushp >.		\ check vector
+	<lis	3 2* +# aminusb >.
+	<testx	nopa EQ popp >.
+0 l:	<?br	>.	0 back
+	setbit *call*				\ test interrupt 5
+	<@	10 +# mem16 pushp >.		\ check vector
+	<lis	4 2* +# aminusb >.
+	<testx	nopa EQ popp >.
+0 l:	<?br	>.	0 back
+
+label done
+	setbit *call*				\ turn off boot
+0 l:	<br	>.	0 back			\ done

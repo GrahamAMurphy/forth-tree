@@ -1,0 +1,65 @@
+\ (c) 1991 Johns Hopkins University / Applied Physics Laboratory
+\ Local variables
+\ Metacompiler
+hex
+
+hostinterp
+forth : *locstore* \ ( n --- ) compile code to store a number in local
+		\ variable n.
+ [host] 1+ cells ['] (locstore) @ or *instr* [target] drop [host] ;
+
+forth : *locload* \ ( n --- ) compile code to load a number from local
+		\ variable n.
+ [host] 1+ cells ['] (locload) @ or *instr* ;
+
+forth : *locinit* \ ( --- ) compile code to allocate and initialize a local
+		\ variable.
+ [host] ['] (localloc) @ *instr*  ['] (localloc) cell+ @ *instr* ;
+
+forth : *locfree* \ ( n --- ) compile code to deallocate n local variable
+		\ slots.
+ [host] cells ['] (locfree) @ or *instr* ;
+
+\ Block structure extensions
+
+forth variable currentdepth
+forth variable outerdepth
+
+metaextend
+forth : {
+ currentdepth @ dup outerdepth +!
+ 0 currentdepth !
+ locregion @ ;
+
+
+forth : }
+ [forth] dup locregion @ =
+ if drop
+ else
+    locregion allocatefrom
+    (forget)
+    stdregion allocatefrom
+ then
+ currentdepth @ ?dup if
+    *locfree*
+ then
+ dup currentdepth !
+ negate outerdepth +! [host] ;
+
+forth : to   [forth] postpone to ;
+
+forth : local
+ [forth] locregion allocatefrom
+ create-target
+    outerdepth @ currentdepth @ + ,
+    1 currentdepth +!
+ stdregion allocatefrom
+    *locinit*
+ t-does>
+    @ outerdepth @ currentdepth @ + swap - 1-
+    to? @ if
+       *locstore*  0 to? !
+    else
+       *locload*
+    then ;
+hostinterp

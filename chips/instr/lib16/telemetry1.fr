@@ -1,0 +1,34 @@
+\ (c) 2002 Johns Hopkins University / Applied Physics Laboratory
+\ Telemetry interface
+hex
+
+module> telemetry
+
+\ ------------------------------------------------------------------------
+\ * Telemetry backend
+
+: send-telemetry \ ( -- ) Send as much telemetry as possible.
+   send-status				\ send status
+   try-dump-pkt				\ possibly send memory dump packet
+   try-mac-dump				\   or macro dump packet
+   more-downlink? if			\ try queued data; if room for more
+      try-partial-frame			\ try to force a partial frame
+      more-downlink? drop
+   then ;
+
+public:
+
+0 20 20 process: telemetry-process \ ( -- pid ) Telemetry process.
+   begin
+      check-stack			\ check, clear, and count stack errors
+      sync-1hz				\ every 1 Hz pulse
+      start-downlink			\ start downlink
+      signaltimers  executedoers	\ run timer and doer service
+      sync-dead-time			\ wait for dead time at major frame end
+      send-telemetry			\ send telemetry
+      proc-dead-time			\ do dead-time processing, e.g. tlm
+   again ;process
+
+private:
+
+endmodule>

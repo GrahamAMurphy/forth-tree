@@ -1,0 +1,332 @@
+\ (c) 1992 Johns Hopkins University / Applied Physics Laboratory
+
+verbatim
+	.data
+/* file mode strings for fopen */
+ro:	.asciz	"r"
+rw:	.asciz	"r+"
+wo:	.asciz	"w"
+
+/* message for perror */
+forthmsg:.asciz	"forth"
+
+/* some external things we need */
+	.globl __iob			/* declare iob array from <stdio.h> */
+	.globl CLAB(errno)		/* error number <errno.h> */
+
+	.globl CLAB(result2)		/* extra result "filewrap.h" */
+
+	.globl CLAB(OUTPUTFP)		/* referenced in unixio.fr */
+
+	.align 4			/* TBD should be automated */
+
+end
+
+\			I/O interface
+
+code fkey	( fileid  -- c )
+	call	CLAB(fkey)		/* use custom key routine */
+	mov	tos,%o0			/* fileid */
+	next1
+	next2
+	next3
+	mov	%o0,tos			/* return character */
+end
+
+code bin	( -- )
+	next1
+	next2
+	next3
+	nop				/* nop on Unix */
+end
+
+code close-file	( fp -- ior )
+	sethi	%hi(CLAB(errno)),tmp
+	st	%g0,[tmp+%lo(CLAB(errno))] /* reset error number */
+	call	CLAB(fclose)		/* use fclose(3S) */
+	mov	tos,%o0			/* file id */
+	next1
+	next2
+	next3
+	ld	[tmp+%lo(CLAB(errno))],tos /* return errno */
+end
+
+code create-file ( c-addr u w1 -- w2 ior )
+	sethi	%hi(CLAB(errno)),tmp
+	st	%g0,[tmp+%lo(CLAB(errno))] /* reset error number */
+	mov	tos,%o2			/* file mode */
+	ld	[psp+4],%o1		/* length of string */
+	ld	[psp+8],%o0		/* start of string */
+	call	CLAB(create_file)	/* use wraper for fopen(3S) */
+	add	psp,4,psp
+	st	%o0,[psp+4]		/* return fileid */
+	next1
+	next2
+	next3
+	ld	[tmp+%lo(CLAB(errno))],tos /*  and errno */
+end
+
+code delete-file ( c-addr u -- ior )
+	sethi	%hi(CLAB(errno)),tmp
+	st	%g0,[tmp+%lo(CLAB(errno))] /* reset error number */
+	mov	tos,%o1			/* length of string */
+	ld	[psp+4],%o0		/* start of string */
+	call	CLAB(delete_file)	/* use wraper for unlink(2) */
+	add	psp,4,psp
+	next1
+	next2
+	next3
+	ld	[tmp+%lo(CLAB(errno))],tos /* return errno */
+end
+
+code file-position ( fileid -- ud ior )
+	sethi	%hi(CLAB(errno)),tmp
+	st	%g0,[tmp+%lo(CLAB(errno))] /* reset error number */
+	mov	tos,%o0			/* fileid */
+	call	CLAB(ftell)		/* use ftell(3S) */
+	sub	psp,8,psp
+	st	%o0,[psp+8]		/* return current position */
+	st	%g0,[psp+4]		/*  as a double unsigned number */
+	next1
+	next2
+	next3
+	ld	[tmp+%lo(CLAB(errno))],tos /*  and errno */
+end
+
+code file-size	( fileid -- ud ior )
+	sethi	%hi(CLAB(errno)),tmp
+	st	%g0,[tmp+%lo(CLAB(errno))] /* reset error number */
+	mov	tos,%o0			/* fileid */
+	call	CLAB(file_size)		/* use wrapper for fstat(2) */
+	sub	psp,8,psp
+	st	%o0,[psp+8]		/* return current size */
+	st	%g0,[psp+4]		/*  as a double unsigned number */
+	next1
+	next2
+	next3
+	ld	[tmp+%lo(CLAB(errno))],tos /*  and errno */
+end
+
+code file-status ( c-addr u -- w ior )
+	sethi	%hi(CLAB(errno)),tmp
+	st	%g0,[tmp+%lo(CLAB(errno))] /* reset error number */
+	mov	tos,%o1			/* length of string */
+	ld	[psp+4],%o0		/* start of string */
+	call	CLAB(file_status)	/* use wrapper for stat(2) */
+	st	%o0,[psp+4]		/* return stat buf */
+	next1
+	next2
+	next3
+	ld	[tmp+%lo(CLAB(errno))],tos/*  and errno */
+end
+
+code open-file	( c-addr u w1 -- w2 ior )
+	sethi	%hi(CLAB(errno)),tmp
+	st	%g0,[tmp+%lo(CLAB(errno))] /* reset error number */
+	mov	tos,%o2			/* file mode */
+	ld	[psp+4],%o1		/* length of string */
+	ld	[psp+8],%o0		/* start of string */
+	call	CLAB(open_file)		/* use wrapper for fopen(3S) */
+	add	psp,4,psp
+	st	%o0,[psp+4]		/* return fileid */
+	next1
+	next2
+	next3
+	ld	[tmp+%lo(CLAB(errno))],tos /*  and errno */
+end
+
+code r/o	( -- w )
+	sub	psp,4,psp
+	st	tos,[psp+4]
+	sethi	%hi(ro),tos
+	next1
+	next2
+	next3
+	add	tos,%lo(ro),tos
+end
+
+code r/w	( -- w )
+	sub	psp,4,psp
+	st	tos,[psp+4]
+	sethi	%hi(rw),tos
+	next1
+	next2
+	next3
+	add	tos,%lo(rw),tos
+end
+
+code read-file	( c-addr u1 fileid -- u2 ior )
+	sethi	%hi(CLAB(errno)),tmp
+	st	%g0,[tmp+%lo(CLAB(errno))] /* reset error number */
+	mov	tos,%o3			/* fileid */
+	ld	[psp+4],%o2		/* number of bytes */
+	add	%g0,1,%o1		/* size of a byte */
+	ld	[psp+8],%o0		/* buffer */
+	call	CLAB(fread)		/* use fread(3S) */
+	add	psp,4,psp
+	st	%o0,[psp+4]		/* return actual number */
+	next1
+	next2
+	next3
+	ld	[tmp+%lo(CLAB(errno))],tos /*  and error number */
+end
+
+code read-line	( c-addr u1 fileid -- u2 flag ior )
+	sethi	%hi(CLAB(errno)),tmp
+	st	%g0,[tmp+%lo(CLAB(errno))]/* reset error number */
+	mov	tos,%o2			/* fileid */
+	ld	[psp+4],%o1		/* number of characters */
+	call	CLAB(read_line)		/* use custom line routine */
+	ld	[psp+8],%o0		/* buffer */
+	addcc	%g0,%o0,%g0		/* zero indicates end of file */
+	sub	%o0,1,%o0		/* don't count end of line char */
+	st	%o0,[psp+8]		/* return actual number */
+	mov	%g0,t0
+	bne,a	0f			/* EOF=false, !EOF=true */
+	add	%g0,-1,t0
+0:	st	t0,[psp+4]		/* return eof flag */
+	next1
+	next2
+	next3
+	ld	[tmp+%lo(CLAB(errno))],tos /*  and error number */
+end
+
+code reposition-file ( ud fileid -- ior )
+	sethi	%hi(CLAB(errno)),tmp
+	st	%g0,[tmp+%lo(CLAB(errno))] /* reset error number */
+	mov	%g0,%o2			/* flag: seek from beginning of file */
+	ld	[psp+8],%o1		/* offset (ls part) */
+	mov	tos,%o0			/* fileid */
+	call	CLAB(fseek)		/* use fseek(3S) */
+	add	psp,8,psp
+	next1
+	next2
+	next3
+	ld	[tmp+%lo(CLAB(errno))],tos /* return error number */
+end
+
+code resize-file ( ud fileid -- ior )
+	sethi	%hi(CLAB(errno)),tmp
+	st	%g0,[tmp+%lo(CLAB(errno))] /* reset error number */
+	mov	tos,%o1			/* fileid */
+	ld	[psp+8],%o0		/* offset */
+	call	CLAB(resize_file)	/* use wrapper for ftruncate(2) */
+	add	psp,8,psp
+	next1
+	next2
+	next3
+	ld	[tmp+%lo(CLAB(errno))],tos /* return error number */
+end
+
+code w/o	( -- w )
+	sub	psp,4,psp
+	st	tos,[psp+4]
+	sethi	%hi(wo),tos
+	next1
+	next2
+	next3
+	add	tos,%lo(wo),tos
+end
+
+code write-file	( c-addr u fileid -- ior )
+	sethi	%hi(CLAB(errno)),tmp
+	st	%g0,[tmp+%lo(CLAB(errno))] /* reset error number */
+	mov	tos,%o3			/* fileid */
+	ld	[psp+4],%o2		/* number of bytes */
+	add	%g0,1,%o1		/* size of a byte */
+	ld	[psp+8],%o0		/* buffer */
+	call	CLAB(fwrite)		/* use fwrite(3S) */
+	add	psp,8,psp
+	next1
+	next2
+	next3
+	ld	[tmp+%lo(CLAB(errno))],tos /* return error number */
+end
+
+code write-line	( c-addr u fileid -- ior )
+	sethi	%hi(CLAB(errno)),tmp
+	st	%g0,[tmp+%lo(CLAB(errno))] /* reset error number */
+	mov	tos,%o2			/* fileid */
+	ld	[psp+4],%o1		/* number of bytes */
+	ld	[psp+8],%o0		/* buffer */
+	call	CLAB(write_line)	/* use custom line routinen */
+	add	psp,8,psp
+	next1
+	next2
+	next3
+	ld	[tmp+%lo(CLAB(errno))],tos /* return error number */
+end
+
+\ -----------------------------------------------------------------------
+
+code perror	( -- ) 
+	sethi	%hi(forthmsg),%o0	/* error message */
+	call	CLAB(perror)		/* use perror(3S) */
+	or	%o0,%lo(forthmsg),%o0
+	next1
+	next2
+	next3
+	nop
+end
+
+code stdin	( -- &iob[0] )
+	sub	psp,4,psp
+	st	tos,[psp+4]
+	sethi	%hi(__iob),tos		/* return address of stdin */
+	next1
+	next2
+	next3
+	or	tos,%lo(__iob),tos
+end
+
+code stdout	( -- &iob[1] )
+	sub	psp,4,psp
+	st	tos,[psp+4]
+	sethi	%hi(__iob+IOBUFSIZE),tos /* return address of stdout */
+	next1
+	next2
+	next3
+	or	tos,%lo(__iob+IOBUFSIZE),tos
+end
+
+code stderr	( -- &iob[2] )
+	sub	psp,4,psp
+	st	tos,[psp+4]
+	sethi	%hi(__iob+IOBUFSIZE+IOBUFSIZE),tos
+					/* return address of stderr */
+	next1
+	next2
+	next3
+	or	tos,%lo(__iob+IOBUFSIZE+IOBUFSIZE),tos
+end
+
+code terminate	( status -- )
+	mov	tos,%o0			/* return status */
+	add	psp,4,psp
+	call	CLAB(exit)
+	ld	[psp],tos
+/* not reached */
+end
+
+code chdir	( addr u -- )
+	mov	tos,%o1			/* directory name length */
+	ld	[psp+4],%o0		/* directory name */
+	call	CLAB(change_dir)	/* wrapper for chdir(2) */
+	add	psp,8,psp
+	next1
+	next2
+	next3
+	ld	[psp],tos
+end
+
+code get-env	( c-addr1 u1 -- c-addr2 u2 )
+	mov	tos,%o1			/* string length */
+	call	CLAB(get_env)		/* use wrapper for getenv(3) */
+	ld	[psp+4],%o0		/* string adddress */
+	st	%o0,[psp+4]		/* return new string address */
+	sethi	%hi(CLAB(result2)),tmp
+	next1
+	next2
+	next3
+	ld	[tmp+%lo(CLAB(result2))],tos /*  and length */
+end

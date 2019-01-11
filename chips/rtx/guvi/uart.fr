@@ -1,0 +1,130 @@
+\ (c) 1998 Johns Hopkins University / Applied Physics Laboratory
+\ Serial device driver interface for intttyws.fr
+\ Runs with GUVI DPU's bit-banging "UART".
+hex
+
+noheads
+
+\ ------------------------------------------------------------------------
+\ Timers and interrupts
+
+5 constant start-bit-int#		\ data also on EI3, start bit will int.
+start-bit-int# get-mask constant start-bit-mask#
+
+be94 ucode in-timer!	\ ( x -- )	\ input bit timer (timer 1)
+7 constant in-timer-int#
+in-timer-int# get-mask constant in-timer-mask#
+
+be95 ucode out-timer!	\ ( x -- )	\ output bit timer (timer 2)
+6 constant out-timer-int#
+out-timer-int# get-mask constant out-timer-mask#
+
+\ ------------------------------------------------------------------------
+\ Device configuration
+
+d# 625 constant #baud-clock		\ number of clocks per bit at 9600
+					\ baud on a 6 MHz processor
+
+ttystruct makestruct tty
+
+\ ------------------------------------------------------------------------
+\ Low-level UART output routines
+
+variable out-byte			\ byte being transmitted
+variable out-state			\ state: 0: start, 1-80: bits, 100=stop
+
+: uart!		\ ( c -- ) Write a character to UART.
+   out-byte !  0 out-state ! ;		\ remember byte, reset state
+
+: uart-first!	\ ( c -- ) Write first character to UART.
+   #baud-clock out-timer!		\ start bit timer
+   out-timer-mask# unmask-int		\ unmask interrupt
+   uart! ;
+
+: stop-transints \ ( -- ) Disable further transmit interrupts.
+   out-timer-mask# mask-int ;		\ mask off timer interrupt
+
+heads
+variable test-req			\ record of test-req! G-bus port
+noheads
+: tx1		\ ( -- ) Send a 1 out the serial port.
+		\ Precondition: interrupts disabled.
+		\ Note: output is active low.
+   test-req @ f7ff and dup test-req! test-req ! ;
+
+: tx0		\ ( -- ) Send a 0 out the serial port.
+		\ Precondition: interrupts disabled.
+		\ Note: output is active low.
+   test-req @ 0800 or dup test-req! test-req ! ;
+
+out-timer-int# int: \ ( cr -- cr' ) Output bit timer interrupt.  Send next bit.
+   out-state @ sel
+      << 0 ==>				\ start bit
+	 tx0  1 out-state ! >>
+      << 1 100 within =>		\ data bits
+	 out-byte @ out-state @ and if tx1 else tx0 then
+	 out-state @ 2* out-state ! >>
+      << 100 ==>			\ stop bit
+	 tx1  tty tty-transint >>
+   endsel ;int
+
+\ ------------------------------------------------------------------------
+\ Low-level UART input routines
+
+variable in-byte			\ input byte being assembled
+variable in-state			\ state: -1: start, 0: bogus,
+					\       1-80: bits, 100=stop
+
+: uart@		\ ( -- c ) Read a character from UART.
+   in-byte @ ;
+
+start-bit-int# int: \ ( -- ) Start bit interrupt.  Starts up input bit timer
+		\ interrupt.
+   start-bit-mask# mask-int		\ mask off start bit int for now
+   0 in-byte !  -1 in-state !		\ empty accumulator, reset state mach.
+   #baud-clock 2/ in-timer!		\ wait for center of start bit
+   in-timer-mask# unmask-int ;int	\ unmask bit timer interrupt
+
+: rx-set?	\ ( -- t/f ) Return true if serial port input is set.
+		\ Note: input is active low; this routine inverts it.
+   status@ 0400 and 0= ;
+
+in-timer-int# int: \ ( -- ) Input bit timer interrupt.  Accumulate byte.
+   in-state @ sel
+      << -1 ==>				\ start bit - spurious interrupt
+	 0 in-state ! >>
+      << 0 ==>				\ start bit - centered
+	 #baud-clock in-timer!		\ time to center of subsequent bits
+	 1 in-state ! >>
+      << 1 100 within =>		\ data bits
+	 rx-set? if in-state @ in-byte +! then
+	 in-state @ 2* in-state ! >>
+      << 100 ==>			\ stop bit
+	 in-timer-mask# mask-int	\ ignore further timer interrupts
+	 1 in-timer!			\ hack so spurious int. always occurs
+	 start-bit-mask# unmask-int	\ start looking for start bit
+	 tty tty-rcvint >>
+   endsel ;int
+
+\ ------------------------------------------------------------------------
+\ Initialization
+
+every-boot:	\ ( -- )
+   ['] uart!  ['] uart-first!  ['] uart@  ['] stop-transints
+      tty tty-init
+   start-bit-mask# unmask-int		\ start looking for start bit
+;boot
+
+\ ------------------------------------------------------------------------
+\ High level driver interface routines
+
+heads
+
+: emit		\ ( byte -- ) Send byte.
+   tty tty-putc ;
+
+: key		\ ( -- byte ) Return byte.
+   tty tty-getc ;
+
+: key?		\ ( -- t/f )
+   tty tty-incount 0= not ;

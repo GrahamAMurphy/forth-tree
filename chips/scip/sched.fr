@@ -1,0 +1,152 @@
+\ (c) 2004 Johns Hopkins University / Applied Physics Laboratory
+\ Real-Time Multitasking Primitives
+hex
+
+noheads
+
+variable head				\ head of process list
+variable cproc				\ pointer to current process
+
+\ Note: this must be the first data defined for the user area.  Also,
+\ code below and elsewhere assumes that this part of the structure is
+\ less than 32 bytes to allow offset addressing mode in fetch instruction.
+structure pd-run			\ process descriptor - run-time
+   cell: .next				\ next descriptor in process list
+   cell: .pstate			\ process state: 0=run, other=wait
+   cell: .psp				\ top of parameter stack
+   cell: .rsp				\ top of return stack
+   cell: .psp-bot			\ bottom of parameter stack (i.e. empty)
+   cell: .udr				\ loop index
+t-dbits d# 16 = [if]			\ 16-bit system only:
+   cell: .dpr				\ DPR
+[then]
+endstructure
+
+\ allocate enough user space to hold pd-run.  pd-run must be at
+\ beginning of user space!
+pd-run allocate-user-space
+
+heads
+
+: @head		\ ( -- addr[pd-run] ) Return pd of highest priority process.
+   head @ ;
+: !head		\ ( addr[pd-run] -- ) Make given pd highest priority process.
+   head ! ;
+: @run		\ ( -- addr[pd-run] ) Return pd of currently running process.
+   cproc @ ;
+: !run		\ ( addr[pd-run] -- ) Make given pd currently running process.
+   cproc ! ;
+
+\		Scheduler
+code resched	\ ( -- ) Reexamine process list to see if there is a higher
+		\ priority runnable process.  May switch to self!
+	#pcr-ie invert *literal*	\ disable interrupts
+	<reg@	pcr nopb pushp >.	\ start atomic operation
+	<reg!	banda pcr swapp >.	\ end atomic operation
+]  drop head [				\ s: oldpcr proc
+]  @run md! [				\ cache current process
+0 l:		\ ( oldpcr proc -- ) (r: retaddr -- ) (md: cproc ) Search for
+		\ a runnable process after the given process.
+	<@	memcell >.		\ get next process
+	<@	0 .pstate +# memcell pushp >. \ check process state
+	<testx	nopa Z popp >.		\ if state is zero, processor
+	<?br	>. 0 back		\   is runnable; otherwise, try again
+1 l:		\ ( oldpcr nextproc -- ) (r: retaddr -- ) (md: croc ) Switch to
+		\ given process.
+	<reg!	nopa pushr pushp >.	\ push data and return stacks 16 times
+	<reg!	nopa pushr pushp >.
+	<reg!	nopa pushr pushp >.
+	<reg!	nopa pushr pushp >.
+	<reg!	nopa pushr pushp >.
+	<reg!	nopa pushr pushp >.
+	<reg!	nopa pushr pushp >.
+	<reg!	nopa pushr pushp >.
+	<reg!	nopa pushr pushp >.
+	<reg!	nopa pushr pushp >.
+	<reg!	nopa pushr pushp >.
+	<reg!	nopa pushr pushp >.
+	<reg!	nopa pushr pushp >.
+	<reg!	nopa pushr pushp >.
+	<reg!	nopa pushr pushp >.
+	<reg!	nopa pushr pushp >.
+	<reg@	psp nopb popp >.	\ save PSP in context
+	<reg@	md nopb pushp >.
+	<!	0 .psp +# memcell popp >.
+	<reg@	rsp nopb >.		\ save RSP in context
+	<reg@	md nopb pushp >.
+	<!	0 .rsp +# memcell popp >.
+	<reg@	udr nopb >.		\ save UDR in context
+	<reg@	md nopb pushp >.
+	<!	0 .udr +# memcell popp >.
+t-dbits d# 16 = [if]			\ 16-bit system only:
+	<reg@	dpr nopb >.		\ save DPR in context
+	<reg@	md nopb pushp >.
+	<!	0 .dpr +# memcell popp >.
+[then]
+] drop cproc [				\ load new process
+	<!	memcell popp >.		\ save pointer to new current process
+	<@	0 .udr +# memcell pushp >. \ restore UDR
+	<reg!	nopa udr popp >.
+	<@	0 .rsp +# memcell pushp >. \ restore RSP
+	<reg!	nopa rsp popp >.
+	<@	0 .psp +# memcell pushp >. \ restore PSP
+	<reg!	nopa psp popp >.
+t-dbits d# 16 = [if]			\ 16-bit system only:
+	<@	0 .dpr +# memcell pushp >. \ restore DPR
+	<reg!	nopa dpr popp >.
+[then]
+	<lil	nopb >.		fdfd >.	\ init stacks; undo pushes
+	<reg!	nopa scr >.
+	<reg@	popr nopa popp >.
+	<reg@	popr nopa popp >.
+	<reg@	popr nopa popp >.
+	<alu	nopb popp >.
+	<reg!	nopa pcr popp return >.
+
+code wait	\ ( semaddr -- )
+	#pcr-ie invert *literal*	\ disable interrupts
+ 	<reg@	pcr nopb pushp >.	\ start atomic operation
+	<reg!	banda pcr swapp >.	\ end atomic operation
+	<alu	nopb popp >.		\ save original insterrupt state
+	<alu	nopb swapp >.		\ s: oldpcr semaddr
+]
+   dup @ 1- dup >r over !		\ decrement semaphore
+   r> 0< if				\ if new value <0
+      @run dup md!			\ cache current process
+	 .pstate !			\ mark process as waiting for signal
+      md@				\ start after current process
+[	<br	>. 0 back ]		\   search for runnable process
+   then drop
+[	<reg!	nopa pcr popp return >.	\ restore int state
+
+code signal	\ ( addr[sem] -- )
+	#pcr-ie invert *literal*	\ disable interrupts
+ 	<reg@	pcr nopb pushp >.	\ start atomic operation
+	<reg!	banda pcr swapp >.	\ end atomic operation
+	<alu	nopb popp >.		\ save original insterrupt state
+	<alu	nopb swapp >.		\ s: oldpcr semaddr
+]
+   dup @ dup >r 1+ over !		\ increment semaphore
+   r> 0< if				\ if old value <0, someone is waiting
+      @head				\ start searching
+      @run md!				\ cache cproc
+      begin				\ s: addr[sem] pd
+         dup md@ <> while		\ while higher priority than signaller
+	 over over .pstate @ <> while	\ while signalled process not found
+	 @				\ examine next pd
+      repeat
+         nip 0 over .pstate !		\ mark signalled process runnable
+[	<br	>. 1 back ]		\ switch to new process
+      else				\ signaller has higher priority
+         begin				\ continue searching; s: addr[sem] pd
+	    dup while			\ while not at end of list
+	    over over .pstate @ <> while \ while signalled process not found
+	    @				\ examine next pd
+	 repeat
+	    0 swap .pstate ! drop	\ make signalled process runnable
+	 else drop drop			\ signalled process not found; dead
+	 then
+      then
+   else drop				\ no one waiting; continue
+   then
+[	<reg!	nopa pcr popp return >.	\ restore int state

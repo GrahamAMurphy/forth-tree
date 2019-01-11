@@ -1,0 +1,16 @@
+\ Johns Hopkins University / Applied Physics Laboratory
+\ Local variable pretty syntax:
+\   : foo ( x y z -- )	{ z y x }	\ declares three local variables
+\ Note that locals are declared top first/bottom last, opposite to
+\ order in which Forth stack diagrams are traditionally written.
+\ This is the user-level local variable syntax offered in the ANS
+\ Forth Locals Extensions word set.
+hex
+
+: {
+   begin
+      bl word count
+      over c@ [char] } <> while
+      (local)
+   repeat
+   drop 0 (local) ; immediate

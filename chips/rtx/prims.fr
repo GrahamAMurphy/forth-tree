@@ -1,0 +1,199 @@
+\ (c) 1993 Johns Hopkins University / Applied Physics Laboratory
+hex
+
+[ifdef] interactive
+\ create hash table
+100 define HASHTABLESIZE
+label HASHTABLE				\ have metacompiler allot
+   HASHTABLE HASHTABLESIZE createhashtable \  and fill hash table
+default=heads				\ cross compiler makes heads
+[else]
+default=noheads				\ cross compiler makes no heads
+[then]
+
+	0000 code reboot			\ backpatched
+
+nohead	a020 code return		<exit>	inline-keepbody
+	be87 code execute		<exit>	inline
+
+nohead	<does-default> code does-default		<exit>
+[ifdef] ramobject  inline-keepbody  [else]  inline  [then]
+nohead	<remote-does-default> code remote-does-default	<exit>
+[ifdef] ramobject  inline  [else]  inline-keepbody  [then]
+
+nohead	9000 code branch		<exit>	inline-keepbody
+nohead	8800 code ?branch		<exit>	inline-keepbody
+nohead	9800 code (next)		<exit>	inline-keepbody
+
+	<small-lit>	define <small-lit>
+	<small+lit>	define <small+lit>
+	<biglit>	define <biglit>
+	<small-offset>	define <small-offset>
+	<small+offset>	define <small+offset>
+	<bigoffset>	define <bigoffset>
+
+	ee80 code !			<exit> inline
+	a840 code +			<exit> inline
+	ac40 code -			<exit> inline
+	a001 code 0<			<exit> inline
+	b8c1 code 1+			<exit> inline
+	b4c1 code 1-			<exit> inline
+\	b8c2 code 2+			<exit> inline
+\	b4c2 code 2-			<exit> inline
+	a002 code 2*			<exit> inline
+	a007 code 2/			<exit> inline
+\	b8c4 code 4+			<exit> inline
+\	b4c4 code 4-			<exit> inline
+	be81 code >r			<exit> inline
+	ee00 code @			<exit> inline
+	a240 code and			<exit> inline
+	b8c1 code char+			<exit> inline
+	ae40 code drop			<exit> inline
+	a0c0 code dup			<exit> inline
+	a100 code invert		<exit> inline
+	bcc0 code negate		<exit> inline
+	a040 code nip			<exit> inline
+	a000 code nop			<exit> inline
+	a100 code not			<exit> inline
+	a640 code or			<exit> inline
+	aec0 code over			<exit> inline
+	be01 code r>			<exit> inline
+	be00 code r@			<exit> inline
+	b001 code rdrop			<exit> inline
+	ae80 code swap			<exit> inline
+	aa40 code xor			<exit> inline
+	be42 code cell			<exit> inline
+	b8c2 code cell+			<exit> inline
+	b4c2 code cell-			<exit> inline
+	a002 code cells			<exit> inline
+	a007 code cell/			<exit> inline
+
+\ Useful
+nohead	a00f code d2/			<exit> inline
+nohead	a00a code d2*			<exit> inline
+
+\ RTXisms
+\ These RTX instructions are used to build other "primitives".
+\ They are headless and bodiless.
+\ Some of the words are potentially useful and could be given heads.
+nohead	a441 code h>			<exit> inline
+nohead	be82 code times||		<exit> inline
+nohead	a002 code 2*c			<exit> inline
+nohead	a004 code cu2/			<exit> inline
+nohead	a006 code u2/			<exit> inline
+nohead	e942 code @+			<exit> inline
+nohead	e542 code @-			<exit> inline
+nohead	e9c2 code !+			<exit> inline
+nohead	e5c2 code !-			<exit> inline
+nohead	be83 code cr!			<exit> inline
+nohead	be03 code cr@			<exit> inline
+nohead	be84 code md!			<exit> inline
+nohead	be04 code md@			<exit> inline
+nohead	be02 code r@2*			<exit> inline
+nohead	be85 code sq!			<exit> inline
+nohead	be86 code sr!			<exit> inline
+nohead	be06 code sr@			<exit> inline
+nohead	be88 code imr!			<exit> inline
+nohead	be08 code imr@			<exit> inline
+nohead	be89 code sp!			<exit> inline
+nohead	be09 code sp@			<exit> inline
+nohead	b889 code sp@+			<exit> inline
+nohead	be8a code sur!			<exit> inline
+nohead	be0a code sur@			<exit> inline
+nohead	be8c code ipr!			<exit> inline
+nohead	be0c code ipr@			<exit> inline
+nohead	be8d code dpr!			<exit> inline
+nohead	be0d code dpr@			<exit> inline
+nohead	be8d code set-page		<exit> inline	\ alias for dpr!
+nohead	be0d code get-page		<exit> inline	\ alias for dpr@
+	b08d code far			<exit> inline
+	b00d code near			<exit> inline
+nohead	be8e code upr!			<exit> inline
+nohead	be0e code upr@			<exit> inline
+nohead	be8f code cpr!			<exit> inline
+nohead	be0f code cpr@			<exit> inline
+nohead	be90 code ibc!			<exit> inline
+nohead	be10 code ibc@			<exit> inline
+\ TBD: where should lsp go?
+\ TBD: inline-keepbody is a kludge
+nohead	be91 code lsp!			<exit> inline-keepbody \ local sp in UBR
+nohead	be11 code lsp@			<exit> inline-keepbody
+nohead	be16 code mlr@			<exit> inline
+nohead	be17 code mhr@			<exit> inline
+nohead	a940 code +cry			<exit> inline
+nohead	ad40 code -cry			<exit> inline
+nohead	b9c0 code 0+c			<exit> inline
+nohead	b096 code mulu			<exit> inline
+nohead	b097 code muls			<exit> inline
+
+\ RTX divide step
+nohead	a41a code /1			<exit> inline
+nohead	a45a code /2			<exit> inline
+nohead	a458 code /3			<exit> inline
+
+\ (localloc) hand compiled; must be defined for meta2.fr.
+nohead	be81 code (localloc)	rom	\ >r	allocate space
+	be11 ,				\ lsp@
+	b402 ,				\ dup r@2* -
+	be91 ,				\ lsp!
+	b4c2 ,				\ cell-
+	be01 ,				\ r>	initialize
+	b4c1 ,				\ 1-
+	be82 , e5c2 ,			\ times|| !- ||
+	ae60 ,			ram	\ drop return
+
+\ = hand compiled; must be defined for meta2.fr (kludge).
+[ifdef] rtx2010
+	ac40 code =		rom	\ -
+	b008 ,			ram	\ 0=
+	<exit> inline
+[else]
+	ac40 code =		rom	\ -
+here	8800 ,				\ if
+	be60 ,				\ 0 exit
+	here *branch-dest*
+	bf60 ,			ram	\ then -1 ;
+[then]
+
+\ do - loop support, hand compiled; must be defined for meta2.fr.
+nohead	ae80 code (do)		rom	\ swap
+	de00 , 8000 ,			\ 8000
+	a840 ,				\ +
+	be01 ,				\ r>
+	be06 ,				\ sr@
+	be81 ,				\ >r
+	aec0 ,				\ over
+	be81 ,				\ >r
+	be81 ,				\ >r
+	ac40 ,				\ -
+	bea6 ,			ram	\ sr! ;
+
+	be01 code unloop	rom	\ r>
+	b001 ,				\ rdrop
+	be01 ,				\ r>
+	be86 ,				\ sr!
+	bea7 ,			ram	\ >r ;
+
+nohead	be06 code ((loop))	rom	\ sr@
+	b841 ,				\ dup 1+
+	b186 ,				\ dup sr! invert
+	a361 ,			ram	\ nor 0< ;
+
+nohead	' ((loop)) 1 rshift code (loop)		\ kludge
+				rom	\ ((loop))
+	8800 ,			ram	\ ?branch
+	<exit> inline-keepbody
+
+nohead	be06 code ((+loop))	rom	\ sr@
+	a8c0 ,				\ over over +
+	be86 ,				\ sr!
+	b081 ,				\ dup >r
+	ab40 ,				\ xor invert
+	be01 ,				\ r>
+	ba86 ,				\ sr@ xor
+	a261 ,			ram	\ and 0< ;
+
+nohead	' ((+loop)) 1 rshift code (+loop)	\ kludge
+				rom	\ ((+loop))
+	8800 ,			ram	\ ?branch
+	<exit> inline-keepbody

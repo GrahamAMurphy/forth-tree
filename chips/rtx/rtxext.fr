@@ -1,0 +1,12 @@
+\ (c) 1993 Johns Hopkins University / Applied Physics Laboratory
+\ Support for special RTX features
+hex
+
+: for		\ ( u -- ) (C: -- orig dest ) Loop u times; the loop count,
+		\ available via r@, counts from u-1 through 0.
+   postpone >r postpone branch >mark <mark ; immediate
+: next		\ ( -- ) (C: orig dest -- )
+   swap >resolve postpone (next) <resolve ; immediate
+
+: ucode		\ ( x -- ) Name the given RTX instruction.
+   header , postpone return inline ;

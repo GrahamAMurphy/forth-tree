@@ -1,0 +1,198 @@
+\ (c) 1992 Johns Hopkins University / Applied Physics Laboratory
+\ Implements most of the ANS Forth File word set.
+
+verbatim-prolog
+
+#include <stdio.h>
+#include <sys/types.h>
+#include <errno.h>
+#include "filewrap.h"
+
+end
+
+verbatim-data
+
+extern FILE *OUTPUTFP;
+
+/* message for perror */
+#define forthmsg "forth"
+
+char *romode  = "r";
+char *rwmode  = "r+";
+char *womode  = "w";
+
+char *robmode = "rb";
+char *rwbmode = "rb+";
+char *wobmode = "wb";
+
+end
+
+\			I/O interface
+
+code fkey	( fileid  -- c )
+	*psp = fkey((FILE *)(*psp)); next;
+end
+
+code bin	( mode -- mode' )
+	char *mode = (char *)(*psp);
+	if(mode == romode)	*psp = (cell)robmode;
+	else if(mode == rwmode)	*psp = (cell)rwbmode;
+	else if(mode == womode)	*psp = (cell)wobmode;
+	next;
+end
+
+code close-file	( fp -- ior )
+	errno = 0;
+	(void)fclose((FILE *)(*psp));
+	*psp = errno; next;
+end
+
+code create-file ( c-addr u w1 -- w2 ior )
+	cell w1 = *psp++;
+	errno = 0;
+	/* wrapper for creat(2) and fopen(3S) */
+	*(psp+1) = (cell)create_file((char *)(*(psp+1)),
+					(int)(*psp), (char *)w1);
+	*psp = errno; next;
+end
+
+code delete-file ( c-addr u -- ior )
+	cell u = *psp++;
+	errno = 0;
+	delete_file((char *)(*psp), (int)u); /* wrapper for unlink(2) */
+	*psp = errno ; next;
+end
+
+code file-position ( fileid -- ud ior )
+	errno = 0;
+	*psp = (cell)ftell((FILE *)(*psp)); /* use ftell(3S) */
+	*--psp = 0;			/* extend to double unsigned number */
+	*--psp = errno; next;
+end
+
+code file-size	( fileid -- ud ior )
+	errno = 0;
+	*psp = (unsigned int)file_size((FILE *)(*psp));
+					/* use wrapper for fstat(2) */
+	*--psp = 0;			/* extend to double unsigned number */
+	*--psp = errno; next;
+end
+
+code file-status ( c-addr u -- w ior )
+	errno = 0;
+	*(psp+1) = (cell)file_status((char *)(*(psp+1)), (int)(*psp));
+					/* use wrapper for stat(2) */
+	*psp = errno; next;
+end
+
+code open-file	( c-addr u w1 -- w2 ior )
+	cell w1 = *psp++;
+	errno = 0;
+	*(psp+1) = (cell)open_file((char *)(*(psp+1)), (int)(*psp), (char *)w1);
+					/* use wrapper for fopen(3S) */
+	*psp = errno; next;
+end
+
+code r/o	( -- w )
+	*--psp = (cell)romode; next;
+end
+
+code r/w	( -- w )
+	*--psp = (cell)rwmode; next;
+end
+
+code read-file	( c-addr u1 fileid -- u2 ior )
+	cell fileid = *psp++;
+	errno = 0;
+	*(psp+1) = fread((char *)(*(psp+1)), (int)1,
+			 (int)(*psp), (FILE *)fileid);
+	*psp = errno; next;
+end
+
+code read-line	( c-addr u1 fileid -- u2 flag ior )
+	cell t;
+	errno = 0;
+	t = read_line((char *)(*(psp+2)), (int)(*(psp+1)), (FILE *)(*psp));
+					/* use custom line routine */
+					/* zero indicates end of file */
+	*(psp+1) = t==0 ? 0 : (cell)-1;
+	*(psp+2) = t-1;			/* return length less EOL char */
+	*psp = errno; next;
+end
+
+code reposition-file ( ud fileid -- ior )
+	cell fileid = *psp++;
+	errno = 0;
+	psp++;				/* discard ms part of offset */
+	fseek((FILE *)fileid, (long)(*psp), (int)0);
+					/* use fseek(3S) (from start of file */
+	*psp = errno; next;
+end
+
+code resize-file ( ud fileid -- ior )
+	cell fileid = *psp++;
+	errno = 0;
+	psp++;				/* discard ms part of offset */
+	resize_file((off_t)(*psp), (FILE *)fileid);
+					/* use wrapper for ftruncate(2) */
+	*psp = errno; next;
+end
+
+code w/o	( -- w )
+	*--psp = (cell)womode; next;
+end
+
+code write-file	( c-addr u fileid -- ior )
+	cell fileid = *psp++;
+	cell u = *psp++;
+	errno = 0;
+	fwrite((char *)(*psp), (int)1, (int)u, (FILE *)fileid);
+					/* use fwrite(3S) */
+	*psp = errno; next;
+end
+
+code write-line	( c-addr u fileid -- ior )
+	cell fileid = *psp++;
+	cell u = *psp++;
+	errno = 0;
+	write_line((char *)(*psp), (int)u, (FILE *)fileid);
+					/* use custom line routine */
+	*psp = errno; next;
+end
+
+\ -----------------------------------------------------------------------
+
+code perror	( -- ) 
+	perror(forthmsg); next;
+end
+
+reserve code stdin ( -- &_iob[0] )
+	*--psp = (cell)stdin; next;
+end
+
+reserve code stdout ( -- &_iob[1] )
+	*--psp = (cell)stdout; next;
+end
+
+reserve code stderr ( -- &_iob[2] )
+	*--psp = (cell)stderr; next;
+end
+
+code terminate	( status -- )
+	exit((int)(*psp));
+/* not reached */
+end
+
+code chdir	( addr u -- )
+	cell u = *psp++, addr = *psp++;
+	change_dir((char *)addr, (int)u);
+					/* wrapper for chdir(2) */
+	next;
+end
+
+code get-env	( c-addr1 u1 -- c-addr2 u2 )
+	*(psp+1) = (cell)get_env((char *)(*(psp+1)), (int)(*psp));
+					/* use wrapper for getenv(3) */
+	*psp = result2;			/* return length */
+	next;
+end

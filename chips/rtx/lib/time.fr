@@ -1,0 +1,15 @@
+\ (c) 1993 Johns Hopkins University / Applied Physics Laboratory
+\ Time a word on the RTX.
+\ Uses on-chip timer 0.
+hex
+
+be13 ucode t0@
+be93 ucode t0!
+
+: time		\ ( "name" -- u ) Time the next word in the input stream.
+		\ Return the number of clocks needed to execute it;
+		\ must be <65536.
+   0 t0!				\ all counts covered
+   ' t0@ >r execute r> t0@ -		\ run word; measure time with t0
+   4 - ;				\ take out timer overhead
+

@@ -1,0 +1,115 @@
+\ (c) 1991 Johns Hopkins University / Applied Physics Laboratory
+
+" struct.fr" used
+
+hex
+
+structure process-descriptor
+   context-size struct: .context	\ link and machine state
+		  cell: .state		\ process state: 0=run other=waiting
+endstructure
+
+variable head				\ pointer to highest priority process
+
+\ ------------------------------------------------------------------------
+\ Syntax for defining processes.
+
+: process:	\ ( locsize pssize rssize -- ) Create a context and stacks
+		\ of the given size and start compiling code.
+   process-descriptor new-context dup constant
+   start: does-this ;
+
+: ;process	\ ( -- ) End process code
+   postpone [ ; immediate
+
+: null-loop	\ ( --- )
+   begin again ;			\ TBD
+
+: init-processes \ ( -- )
+   process-descriptor init-context dup >r head ! \ current process
+   0 r@ .state !			\ it is runnable
+   0 10 10 process-descriptor new-context \ null process
+   dup ['] null-loop does-this		\ does nothing
+   0 over !  0 over .state !		\ at end of list and always runnable
+   r> ! ;
+
+init-processes				\ initialize processes
+
+\ ------------------------------------------------------------------------
+\ Synchronization operations.
+
+: wait		\ ( addr[sem] -- ) Wait for given semaphore.
+   lock >r				\ operation must be atomic
+   dup @ 1- dup 2pick !			\ decrement count
+   0< if				\ if must wait
+      cproc @ .state !			\ mark current process as waiting
+      cproc @ @				\ starting with next lower priority
+      begin				\ search for a runnable process
+         dup .state @ while
+         @
+      repeat
+      switchto				\ run the found process
+   else drop
+   then r> unlock ;
+
+: signal	\ ( addr[sem] -- ) Signal the given semaphore.
+   lock >r				\ operation must be atomic
+   dup @ dup 1+ 2pick !			\ increment count
+   0< if				\ if there are waiters
+      >r true head @			\ starting with the higest priority
+      begin				\ search for highest priority waiter
+         dup while			\ while not at end of list
+         dup .state @ r@ <> while	\ while not waiting on sem
+         dup cproc @ = if >r not r> then \ is this the current process?
+         @
+      repeat
+         0 over .state !		\ make runnable
+         over if dup switchto then	\ if higher priority, run it
+      then 2drop r>
+   then r> unlock drop ;
+
+: resched	\ ( -- ) Reexamine process list for a higher priority
+		\ process to run.
+   lock >r				\ operation must be atomic
+   head @
+   begin				\ search process starting at beginning
+      dup .state @ while		\ while not runnable
+      @
+   repeat
+   switchto				\ switch to found process
+   r> unlock ;
+
+\ ------------------------------------------------------------------------
+\ Process list management.
+
+: nextprocess	\ ( addr[pd1] addr[pd2] --- )   insert process descriptor 1
+		\ in process list immediately following process descriptor 2.
+		\ if addr[pd2] is 0 process 1 is made the highest priority
+		\ process in the process list.
+   lock >r				\ operation must be atomic
+   0 2pick .state !			\ make runnable (usually correct)
+   ?dup if				\ if addr[pd2] <> 0
+      2dup @ swap ! !
+   else					\ otherwise:
+      head @ over ! head !		\ put at head of list
+   then r> unlock ;
+
+: run		\ ( addr[pd] --- )   insert process descriptor in process list
+		\ after currently running process.
+   cproc @ nextprocess ;
+
+: kill		\ ( addr[pd] --- )   remove process descriptor from list.
+   lock >r				\ operation must be atomic
+   dup head @ =
+   if @ head !				\ first process is special case
+   else >r head @			\ otherwise: search process list
+      begin				\ assume at least one process in list
+         dup @ dup r@ =
+         if drop r@ @ over ! 0 then	\ unlink process; pretend null pointer
+         nip dup 0=			\ search until end of list
+     until rdrop drop
+   then r> unlock ;
+
+: terminate	\ ( --- )   commit suicide.
+   cproc @ kill resched ;
+

@@ -1,0 +1,21 @@
+\ (c) 2004 Johns Hopkins University / Applied Physics Laboratory
+\ Cross-compile interrupt definitions
+decimal
+
+forth : int:	\ ( u -- ) Install code in interrupt vector table at given slot.
+   t-align t-here dup log-anon
+   over 2* [host] vector-table + t-w!	\ point to response code
+   [meta] || [host] ]			\ compile response code
+   s" int:" add-log-string		\ log interrupt in map file
+      add-log-number ;
+
+metaextend
+forth : ;int
+   [target] return [meta] [ [forth] ;
+hostinterp
+
+forth : get-mask \ ( u -- mask ) Given an interrupt number, return the
+		\ corresponding interrupt mask.  Note: a '1' in a mask
+		\ enables the corresponding interrupt.
+   [host] 1 swap lshift ;
+

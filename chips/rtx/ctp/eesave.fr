@@ -1,0 +1,26 @@
+\ (c) 1994 Johns Hopkins University / Applied Physics Laboratory
+\ EEPROM save program
+\ for Atmel 32k x 8 parts.
+decimal
+
+64 constant page-size
+
+: write-page	\ ( src dst -- src' dst' )
+   page-size 0 do			\ for each word in page
+      over @ over far ! near		\ copy a word at a time
+      swap cell+ swap cell+
+   loop ;
+
+: wait-for-eeprom \ ( -- ) Use toggle-bit polling method.
+   far begin 0 @ 0 @ = until ;
+
+: eesave	\ ( src len -- ) Save len bytes in EEPROM.  Src is address
+		\ in RAM; must be page aligned.
+   0 set-page				\ EEPROM is in page 0
+   1+ 1 rshift				\ computer number of 16-bit words
+   0 page-size um/mod swap if 1+ then	\ compute number of pages
+   0 swap				\ destination in EEPROM
+   0 do					\ for each page
+      disable write-page enable		\ write page; no context switches
+      wait-for-eeprom			\ wait until write completed
+   loop 2drop ;

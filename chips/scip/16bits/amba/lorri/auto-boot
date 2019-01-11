@@ -1,0 +1,38 @@
+\ Cross compile Forth for 16-bit SCIP with LORRI I/O
+" target.fr" used
+" scip/16bits/amba/lorri" is-target
+
+\ Configure crosscompiler
+hex
+0 set-ram				\ ram-based system
+\ 0 8000 set-rom/ram			\ rom-based system
+def interactive
+def multitasking			\ include multitasker
+" lorrbootfor.map" is-logfile
+
+\ Load the kernel.
+" kernel1.fr" ftload			\ primitives and extend crosscompiler
+
+\ Load board-specific code, e.g. tty code
+" brdparam.fr" ftload			\ useful addresses, etc.
+" intprims.fr" ftload			\ interrupt support
+" intuser.mfr" ftload			\    and cross-compiler
+\ " polltty.fr" ftload			\ polled tty driver
+" devices/intttyws.fr" ftload		\ interrupt-driven tty driver
+" uart.fr" ftload			\    and configration
+
+\ Load the interpreter
+" kernel2.fr" ftload			\ interpreter for Forth, processes, etc.
+
+\ Load initialization stuff
+" startup.fr" ftload			\ startup
+' doforth is-startup			\ run Forth interpreter
+
+\ Patch reset vector
+\ ' reboot *callop* w0 forth @ host t-w!
+" bootboot.fr" ftload
+
+report
+" lorrbootfor.mem" saveobj
+cr .( stack depth = ) depth . cr
+decimal >log rulestats !>log

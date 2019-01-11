@@ -1,0 +1,20 @@
+\ (c) 1992 Johns Hopkins University / Applied Physics Laboratory
+\ Words for handling null terminated strings (Obsolete)
+
+: string	\ ( addr[counted_string] --- addr[unix_string )
+   count dup >r pad swap cmove 0 pad r> + c! pad ; 
+
+: z"		\ ( --- addr[string] )
+   [char] " word string ;
+
+: ,cword	\ ( del --- ) add text delimited by del into dictionary and
+		\ terminate with a null.
+   word count swap over + 0 swap c!       \ add null to end
+   2+ aligned allot ;
+
+: (z"")	\ ( --- addr[string] )
+   r> count over + 1+ aligned >r ;
+
+: z""
+   compile (z"") [char] " ,cword ; immediate
+

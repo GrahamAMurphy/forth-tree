@@ -1,0 +1,17 @@
+\ (c) 1991 Johns Hopkins University / Applied Physics Laboratory
+\	Clock interrupt handler - only works with multitasking Forth
+
+" process.fr" used
+
+hex
+
+: seconds ; immediate			\ convert seconds into clock ticks
+
+variable hardwareclock
+: handler hardwareclock signal ;
+
+: init-clock	\ ( -- ) Initialize the clock.
+   0 hardwareclock !			\ init. semaphore
+   ['] handler 'alarmhandler !		\ signal on each interrupt
+   start-clock				\ start clock ticking
+;

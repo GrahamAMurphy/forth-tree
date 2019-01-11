@@ -1,0 +1,112 @@
+\ (c) 1994 Johns Hopkins University / Applied Physics Laboratory
+\ Serial device driver interface for intttyws.fr
+\ 8530 SCC Control; 8530 is on RTX G-bus.
+\ Set up channel A of SCC as UART.
+hex
+
+noheads					\ only emit, key, etc. have heads
+
+\ status bits
+01 define RXRDYMASK
+04 define TXRDYMASK
+
+\ commands
+38 define ACKINT
+28 define RSTTINTPEND
+
+\ RTX G-bus opcoodes:
+\ Wait state generation for accessing 8530 on G bus is derived by using
+\ three quick fetches or three quick stores to cause a PAL to generate
+\ CE*, RD*, and WR* pulses 125 nanoseconds long.
+be1c ucode cmd-bg@   \ Fetch byte from ASIC address 4, G-bus 8530 cmd-b
+be9c ucode cmd-bg!   \ Write byte to   ASIC address 4, G-bus 8530 cmd-b
+be1d ucode cmd-ag@   \ Fetch byte from ASIC address 5, G-bus 8530 cmd-a
+be9d ucode cmd-ag!   \ Write byte to   ASIC address 5, G-bus 8530 cmd-a
+be1e ucode data-bg@  \ Fetch byte from ASIC address 6, G-bus 8530 data-b
+be9e ucode data-bg!  \ Write byte to   ASIC address 6, G-bus 8530 data-b
+be1f ucode data-ag@  \ Fetch byte from ASIC address 7, G-bus 8530 data-a
+be9f ucode data-ag!  \ Write byte to   ASIC address 7, G-bus 8530 data-a
+
+\ ------------------------------------------------------------------------
+\ Device configuration
+
+ttystruct makestruct tty
+
+\ ------------------------------------------------------------------------
+\ Low-level UART access routines
+
+: uart-status	\ ( -- x ) Return UART status.
+   cmd-ag@ cmd-ag@ cmd-ag@    \ Three quick fetches to stretch access to
+   swap drop swap drop        \ 8530, then get rid of first two values.
+;
+
+: cmd-uart	\ ( x -- ) Command UART.
+   dup dup                    \ Triplicate stack value, then use
+   cmd-ag! cmd-ag! cmd-ag!    \ three quick stores to stretch access to
+;                             \ 8530.
+
+: uart-reg!	\ ( x regno -- ) Store x in given UART register.
+   cmd-uart cmd-uart ;
+
+: uart@		\ ( -- c ) Read character from UART.
+   data-ag@ data-ag@ data-ag@ \ Three quick fetches to stretch access to
+   swap drop swap drop        \ 8530, then get rid of first two values.
+   ff and ;                   \ mask off ms bits
+
+
+: uart!		\ ( c -- ) Send character to UART.
+   dup dup                    \ Triplicate stack value, then use
+   data-ag! data-ag! data-ag! \ three quick stores to stretch accesss to
+;                             \ 8530.
+
+: uart-first!	\ ( c -- ) Send character; start generating interrupts.
+   uart! ;
+
+: stop-transints \ ( -- ) Stop generating transmit interrupts.
+   RSTTINTPEND cmd-uart ;
+   
+\ ------------------------------------------------------------------------
+\ Interrupt routine
+
+UARTINT# int:	\ ( -- ) UART interrupt routine.
+   uart-status dup RXRDYMASK and
+   if drop tty tty-rcvint		\ receive interrupt
+   else TXRDYMASK and
+   if tty tty-transint			\ transmit interrupt
+   then then
+   ACKINT cmd-uart			\ acknowledge interrupt
+;int
+
+\ ------------------------------------------------------------------------
+\ Initialization
+
+every-boot:	\ ( -- )
+     c9 9 uart-reg!           \ Hardware reset
+     44 4 uart-reg!           \ x16 clock, 1 stop bit, no parity
+     c0 3 uart-reg!           \ Rx: 8 bits, not enabled yet
+     e2 5 uart-reg!           \ Tx: DTR, RTS, 8 bits, not enabled yet
+     55 b uart-reg!           \ No xtal, Tx/Rx use BR generator
+     18 c uart-reg!           \ Baud rate time constant low = 24
+     00 d uart-reg!           \ Baud rate time constant high = 0
+     83 e uart-reg!           \ Source = BR gen; use PCLK; enable BR gen
+     12 1 uart-reg!           \ Interrupt on all rcv/send chars
+     c1 3 uart-reg!           \ Rx: 8 bits, enable now
+     ea 5 uart-reg!           \ Tx: DTR, RTS, 8 bits, enable now
+
+   ['] uart!  ['] uart-first!  ['] uart@  ['] stop-transints
+   tty tty-init
+;boot
+
+\ ------------------------------------------------------------------------
+\ High level driver interface routines
+
+heads
+
+: emit		\ ( c -- )
+   tty tty-putc ;
+
+: key		\ ( -- c )
+   tty tty-getc ;
+
+: key?		\ ( -- t/f )
+   tty tty-incount 0= not ;

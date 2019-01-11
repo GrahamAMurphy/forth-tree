@@ -1,0 +1,195 @@
+\ (c) 1988 Johns Hopkins University / Applied Physics Laboratory
+\	Timer management utilities
+
+\ Assumes existence of:
+\   hardwareclock - a semaphore signalled at a fixed rate
+\   initclock     - a word to initialize the hardware clock
+
+hex
+
+structure waiter			\ wait in delta list for a time
+   cell: .next				\ next waiter in list
+   cell: .value				\ semaphore if a timer, cfa if a doer
+   cell: .init				\ repeat interval, 0=non-repeating
+   cell: .counter			\ time remaining for this waiter
+endstructure
+\ NOTE: .next must be first
+
+0 constant every			\ flag repeating waiter
+1 constant in				\ flag once only waiter
+
+rom
+create tailtimer 0 , 0 , 0 , -1 ,	\ must be at end of each waiter list
+ram
+
+: deltainsert	\ ( nticks addr[waiter] list -- )   place waiter in a delta
+		\ list.  The delta list is assumed to have a waiter at the
+		\ tail of the list scheduled infinitely far in the future.
+   swap >r				\ waiter on return stack
+   begin				\ scan delta list
+      2dup @ .counter @ u>		\ while nticks' > relative
+      while				\    time until next waiter
+      @ dup >r .counter @ - r>		\ nticks' -= rel. time of this waiter
+   repeat				\ nticks' addr[insertafter]
+   dup @ r@ !				\ new waiter linked to next waiter
+   r@ swap !				\ current waiter linked to new
+   r@ @ @ if				\ if next waiter is at not tail of list
+      dup negate r@ @ .counter +!	\ subtract nticks' from its rel. time
+   then
+   r> .counter ! ;			\ counter = nticks'
+
+: deltadelete	\ ( addr[waiter] list -- )   deleter waiter from delta list.
+		\ The delta list is assumed to have a waiter at the tail of
+		\ the list scheduled infinitely far in the future.
+   swap >r				\ waiter on return stack
+   begin
+      dup @				\ list list.next
+      dup r@ <> over and while		\ while not found and not at end
+      nip
+   repeat
+   if					\ if waiter is in list
+      r@ @ dup @ if			\ if next timer not at end of list
+         r@ .counter @ over .counter +!	\ fix up its count
+      then
+      over !				\ unlink waiter
+   then rdrop drop ;
+
+: countdown	\ ( addr[list] -- t/f )   return true/false if there are
+		\ things in the deltas list ready to be processed.
+   @ dup >r tailtimer <> if		\ if list is not empty
+      r@ .counter @ 1- dup		\ and --counter == 0
+      r> .counter !  0=
+   else
+      rdrop false
+   then ;
+
+: processwaiter	\ ( addr[list] -- addr[waiter] ) remove the next ready
+		\ waiter from the list.  If it is a repeater, put it
+		\ back on the list.  Return null, if waiter not ready.
+   dup >r @ dup .counter @ 0= if	\ if waiter ready to go
+      dup @ r@ !			\ unlink it
+      dup .init @
+      ?dup if over r@ deltainsert then	\ restart it if necessary
+      rdrop
+   else
+      rdrop drop 0
+   then ;
+
+\ --------------------------------------------------------------------------
+\	Timers:
+\ timer monitorrun			\ declare a waiter
+\ monitorrun every 2 seconds wake	\ signal every 2 seconds
+\ ... monitorrun wait ...		\ wait
+
+variable timeraccess
+variable timerlist
+tailtimer timerlist !			\ infinity
+1 timeraccess !				\ allow access
+
+: starttimer	\ ( nticks addr[waiter] -- )   schedule timer to be signalled
+		\ nticks from now.
+   timeraccess wait
+   timerlist deltainsert
+   timeraccess signal ;
+
+: signaltimers	\ ( -- )   signal all waiters on timer list that are ready
+		\ to be processed.
+   timeraccess wait
+   timerlist countdown
+   timeraccess signal
+   if					\ if there are ready waiters
+      begin				\ for each ready waiter
+         timeraccess wait
+         timerlist processwaiter	\ get next waiter
+         timeraccess signal
+	 dup while			\ null indicates last waiter processed
+	 .value signal			\ signal the waiter
+      repeat drop
+   then ;
+
+: wake		\ ( addr[timer_sem] every/in nticks -- )   signal the timer
+		\ every/in nticks clock ticks.  NOTE: the timer parameter is
+		\ the address of the timer's semaphore, not time structure.
+   >r swap cell- swap			\ BUG: uses knowledge of structure rep.
+   every = if				\ if repeating timer
+      r@ over .init !
+   else					\ non-repeating
+      0 over .init !
+   then
+   0 over .value !			\ clear semaphore
+   r> swap starttimer ;			\ start the timer
+
+: canceltimer	\ ( addr[timer_sem] -- )   remove given timer from timerlist.
+		\ NOTE: the timer parameter is the address of the timer's 
+		\ semaphore, not its timer structure.
+   cell-				\ BUG: uses knowledge of structure rep.
+   timeraccess wait
+   timerlist deltadelete
+   timeraccess signal ;
+
+: timer		\ ( -- )   create a timer.  when the timer is executed it
+		\ returns it's semaphore address, NOT the waiter address
+   create waiter allot
+   does> .value ;
+
+\ --------------------------------------------------------------------------
+\	Doers:
+\ do: something   ...   ;
+\ something in 5 seconds doit		\ execute something's code in 5 seconds
+
+variable doeraccess
+variable doerlist
+tailtimer doerlist !			\ infinity
+1 doeraccess !				\ allow access
+
+: startdoer	\ ( nticks addr[waiter] -- )   schedule doer to be executed
+		\ nticks from now.
+   doeraccess wait
+   doerlist deltainsert
+   doeraccess signal ;
+
+: executedoers	\ ( -- )   execute all waiters on doer list that are ready
+		\ to be processed.
+   doeraccess wait
+   doerlist countdown
+   doeraccess signal
+   if					\ if there are ready waiters
+      begin				\ for each ready waiter
+         doeraccess wait
+         doerlist processwaiter		\ get next waiter
+         doeraccess signal
+	 dup while			\ null indicates last waiter processed
+	 .value @ execute		\ execute the waiter
+      repeat drop
+   then ;
+
+: doit		\ ( addr[doer] every/in nticks -- )   execute code of doer
+		\ every/in nticks clock ticks
+   >r every = if			\ if repeating doer
+      r@ over .init !
+   else					\ non-repeating doer
+      0 over .init !
+   then
+   r> swap startdoer ;			\ schedule doer
+
+: canceldoer	\ ( addr[doer] -- )   remove given doer from doerlist.
+   doeraccess wait
+   doerlist deltadelete
+   doeraccess signal ;
+
+: do:		\ ( -- addr xt syscolon )   create a doer with a
+		\ built-in piece of code
+   create
+   here waiter allot
+   :noname ;				\ start a colon definition
+
+: ;do		\ ( addr xt syscolon -- ) finish doer.
+   postpone ; swap .value ! ; immediate
+
+20 20 20 process: timerprocess
+   init-clock				\ start clock ticking
+   begin
+      hardwareclock wait
+      signaltimers
+      executedoers
+   again ;process

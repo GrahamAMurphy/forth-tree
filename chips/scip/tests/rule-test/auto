@@ -1,0 +1,36 @@
+\ Cross compile for 16-bit SCIP on simulator
+" target.fr" used
+" scip/16bits" is-target
+
+\ Configure crosscompiler
+hex
+0 set-ram				\ ram-based system
+def interactive
+def multitasking			\ include multitasker
+" rule-test.map" is-logfile
+
+\ Load the kernel.
+" kernel1.fr" ftload			\ primitives and extend crosscompiler
+
+\ Load low-level tty code
+" intprims.fr" ftload			\ test interrupt support
+" intuser.mfr" ftload			\    and cross-compiler
+" tty.fr" ftload			\ emit and key through simulator
+
+\ Load the interpreter
+" kernel2.fr" ftload			\ interpreter for Forth, processes, etc.
+" fakeio.fr" ftload	\ TBD: ifdef interactive ...
+
+\ ------------------------------------------------------------------------
+\ Load application
+
+" rule-test.fr"		fload
+
+\ Load initialization stuff
+" startup.fr" ftload			\ startup
+' doforth is-startup			\ start Forth interpreter
+
+report
+" rule-test.mem" saveobj
+cr .( stack depth = ) depth . cr
+decimal >log rulestats !>log

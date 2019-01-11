@@ -1,0 +1,21 @@
+\ string words
+code /string	\ ( c-addr1 u1 n -- c-addr2 u2 )
+	cell t = *psp++; *(psp+1) += t; *psp -= t; next;
+end
+
+code split	\ ( c-addr1 u1 char -- c-addr2 u2 c-addr1 u3 )
+	unsigned char *buffer = (unsigned char *)*(psp+2);
+	cell buflength = *(psp+1);
+	unsigned char delim = (unsigned char)*psp;
+	cell offset = 0, parsedlength = 0;
+	if(delim == ' '){
+		WHILENOTWHITE(buffer,buflength,offset) parsedlength++;
+	} else {
+		WHILENOT(delim,buffer,buflength,offset) parsedlength++;
+	}
+	*(psp+2) = (cell)&buffer[offset];
+	*(psp+1) = buflength-offset;
+	*psp = (cell)buffer;
+	*--psp = parsedlength;
+	next;
+end

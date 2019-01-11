@@ -1,0 +1,2 @@
+cc -g  -c  dirs.c
+cc -o forth2m fc.o dirs.o

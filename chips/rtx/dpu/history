@@ -1,0 +1,14 @@
+Thu Jul 13 13:30:50 EDT 1995
+Removed warm-boot from system.  It fails if the watchdog is on, since
+the boot ROM will not prevent a watchdog reset following a warm-boot.
+
+Wed Nov 19 10:24:23 EST 1997
+Modified dpuinit.fr to initialize CR.  Also removed setting of IMR
+for UART interrupts and all others masked.  The idea is to make
+dpuinit.fr applicable to all DPU systems.  Modified wart.fr to unmask
+UART interrupt without any other changes to IMR (see ../history).
+
+Thu Apr 23 09:14:44 EDT 1998
+Removed initialization of CR from dpuinit.fr; it was incorrect for NEAR
+DPU.
+

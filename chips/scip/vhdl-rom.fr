@@ -1,0 +1,122 @@
+\ (c) 2009 Johns Hopkins University / Applied Physics Laboratory
+\ Save object code as VHDL ROM
+decimal
+
+\ Notes:
+\ - This can be viewed as an extension to model.fr: save-vhdl is like saveobj.
+\ - This is loaded explicitly by the user; since this is done after the
+\   cross-compiler is loaded (i.e. @), the code uses [forth] ... [host].
+
+\ ------------------------------------------------------------------------
+\ Helpers
+
+: bits-needed	\ ( x -- u ) Return the number of bits needed to represent
+		\ the input x.
+   0 swap begin				\ s: count x
+      dup while				\ while x not zero
+      swap 1+ swap 1 rshift		\ counts bits; diminish x
+   repeat
+   drop 1 umax ;			\ 1 bit, even for zero
+
+: decimal-u.	\ ( u -- ) Print u, in unsigned decimal, with no trailing space.
+   [forth] base @ swap decimal 0 u.r base ! [host] ;
+
+: micro.	\ ( x -- ) Output an instruction in binary.
+   base [forth] @ >r 2 base !		\ binary output
+   0 <# [char] " hold t-dbits 0 do # loop [char] " hold #> type
+   r> base ! [host] ;
+
+\ ------------------------------------------------------------------------
+\ Output file routines
+
+variable vhdl-fp			\ file pointer of VHDL file
+   stdout vhdl-fp forth ! host		\ standard output by default
+
+: >vhdl		\ ( -- ) Redirect Forth output to VHDL file.
+   vhdl-fp [forth] @ output-file ! [host] ;
+
+: !>vhdl	\ ( -- ) Undirect Forth output to VHDL file; resume stdout.
+   stdout [forth] output-file ! [host] ;
+
+: is-vhdlfile	\ ( c-addr u -- ) Save VHDL in the file named by the
+		\ given text string.
+   2dup w/o open-file			\ attempt to open file
+   if drop open-error ( never returns)	\ if failure, terminate with message
+   then vhdl-fp [forth] ! [host]
+   2drop ;
+
+\ ------------------------------------------------------------------------
+\ Generate ROM in VHDL
+
+: loadlibs	\ ( -- ) Output library and use statement.
+   ." library ieee;" cr
+   ." use ieee.std_logic_1164.all;" cr
+   ." use ieee.numeric_std.all;" cr
+   cr ;
+
+: startpackage	\ ( -- ) Output start.
+   loadlibs
+   ." package rom_program is" cr cr ;
+
+: defsize	\ ( abits -- ) Define memory size.
+   ." constant ROMPROGABITS: natural := " decimal-u. ." ;" cr
+   ." constant ROMPROGDBITS: natural := " t-dbits decimal-u. ." ;" cr ;
+
+: port		\ ( -- ) Output port declaration.
+   ."   port(" cr
+   ."     a: in unsigned(ROMPROGABITS-1 downto 0);" cr
+   ."     q: out std_logic_vector(ROMPROGDBITS-1 downto 0)" cr
+   ."   );" cr ;
+
+: comp		\ ( addr len -- ) Output component declaration.
+   ." component " type cr
+   port
+   ." end component;" cr cr ;
+
+: endpackage	\ ( -- ) Output end of package.
+   ." end;" cr cr ;
+
+: entity	\ ( addr len -- ) Output entity declaration.
+   ." entity " type ."  is" cr
+   port
+   ." end;" cr cr ;
+
+: arch1		\ ( addr len -- ) Output first part of architecture definition.
+   ." architecture rtl of " type ."  is" cr
+   ."   type rom_type is array(0 to 2**ROMPROGABITS-1) "
+      ." of std_logic_vector(ROMPROGDBITS-1 downto 0);" cr ;
+
+: arch2		\ ( addr u -- ) Output second part of architecture definition.
+		\ Dumps u instructions, starting at given address.
+   ."   constant rom: rom_type := (" cr
+   1- 0 do				\ for each microword
+      dup t-i@ ."     " micro. ." ," cr
+      t-i+
+   loop
+   t-i@ ."     " micro. ." );" cr ;
+
+: arch3		\ ( -- ) Output third part of architecture definition.
+   ." begin" cr
+   ."   q <= rom(to_integer(a));" cr
+   ." end;" cr ;
+
+: is-vhdl	\ ( addr len -- ) Output VHDL entity/architecture.
+   ." -- Auto-generated.  DO NOT EDIT!" cr
+   startpackage
+\ TBD: if rom/ram system, only rom is saved ...
+      t-here w0 [forth] @ [host] - t-inst /
+      1- bits-needed dup >r defsize
+      2dup comp
+   endpackage
+   loadlibs ." use work.rom_program.all;" cr
+   2dup entity
+   arch1
+      w0 [forth] @ [host] 1 r> lshift arch2
+   arch3 ;
+
+\ ------------------------------------------------------------------------
+\ User interface
+
+: save-vhdl	\ ( addr len -- ) Generate and save VHDL.  The given string
+		\ is the name of the VHDL component to generate.
+   >vhdl is-vhdl !>vhdl ;

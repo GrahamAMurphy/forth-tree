@@ -1,0 +1,38 @@
+\ (c) 1991 Johns Hopkins University / Applied Physics Laboratory
+
+" process.fr" used			\ works with wait and signal
+
+hex
+
+\ ------------------------------------------------------------------------
+\ Syntax for defining coroutines.
+
+\ Since coroutines must refer to each other by name when doing a handoff,
+\ there is a forward reference problem.  Therefore, empty coroutines are
+\ created and later patched with actual code.  The syntax is (for example):
+\       0 20 20 coroutine: routineA
+\       0 20 20 coroutine: routineB
+\       ...
+\ routineA does: begin ... routineB handoff ... again ;process
+\ routineB does: begin ... routineA handoff ... again ;process
+
+: coroutine:	\ ( locsize pssize rssize -- ) Create a context and stacks
+		\ of the given size.  Corresponding code will be compiled later.
+   process-descriptor new-context constant ;
+
+: does:		\ ( addr[pd] -- ) Compile the coroutine's code and store
+		\ it in the given process descriptor.
+   start: does-this ;
+
+\ ------------------------------------------------------------------------
+\ Handoff operator.
+
+: handoff	\ ( addr[pd] -- ) Switch to specified coroutine.  The
+		\ currently running coroutine is made unrunnable by
+		\ storing an impossible value (-1) in its state.  The
+		\ target coroutine is made runanble by modifying its state.
+   lock >r				\ operation must be atomic
+   -1 cproc @ .state !			\ make current process unrunnable
+   0 over .state !			\ make target runnable
+   switchto				\ and run it
+   r> unlock ;

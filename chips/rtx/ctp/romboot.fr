@@ -1,0 +1,15 @@
+\ (c) 1994 Johns Hopkins University / Applied Physics Laboratory
+\		ROM boot code for J.Perschy CDH design
+\	Assumes ROM in page 0 and RAM in page 1.
+hex
+
+label romboot
+romboot *callop* w0 forth @ host !		\ reset vector
+]  \ preconditions: CPR=DPR=0 near
+   ram-pg# set-page				\ code/data goes into RAM
+   cdh-io-base u2/
+   for r@2* @ r@2* far ! near next		\ copy system to RAM.
+   ram-pg# cpr!
+   08ff cdh-config-reg !			\ enable UART int, turn on RAM
+   reboot
+[

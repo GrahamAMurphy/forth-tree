@@ -1,0 +1,13 @@
+\ (c) 1998 Johns Hopkins University / Applied Physics Laboratory
+\   Interrupt vector table: forward interrupt to some other page.
+\ Note: this only allocates space for the table; the table is filled
+\ in later, when more of crosscompiler is available.
+decimal
+
+rom
+1024 align-boundary			\ must be on 1024 byte boundary
+   label int-fwd-table
+
+   32 16 * allot			\ 16 "normal" interrupts
+   32 allot				\ "no interrupt" interrupt
+ram

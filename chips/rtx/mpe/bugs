@@ -1,0 +1,2 @@
+	Timing bug in UART initialization?  Sometimes first characters
+out are garbled.

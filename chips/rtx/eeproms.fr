@@ -1,0 +1,35 @@
+\ (c) 1993 Johns Hopkins University / Applied Physics Laboratory
+\ EEPROM save and restore.
+hex
+
+\ Uses far2.fr library.
+\ Expects the following EEPROM parameters to be defined:
+\ 1 constant eeprom-pg#			\ page of EEPROM
+\ 0 constant eeprom-addr		\ target address for save
+\ d# 128 constant #eeprom-size		\ size of EEPROM page
+\ 0 constant #eeprom-tdw		\ delay to next write after polling
+\ Also expects the following function(s):
+\ eeprom-enable	\ ( -- )		\ Enable EEPROM writes
+
+nohead : wait-for-eeprom \ ( -- ) Use toggle bit polling.  Not all EEPROMs
+		\ support this ...
+   far begin eeprom-addr @ eeprom-addr @ = until
+   #eeprom-tdw for next ;		\ wait tDW before allowing next write
+
+nohead : u/^	\ ( u1 u2 -- u1/u2 ) Unsigned single divide.  Non-integral
+		\ results are rounded up.
+  0 swap um/mod swap if 1+ then ;
+
+: save		\ ( -- ) Save system state in EEPROM.
+   eeprom-enable			\ enable writes
+   eeprom-pg# set-page
+   0 eeprom-addr here cell/		\ s: src dst len(in cells)
+   #eeprom-size u/^ for			\ for each EEPROM page
+      2dup #eeprom-size disable words-out enable	\ write a page
+      swap #eeprom-size cells + swap #eeprom-size cells +
+      wait-for-eeprom			\ wait for EEPROM write to complete
+   next 2drop ;
+
+: unsave	\ ( -- ) Restore system from EEPROM.
+   eeprom-pg# set-page
+   disable eeprom-addr 0 e000 bytes-in reboot ; \ TBD what is max address?

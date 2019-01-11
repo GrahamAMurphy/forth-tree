@@ -1,0 +1,28 @@
+\ (c) 2004 Johns Hopkins University / Applied Physics Laboratory
+\ Forth primitives - 16-bit extensions
+hex
+
+code set-code	\ ( x -- ) Set CPR.
+	<reg!	nopa cpr popp >.
+	<exit> inline
+
+code get-code	\ ( -- x ) Get CPR.
+	<reg@	cpr nopb pushp >.
+	<exit> inline
+
+code set-mem	\ ( x -- ) Set DPR.
+	<reg!	nopa dpr popp >.
+	<exit> inline
+
+code get-mem	\ ( -- x ) Get DPR.
+	<reg@	dpr nopb pushp >.
+	<exit> inline
+
+code near	\ ( -- ) Turn off far mode access.
+	<spec	nearmode >.
+	<exit> inline
+
+code far	\ ( -- ) Turn on far mode access.
+	<spec	farmode >.
+	<exit> inline
+

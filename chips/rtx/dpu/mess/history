@@ -1,0 +1,4 @@
+Wed Feb  6 15:30:54 EST 2002
+Created MESSENGER variant of DPU.  It is almost identical to CONTOUR
+but the interrupt mask register is active high.  A custom version of
+dpuinit.fr is needed because of this.

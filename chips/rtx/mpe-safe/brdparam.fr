@@ -1,0 +1,18 @@
+\ (c) 1993 Johns Hopkins University / Applied Physics Laboratory
+hex
+
+\ 8254 Timers
+fff9 define timer-ch0
+ffff define timer-control
+
+\ 8530 UART
+fff3 define cmd-a
+fff7 define data-a
+
+\ Interrupt numbers
+5 define UARTINT#			\ UART on EI3
+fbff define UARTINTMASK
+
+\ Useful constants
+100 define FIFOSIZE			\ TTY input buffer, output buffer sizes
+

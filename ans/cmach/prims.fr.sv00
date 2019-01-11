@@ -1,0 +1,833 @@
+\ (c) 1992 Johns Hopkins University / Applied Physics Laboratory
+\			C Forth system
+
+verbatim-data
+/*			data areas			*/
+
+/* These variables are defined here because some assembly language
+   primitives need to access them.  For example, push-stream must
+   save the variables that describe the current input stream */
+	static unsigned char *TIBPTR;	/* pointer to text input buffer */
+#ifdef mips
+/* there is a bug in the mips compiler that places IN in a register
+   but fails to realize that IN in memory is being modified via a pointer */
+	static volatile cell IN;	/* >IN buffer offset */
+#else
+	static cell IN;			/* >IN buffer offset */
+#endif
+	static cell NTIB;		/* #tib */
+	static cell BLK;		/* blk */
+	static cell SFILE;		/* 'source-id */
+
+	static unsigned char **CURREGION;/* region pointer */
+end
+
+verbatim
+/*		C threaded code inner interpreter */
+
+#define TEST(t) ((t)?~0:0)
+/*#define TEST(t) ((cell)(-(scell)(t))) this version may be faster */
+
+	va_list ap;
+	cell pstack[PSTACKSIZE + UNDERFLOW],
+	     rstack[RSTACKSIZE + UNDERFLOW];
+	cell *psp = &pstack[PSTACKSIZE],
+	     *rsp = &rstack[RSTACKSIZE];
+	token *pseudoprogram[2];
+	token *w, **ip = pseudoprogram;
+	cell rinit, rlimit;		/* inner loop parameters */
+	cell *fp;			/* frame pointer for catch/throw */
+
+	va_start(ap, entry);
+	switch(entry){
+	   case ENTRYINITFORTH:	pseudoprogram[0] = (token *)BODYOF(initforth);
+				break;
+	   case ENTRYDOFORTH:	pseudoprogram[0] = (token *)BODYOF(doforth);
+				break;
+	   case ENTRYEVALFORTH:	pseudoprogram[0] = (token *)BODYOF(evalforth);
+				break;
+	}
+	pseudoprogram[1] = (token *)BODYOF(undoforth);
+	*rsp = (cell)&pseudoprogram[1];
+	{ unsigned int args;
+	  for(args = va_arg(ap, unsigned int) ; args; args--)
+		*--psp = va_arg(ap, cell);
+	}
+	va_end(ap);
+
+	D_hashtable.body[1] = (cell)HASHTABLE;	/* C hack, avoids forward ref.*/
+#ifdef __GNUC__
+	/* if we have GNU C, we can do indirect threaded code using GNU C's
+	   goto * operation. */
+	w = *ip++;
+	dispatch: goto **w; {{
+#else
+	/* otherwise, we use a slower switch threaded system */
+	for(;;){
+		w = *ip++;
+		dispatch: switch(*w){
+#endif
+end
+
+~ code docolon
+	*--rsp = (cell)ip; ip = (token **)(w+1); next;
+end
+
+~ code return
+	ip = (token **)(*rsp++); next;
+end
+
+verbatim-dict
+static cell DEFAULTDOES =		/* hackery to avoid forward ref */
+	(cell)BODYOF(return);		/* thread to return primitive */
+end
+
+~ code dovariable
+	*--psp = (cell)(w+1); next;
+end
+
+~ code doconstant
+	*--psp = (cell)*(w+1); next;
+end
+
+~ code dooffset
+	*psp += (cell)*(w+1); next;
+end
+
+~ code docreate
+	*--rsp = (cell)ip; ip = (token **)*(w+1);
+	*--psp = (cell)(w+2); next;
+end
+\ see also: >body and body>
+
+~ code doforeign
+/* limitation: foreign function must have six or fewer arguments */
+	cell result;
+	switch((cell)*(w+3)){
+	   case 0:
+		result = ((cell (*)())*(w+2))(); break;
+	   case 1:
+		result = ((cell (*)())*(w+2))(*psp); break;
+	   case 2:
+		result = ((cell (*)())*(w+2))(*(psp+1),*psp); break;
+	   case 3:
+		result = ((cell (*)())*(w+2))(*(psp+2),*(psp+1),*psp); break;
+	   case 4:
+		result = ((cell (*)())*(w+2))(*(psp+3),
+					   *(psp+2),*(psp+1),*psp); break;
+	   case 5:
+		result = ((cell (*)())*(w+2))(*(psp+4),*(psp+3),
+					   *(psp+2),*(psp+1),*psp); break;
+	   case 6:
+		result = ((cell (*)())*(w+2))(*(psp+5),*(psp+4),*(psp+3),
+					   *(psp+2),*(psp+1),*psp); break;
+	}
+	psp += (cell)*(w+3);		/* discard inputs */
+	if(*(w+1)) *--psp = result;	/* if non-void function, retun result */
+	next;
+end
+
+\ control flow primitives
+
+~ code (literal)
+	*--psp = (cell)(*ip++); next;
+end
+
+~ code branch
+	ip = (token **)(*ip); next;
+end
+
+~ code ?branch
+	ip = *psp++ ? ip+1 : (token **)(*ip); next;
+end
+
+code execute
+	w = (token *)(*psp++); goto dispatch;
+end
+
+code perform
+	w = *(token **)(*psp++); goto dispatch;
+end
+
+~ code (do)
+	*--rsp = rlimit; *--rsp = rinit;
+	rinit = *psp++; rlimit = *psp++;
+	rlimit += MSB; rinit -= rlimit;
+	next;
+end
+
+~ code (loop)
+	cell newrinit = rinit + 1;
+	if((scell)(~rinit & newrinit) < 0){
+		ip++; rinit = *rsp++; rlimit = *rsp++; next;
+	} else {
+		rinit = newrinit; ip = (token **)(*ip); next;
+	}
+end
+
+~ code (+loop)
+	cell t = *psp++, newrinit = rinit + t;
+	if(((scell)(t & rinit & ~newrinit) < 0) ||
+	   ((scell)(~t & ~rinit & newrinit) < 0)){
+		ip++; rinit = *rsp++; rlimit = *rsp++; next;
+	} else {
+		rinit = newrinit;
+		ip = (token **)(*ip); next;
+	}
+end
+
+code i
+	*--psp = rinit + rlimit; next;
+end
+
+code j
+	*--psp = *rsp + *(rsp+1); next;
+end
+
+~ code (leave)
+	ip = (token **)(*ip);
+	rinit = *rsp++; rlimit = *rsp++; next;
+end
+
+code unloop
+	rinit = *rsp++; rlimit = *rsp++; next;
+end
+
+~ code undoforth
+	return;
+end
+
+~ code defaultcatcher
+	rsp++;				/* discard saved param. stack pointer */
+	ip = (token **)(*rsp++);	/* restore instruction pointer */
+	fp = (cell *)(*rsp++);		/* ... and orignal frame pointer */
+	*--psp = 0;			/* return zero */
+	next;
+end
+
+verbatim-dict
+static cell BOGUS =			/* bogus instruction stream */
+	(cell)BODYOF(defaultcatcher);
+end
+
+code catch
+	*--rsp = (cell)fp;		/* save old frame pointer */
+	*--rsp = (cell)ip;		/* ... instruction pointer */
+	ip = (token **)&BOGUS;		/* set default catcher */
+	w = (token *)(*psp++);
+	*--rsp = (cell)psp;		/* save parameter stack pointer */
+	fp = rsp;			/* record sp as frame pointer */
+	goto dispatch;
+end
+
+code throw
+	cell t = *psp;
+	if(t){				/* if non-zero throw */
+		rsp = fp;		/* restore original stack depth */
+		psp = (cell *)(*rsp++);	/* ... parameter stack too */
+		ip = (token **)(*rsp++);/* ... and the instruction pointer */
+		fp = (cell *)(*rsp++);	/* ... and original frame pointer */
+		*--psp = t;		/* return non-zero throw value */
+	}
+	next;
+end
+
+\ return stack primitives for local variables
+\ Note: the inline argument to (rfetch), (rstore), and (rpop) is an
+\ offset measured in bytes while the argument to (initlocals) is in cells.
+
+code (rfetch)	( --- n )  ( returns return stack item )
+	*--psp = *(cell *)((unsigned char *)rsp + (cell)(*ip++)); next;
+end
+
+code (rstore)	( n --- )  ( store in return stack )
+	*(cell *)((unsigned char *)rsp + (cell)(*ip++)) = *psp++; next;
+end
+
+code (rpop)	( --- )   ( clean up return stack )
+	rsp = (cell *)((unsigned char *)rsp + (cell)(*ip++)); next;
+end
+
+~ code (initlocals)	\ precondition: argument >= 1
+	cell t = (cell)(*ip++);
+	while(t--) *--rsp = *psp++;
+	next;
+end
+
+\ stack primitives
+
+code !
+	cell t = *psp++; *(cell *)t = *psp++; next;
+end
+
+code !sp
+	psp = (cell *)(*psp); next;
+end
+
+code +
+	cell t = *psp++; *psp += t; next;
+end
+
+code +!
+	cell t = *psp++; *(cell *)t += *psp++; next;
+end
+
+code -
+	cell t = *psp++; *psp -= t; next;
+end
+
+code -1
+	*--psp = (cell)-1; next;
+end
+
+code -2
+	*--psp = (cell)-2; next;
+end
+
+code -4
+	*--psp = (cell)-4; next;
+end
+
+code 0
+	*--psp = 0; next;
+end
+
+code 0<
+	*psp = TEST((scell)(*psp)<0); next;
+end
+
+code 0=
+	*psp = TEST((scell)(*psp)==0); next;
+end
+
+code 1
+	*--psp = 1; next;
+end
+
+code 1+
+	(*psp)++; next;
+end
+
+code 1-
+	(*psp)--; next;
+end
+
+code 2
+	*--psp = 2; next;
+end
+
+code 2+
+	*psp += 2; next;
+end
+
+code 2-
+	*psp -= 2; next;
+end
+
+code 2*
+	*psp <<= 1; next;
+end
+
+code 2/
+#ifdef NO_ASR /* use portable version if signed right shifts don't work */
+	*psp = (*psp>>1) | (*psp&MSB); next;
+#else
+	*psp = (cell)((scell)(*psp)>>1); next;
+#endif
+end
+
+code 2pick
+	cell t = *(psp+2); *--psp = t; next;
+end
+
+code 3pick
+	cell t = *(psp+3); *--psp = t; next;
+end
+
+code 4
+	*--psp = 4; next;
+end
+
+code 4+
+	*psp += 4; next;
+end
+
+code 4-
+	*psp -= 4; next;
+end
+
+code 4*
+	*psp <<= 2; next;
+end
+
+code 4/
+#ifdef NO_ASR /* use portable version if signed right shifts don't work */
+	*psp = (*psp>>2) | ((*psp&MSB) ? MSB2 : 0); next;
+#else
+	*psp = (cell)((scell)(*psp)>>2); next;
+#endif
+end
+
+code <
+	cell t = *psp++; *psp = TEST((scell)(*psp)<(scell)t); next;
+end
+
+code =
+	cell t = *psp++; *psp = TEST(*psp==t); next;
+end
+
+code >
+	cell t = *psp++; *psp = TEST((scell)(*psp)>(scell)t); next;
+end
+
+code >body
+	*psp += (cells_in_code_field+1)*sizeof(cell); next;
+end
+
+code >r
+	*--rsp = *psp++; next;
+end
+
+code ?dup
+	cell t = *psp; if(t) *--psp = t; next;
+end
+
+code @
+	*psp = *(cell *)(*psp); next;
+end
+
+code @sp
+	cell t = (cell)psp; *--psp = t; next;
+end
+
+code and
+	cell t = *psp++; *psp &= t; next;
+end
+
+code body>
+	*psp -= (cells_in_code_field+1)*sizeof(cell); next;
+end
+
+code char+
+	*psp += sizeof(char); next;
+end
+
+code chars
+	next;
+end
+immediate
+
+code cell
+	*--psp = sizeof(cell); next;
+end
+
+code cell+
+	*psp += sizeof(cell); next;
+end
+
+code cell-
+	*psp -= sizeof(cell); next;
+end
+
+code cells
+	*psp <<= 2; next; /* TBD should be log2(sizeof(cell)) */
+end
+
+code cell/
+#ifdef NO_ASR /* use portable version if signed right shifts don't work */
+	*psp = (*psp>>2) | ((*psp&MSB) ? MSB2 : 0); next;
+#else
+	*psp = (cell)((scell)(*psp)>>2); next;
+#endif
+end
+
+code c!
+	cell t = *psp++; *(unsigned char *)t = *psp++; next;
+end
+
+code c@
+	*psp = (cell)*(unsigned char *)(*psp); next;
+end
+
+code cmove	\ ( c-addr1 c-addr2 u -- )
+	cell len = *psp++;
+	unsigned char *dst = (unsigned char *)(*psp++);
+	unsigned char *src = (unsigned char *)(*psp++);
+	while(len--) *dst++ = *src++;
+	next;
+end
+
+code cmove>	\ ( c-addr1 c-addr2 u -- )
+	cell len = *psp++;
+	unsigned char *dst = (unsigned char *)(*psp++ + len);
+	unsigned char *src = (unsigned char *)(*psp++ + len);
+	while(len--) *--dst = *--src;
+	next;
+end
+
+code move	\ ( addr1 addr2 u -- )
+	cell len = *psp++;
+	unsigned char *dst = (unsigned char *)(*psp++);
+	unsigned char *src = (unsigned char *)(*psp++);
+	if((dst >= src) && (dst < (src+len))){
+		dst +=len; src += len;
+		while(len--) *--dst = *--src;
+	} else {
+		while(len--) *dst++ = *src++;
+	}
+	next;
+end
+
+~ code codefieldsize	\ return code field size in address units
+	*--psp = cells_in_code_field * sizeof(cell);
+	next;
+end
+
+code d<					| l1 h1 l2 h2 --- t/f
+	scell ms2 = (scell)(*psp++);
+	cell  ls2 = *psp++;
+	scell ms1 = (scell)(*psp++);
+	cell  ls1 = *psp;
+	if(ms1==ms2)	*psp = TEST(ls1<ls2);
+	else		*psp = TEST(ms1<ms2);
+	next;
+end
+
+code dnegate				| ( dl dh --- dl' dh' )
+	cell ms = ~*psp;
+	cell ls = ~*(psp+1);
+	cell newls = ls + 1;
+	*(psp+1) = newls;
+	*psp = (scell)(~newls&ls)<0 ? ms+1 : ms;
+	next;
+end
+
+code d+				| ( dl1 dh1 dl2 dh2 --- dl3 dh3 )
+	cell ms1 = *psp++;
+	cell ls1 = *psp++;
+	cell ls2 = *(psp+1);
+	cell newls = ls1 + ls2;
+	*(psp+1) = newls;
+	*psp += (scell)(ls1&ls2 | ~newls&(ls1|ls2))<0 ? ms1+1 : ms1;
+	next;
+end
+
+code d>s
+	psp++; next;
+end
+
+code drop
+	psp++; next;
+end
+
+code dup
+	cell t = *psp; *--psp = t; next;
+end
+
+code invert
+	*psp = ~*psp; next;
+end
+
+code lshift
+	cell t = *psp++; *psp <<= t; next;
+end
+
+code negate
+	*psp = (cell)-(scell)(*psp); next;
+end
+
+code nip				( a b --- b )
+	cell t = *psp++; *psp = t; next;
+end
+
+code not
+	*psp = ~*psp; next;
+end
+
+code or
+	cell t = *psp++; *psp |= t; next;
+end
+
+code over
+	cell t = *(psp+1); *--psp = t; next;
+end
+
+code r>
+	*--psp = *rsp++; next;
+end
+
+code r@
+	*--psp = *rsp; next;
+end
+
+code rdrop
+	rsp++; next;
+end
+
+code rshift
+	cell t = *psp++; *psp >>= t; next;
+end
+
+code aligned
+	*psp = (*psp+3) & ~3; next; /* TBD: assumes 32 bits */
+end
+
+code rot
+	cell t = *psp; *psp = *(psp+2); *(psp+2) = *(psp+1);
+	*(psp+1) = t; next;
+end
+
+code rotate
+	cell count = (*psp++) & 0x1f;	/* TBD: assumes 32 bits */
+	if(count){
+		*psp = (*psp << count) | (*psp >> (32-count));
+	}
+	next;
+end
+
+
+code sp0	( -- sp0 ) ( parameter stack bottom )
+	*--psp = (cell)&pstack[PSTACKSIZE]; next;
+end
+
+~ code spreset				( --- )   ( reset return stack )
+	rsp = &rstack[RSTACKSIZE]; next;
+end
+
+code swap
+	cell t = *psp; *psp = *(psp+1); *(psp+1) = t; next;
+end
+
+code tuck				( a b --- b a b )
+	cell t = *psp; *--psp = t; *(psp+1) = *(psp+2);
+	*(psp+2) = t; next;
+end
+
+code u<
+	cell t = *psp++; *psp = TEST(*psp<t); next;
+end
+
+code u>
+	cell t = *psp++; *psp = TEST(*psp>t); next;
+end
+
+code um*				| ( cd ba --- ul uh )
+	cell a = *(psp+1)>>16,	b = *(psp+1)&0xffff;
+	cell c = *psp>>16,	d = *psp&0xffff;
+	cell ac = a*c, bd = b*d;
+	cell x, xlow, xhigh, t;
+	x = a*d; xlow = x<<16; xhigh = x>>16;	/* TBD 32 bits */
+	t = bd + xlow;
+	ac += (scell)(bd&xlow | ~t&(bd|xlow))<0 ? xhigh+1 : xhigh;
+	bd = t;
+	x = b*c; xlow = x<<16; xhigh = x>>16;	/* TBD 32 bits */
+	t = bd + xlow;
+	ac += (scell)(bd&xlow | ~t&(bd|xlow))<0 ? xhigh+1 : xhigh;
+	bd = t;
+	*(psp+1) = bd; *psp = ac;
+	next;
+end
+
+code um/mod				| ( ud u(div) --- u(rem) u(quot) )
+	cell div = *psp++;
+	cell ppms = *psp, ppls = *(psp+1);
+	cell ppmsnew;
+	int i;
+
+	for(i=32; i; i--){
+		ppmsnew = ppms<<1; if(ppls & MSB) ppmsnew++;
+		ppls <<= 1;
+		if(ppms & MSB){
+			ppms = ppmsnew;
+			ppls++;
+			ppms -= div;
+		} else if(ppmsnew >= div){
+			ppms = ppmsnew;
+			ppls++;
+			ppms -= div;
+		} else {
+			ppms = ppmsnew;
+		}
+	}
+	*(psp+1) = ppms; *psp = ppls;
+	next;
+end
+
+code w!
+	cell t = *psp++; *(unsigned short *)t = *psp++; next;
+end
+
+code w@
+	*psp = (cell)*(unsigned short *)(*psp); next;
+end
+
+code within	\ ( a b c -- t/f ) true iff b<=a and a<c
+	cell upper = *psp++;
+	cell lower = *psp++;
+	cell check = *psp;
+	*psp = TEST((cell)(check-lower)<(cell)(upper-lower));
+	next;
+end
+
+code xor
+	cell t = *psp++; *psp ^= t; next;
+end
+
+\ '2' words
+code 2>r
+	cell t = *psp++; *--rsp = *psp++; *--rsp = t; next;
+end
+
+code 2r>
+	cell t = *rsp++; *--psp = *rsp++; *--psp = t; next;
+end
+
+code 2r@
+	cell t = *rsp; *--psp = *(rsp+1); *--psp = t; next;
+end
+
+code 2drop
+	psp += 2; next;
+end
+
+code 2dup
+	cell t0 = *psp, t1 = *(psp+1); *--psp = t1; *--psp = t0; next;
+end
+
+code 2over
+	cell t0 = *(psp+2), t1 = *(psp+3); *--psp = t1; *--psp = t0; next;
+end
+
+code 2swap
+	cell t0 = *psp, t1 = *(psp+1);
+	*psp = *(psp+2); *(psp+1) = *(psp+3);
+	*(psp+2) = t0; *(psp+3) = t1; next;
+end
+
+\ input stream helpers
+code push-stream ( c-addr u fileid -- )
+	*--rsp = (cell)TIBPTR; *--rsp = IN; *--rsp = NTIB;
+	*--rsp = BLK; *--rsp = SFILE;	/* save current state */
+	SFILE = *psp++; NTIB = *psp++; TIBPTR = (unsigned char *)*psp++;
+	IN = 0; BLK = 0;		/* new non-block stream */
+	next;
+end
+
+code push-block-stream ( u -- )
+	*--rsp = (cell)TIBPTR; *--rsp = IN; *--rsp = NTIB;
+	*--rsp = BLK; *--rsp = SFILE;	/* save current state */
+	BLK = *psp++; IN = 0;		/* new block stream */
+	next;
+end
+
+code pop-stream	( -- )
+	SFILE = *rsp++; BLK = *rsp++; NTIB = *rsp++;
+	IN = *rsp++; TIBPTR = (unsigned char *)*rsp++; /* restore saved state */
+	next;
+end
+
+\	high level words code in assembly language for efficiency
+
+\  (find)	( tstring u addr[chain] vocab# -- tstring u addr[chain] false )
+\	   <or> ( tstring u addr[chain] vocab# -- cfa -1 true )
+\	   <or> ( tstring u addr[chain] vocab# -- cfa  1 true )
+~ code (find)
+	unsigned char *tstring = (unsigned char *)*(psp+3);
+	cell length = *(psp+2);
+	header *head = (header *)*(psp+1);
+	wid_t wid = (wid_t)*psp;
+	cell dlength = length>(NAMESIZE-1) ? NAMESIZE-1 : length;
+	cell i;
+	goto test;
+nexthead:
+	if((length != (head->name[0]&~IMMMASK)) ||
+	   (wid != head->wid)) goto cont;
+	for(i=0; i<dlength; i++){
+		if(tstring[i] != head->name[i+1]) goto cont;
+	}
+	/* match */
+	psp++;
+	*(psp+2) = (cell)(head+1);		/* adjacent code field */
+	*(psp+1) = (cell)(head->name[0]&IMMMASK) ? 1 : (cell)-1;
+	*psp = ~0;
+	#include "AdjustWrite.x"
+	next;
+cont:	head = (header *)(head->link);
+test:	if(head) goto nexthead;
+	/* failure */
+	*psp=0;
+	#include "AdjustWrite.x"
+	next;
+end
+
+verbatim
+#define WHILENOT(delim,buffer,buflength,offset) \
+	while((offset<buflength) && \
+	      (buffer[offset++] != delim))
+#define WHILENOTWHITE(buffer,buflength,offset) \
+	while((offset<buflength) && \
+	      (buffer[offset++] > ' '))
+#define SKIP(delim,buffer,buflength,offset) \
+	while((offset<buflength) && \
+	      (buffer[offset] == delim)) \
+		offset++
+#define SKIPWHITE(buffer,buflength,offset) \
+	while((offset<buflength) && \
+	      (buffer[offset] <= ' ')) \
+		offset++
+end
+
+~ code _parse	\ ( char addr1 u1 -- addr2 u2 )
+	cell buflength = *psp++;
+	unsigned char *buffer = (unsigned char *)(*psp);
+	unsigned char delim = (unsigned char)*(psp+1);
+	cell parsedlength = 0;
+	*(psp+1) = (cell)(&buffer[IN]);	/* return address of parsed word */
+	if(delim == ' '){
+		WHILENOTWHITE(buffer,buflength,IN) parsedlength++;
+	} else {
+		WHILENOT(delim,buffer,buflength,IN) parsedlength++;
+	}
+	*psp = parsedlength;		/* return length of parsed word */
+	next;
+end
+
+~ code _parse-word \ ( char addr1 u1 -- addr2 u2 )
+	cell buflength = *psp++;
+	unsigned char *buffer = (unsigned char *)(*psp);
+	unsigned char delim = (unsigned char)*(psp+1);
+	cell parsedlength = 0;
+	if(delim == ' '){
+		SKIPWHITE(buffer,buflength,IN);
+		*(psp+1) = (cell)(&buffer[IN]);	/* return address of word */
+		WHILENOTWHITE(buffer,buflength,IN) parsedlength++;
+	} else {
+		SKIP(delim,buffer,buflength,IN);
+		*(psp+1) = (cell)(&buffer[IN]);	/* return address of word */
+		WHILENOT(delim,buffer,buflength,IN) parsedlength++;
+	}
+	*psp = parsedlength;		/* return length of parsed word */
+	next;
+end
+
+~ code _word	\ ( char addr1 u1 -- addr2 )
+	cell buflength = *psp++;
+	unsigned char *buffer = (unsigned char *)(*psp++);
+	unsigned char delim = (unsigned char)(*psp);
+	cell parsedlength = 0;
+	unsigned char *src, *dst;
+	if(delim == ' '){
+		SKIPWHITE(buffer,buflength,IN);
+		src = &buffer[IN];
+		WHILENOTWHITE(buffer,buflength,IN) parsedlength++;
+	} else {
+		SKIP(delim,buffer,buflength,IN);
+		src = &buffer[IN];
+		WHILENOT(delim,buffer,buflength,IN) parsedlength++;
+	}
+	*psp = (cell)(dst = *CURREGION);/* return string at HERE */
+	*dst++ = (unsigned char)parsedlength;
+	while(parsedlength--) *dst++ = *src++;
+	*dst = ' ';			/* blank at end for NUMBER */
+	next;
+end

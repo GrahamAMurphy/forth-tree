@@ -1,0 +1,117 @@
+verbatim-prolog
+/* (c) 1992 Johns Hopkins University / Applied Physics Laboratory */
+
+#include "defs.h"
+
+#if defined(__STDC__)			/* if ANS C. mips doesn't define this */
+#define CAT(x,y) x##y
+#else
+#define ID(x) x
+#define CAT(x,y) ID(x)y
+#endif
+
+#define cells_in_code_field 2
+
+#define PRIMLIST()			/* not needed */
+#define PRIM(primid)
+#define ENDPRIMLIST()
+
+#define HEADEDDEF(defid, l, n1,n2,n3,n4,n5 , h, dlink, bodylen)\
+	.seg "data"; \
+	.byte	l; .byte n1,n2,n3,n4,n5; .half h; \
+	dlink; \
+defid:
+
+#define IHEADEDDEF(defid, l, n1,n2,n3,n4,n5 , h, dlink, bodylen)\
+	.seg "data"; \
+	.byte	l+0x80; .byte n1,n2,n3,n4,n5; .half h; \
+	dlink; \
+defid:
+
+#define HEADLESSDEF(defid, bodylen)\
+defid:
+
+#define SELF(primid)
+
+#define COLON()\
+	jmpl	rinterp+%lo(_colon-INTERP), t0; \
+	sub	sp,4,sp
+
+#define VARIABLE()\
+	jmpl	rinterp+%lo(_variable-INTERP), t0; \
+	sub	psp,4,psp
+
+#define CONSTANT()\
+	jmpl	rinterp+%lo(_constant-INTERP), t0; \
+	sub	psp,4,psp
+
+#define CREATE()\
+	jmpl	rinterp+%lo(_create-INTERP), t0; \
+	sub	sp,4,sp
+
+#define OFFSET()\
+	jmpl	rinterp+%lo(_offset-INTERP), t0; \
+	next1
+
+#define ENDDEF()
+
+#define CODE(primid)			/* not appropriate in DTC system */
+#define ENDCODE()
+
+/* SVR4 compilers (specifically Solaris 2) don't follow the tradition
+   of prepending labels with an underscore ... */
+#ifdef NO_UNDERLINE
+#define CLAB(x) x			/* format of label from C compiler */
+#define SYMREFER(lab)\
+	.word lab			/* refer to a C label */
+#else
+#define CLAB(x) CAT(_,x)
+#define SYMREFER(lab)\
+	.word CAT(_,lab)
+#endif
+
+#define ARRAYREFER(lab)\
+	.word lab
+
+#define REFER(defid)\
+	.word defid
+
+#define VALUE(n)\
+	.word n
+
+#define BRANCH(defid,n)\
+	.word defid + 4*(n+cells_in_code_field)
+
+#define NAMEREF(defid)\
+	.word defid - 12
+#define NULLREF()\
+	.word 0
+
+#define TABLE(lab)\
+lab:
+#define ENDTABLE()
+
+/* register assignments */
+#define tmp		%l0
+#define sp		%l1
+#define rinterp		%l2
+#define tos		%l3
+#define psp		%l4
+#define iar		%l5
+#define rcount		%l6
+#define rlimit		%l7
+
+#define t0		%i0
+#define t1		%i1
+#define t2		%i2
+#define t3		%i3
+#define t4		%i4
+#define t5		%o0
+#define t6		%o1
+#define csp		%o6
+
+#define next1 ld [iar],t6
+#define next2 add iar,4,iar
+#define next3 jmpl t6,%g0
+
+end

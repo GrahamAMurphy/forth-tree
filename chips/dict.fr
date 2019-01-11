@@ -1,0 +1,5 @@
+\ (c) 1988 Johns Hopkins University / Applied Physics Laboratory
+(	Allocate some dictionary space [for the simulator] ) hex
+\ Obsolete; do not use!
+
+hex 10000 allot

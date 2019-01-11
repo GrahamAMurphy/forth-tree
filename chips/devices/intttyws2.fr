@@ -1,0 +1,212 @@
+\ (c) 2001 Johns Hopkins University / Applied Physics Laboratory
+\		character device driver
+\	This version of the driver supports the following features:
+\		Int. driven, wait/signal interface, arbitrary number of channels
+\		output buffer and type ahead buffer on input channel
+\		cooked input interrupt:
+\			XON/XOFF flow control on the output channel
+\			KILL character causes warm reset
+\			maps input '\r' to '\n'
+\		or raw input interrupt sends characters straight through
+\	This version is identical to intttyws.fr, but adds tty-putc-i
+\	for use in interrupt routines.
+
+\ This file really contains a character driver construction kit.  The
+\ following routines can be used to construct a driver (see intttyws.skl
+\ for an example):
+\ constant tty-size	\ ( -- u ) Return size of tty data structure.
+\ : tty-putc		\ ( c tty -- )   Emit the given character.
+\ : tty-transint	\ ( tty -- )   Transmit interrupt.
+\ : tty-getc		\ ( tty -- c )   Read next character.
+\ : tty-incount		\ ( tty -- c ) Return number of character waiting.
+\ : tty-rcvint		\ ( tty -- )   Receive interrupt.
+\ : tty-rcvrawint	\ ( tty -- )   Receive interrupt.
+\ : tty-init		\ ( 'u! 'uf! 'u@ 'st tty -- )  Initialize the tty.
+hex
+
+\ Assumes the following are defined:
+\  FIFOSIZE - input and output FIFO sizes
+
+noheads
+
+03 constant KILL			\ ASCII ^C
+13 constant XOFF			\ ASCII ^S
+11 constant XON				\ ASCII ^Q
+
+structure fifo				\ a character FIFO structure
+             cell: .charsin		\ number of characters in FIFO
+	     cell: .charsout		\ number of free slots in FIFO
+             cell: .inptr		\ index into FIFO of next slot
+             cell: .outptr		\ index into FIFO of next character
+   FIFOSIZE chars: .buffer		\ a buffer
+endstructure
+
+0 constant QUIET			\ nothing being transmitted
+1 constant OUTPUT			\ transmitting
+2 constant THROTTLED			\ XOFF received
+
+structure ttystruct			\ a bidirectional character channel
+          cell: .state			\ QUIET, OUTPUT, or THROTTLED
+   fifo struct: .outfifo		\ output FIFO
+   fifo struct: .infifo			\ input FIFO
+	  cell: .'uart!			\ vector: send a character
+	  cell: .'uart-first!		\ vector: send first character
+	  cell: .'uart@			\ vector: read a character
+	  cell: .'stop-transints	\ vector: stop transmit interrupts
+endstructure
+
+: @fifo		\ ( addr[fifo] -- x )   return the item from the FIFO.
+		\ Assumes that there is something there.  Synchronization is
+		\ the responsibility of the caller.
+   dup >r .outptr @			\ index into FIFO
+   dup 1+ dup FIFOSIZE = if drop 0 then
+      r@ .outptr !			\ step index wrapping if necessary
+   r> .buffer + c@ ;			\ fetch value from FIFO
+
+: !fifo		\ ( x addr[fifo] -- )   store the item in the FIFO.
+		\ Assumes that there is space for the item.  Synchronization
+		\ is the responsibility of the caller.
+   dup >r .inptr @			\ index into FIFO
+   dup 1+ dup FIFOSIZE = if drop 0 then
+      r@ .inptr !			\ step index wrapping if necessary
+   r> .buffer + c! ;			\ store value in FIFO
+
+heads
+
+\ ------------------------------------------------------------------------
+\ Output routines
+
+: tty-putc	\ ( c tty -- )   Emit the given character.
+   dup >r .outfifo .charsout wait	\ wait for slot in output FIFO
+   disable				\ sync with interrupt routines
+   r@ .state @ QUIET = if		\ if first character
+      r@ .'uart-first! @ execute	\ place directly in UART
+      OUTPUT r@ .state !
+      r> .outfifo .charsout signal	\ free FIFO slot, don't really need it
+   else
+      r@ .outfifo !fifo			\ place in output FIFO
+      1 r> .outfifo .charsin +!
+   then
+   enable ;
+
+: tty-putc-i	\ ( c tty -- )   Emit the given character.  Can be called
+		\ safely from an interrupt routine.
+   dup >r .outfifo .charsout @ ?dup if	\ if there is a free output slot
+      r@ .state @ QUIET = if		\ if first character
+	 drop r@ .'uart-first! @ execute \ place directly in UART
+	 OUTPUT r> .state !
+      else
+	 1- r@ .outfifo .charsout !	\ take slot
+	 r@ .outfifo !fifo		\ place character in output FIFO
+	 1 r> .outfifo .charsin +!
+      then
+   else
+      drop rdrop
+   then ;
+
+: tty-transint	\ ( tty -- )   Transmit interrupt.
+		\ If we are in OUTPUT state, the next character in the FIFO is
+		\ given to the UART unless the FIFO is empty.  If this is the
+		\ case, the state is set to QUIET and the UART is prevented
+		\ from issuing any further transmit interrupts.  If we
+		\ are not in OUTPUT state, we also prevent further ints.
+   dup >r .state @ OUTPUT = if		\ if OUTPUTting
+      r@ .outfifo .charsin @		\ if FIFO is not empty
+      if
+         r@ .outfifo @fifo
+         r@ .'uart! @ execute		\ send next one to UART
+         -1 r@ .outfifo .charsin +!
+         r> .outfifo .charsout signal	\ free FIFO slot
+      else				\ there are no characters in FIFO
+         r@ .'stop-transints @ execute	\ stop generating transmit interrupts
+         QUIET r> .state !
+      then
+   else
+      r> .'stop-transints @ execute	\ stop generating transmit interrupts
+   then ;
+
+\ ------------------------------------------------------------------------
+\ Input routines
+: tty-getc	\ ( tty -- c )   Read next character from type ahead buffer.
+		\ If the buffer is empty, wait for a character to arrive.
+   dup >r .infifo .charsin wait		\ wait for a character
+   disable				\ sync to interrupt routines
+   r@ .infifo @fifo			\ get character
+   1 r> .infifo .charsout +!		\ free slot
+   enable ;
+
+: tty-incount	\ ( tty -- c ) Return number of character waiting in tty's
+		\ input buffer.  Warning: this can be a negative number
+		\ if there are processes waiting for characters.
+   .infifo .charsin @ ;
+
+: tty-rcvint	\ ( tty -- )   Receive interrupt.  If an XOFF is received, the
+		\ the channel state is set to THROTTLED.  If an XON is received,
+		\ the state is THROTTLED, and there are characters in the
+		\ output FIFO, the output is started up and the state is set
+		\ to OUTPUT.  Otherwise, the character is placed in the type
+		\ ahead buffer.  If the buffer is full, the character is thrown
+		\ away without a second thought.
+   dup >r .'uart@ @ execute
+   sel					\ select action based on character
+   << KILL ==> reboot >>		\ reboot - doesn't return
+   << XOFF ==> THROTTLED r> .state ! >>
+   << XON ==>
+      r@ .state @ THROTTLED =		\ if XOFF'ed
+      if
+         r@ .outfifo .charsin @		\ if FIFO is not empty
+         if
+            r@ .outfifo @fifo
+            r@ .'uart-first! @ execute	\ send next one to UART
+            -1 r@ .outfifo .charsin +!
+            OUTPUT r@ .state !
+            r> .outfifo .charsout signal \ free FIFO slot
+	 else
+	    QUIET r> .state !
+	 then
+      else rdrop
+      then >>
+   \ default
+      r@ .infifo .charsout @
+      dup if				\ if there are free slots in input FIFO
+         1- r@ .infifo .charsout !
+	 dup 0d = if drop 0a then	\ map carriage return to linefeed
+         r@ .infifo !fifo		\ put character in FIFO
+         r> .infifo .charsin signal	\ and signal its arrival
+	 0				\ dummy value (for endsel)
+      else drop rdrop
+      then
+   endsel ;
+
+: tty-rcvrawint	\ ( tty -- )   Receive interrupt.  All characters placed in type
+		\ ahead buffer.  If the buffer is full, the character is thrown
+		\ away without a second thought.
+   dup >r .'uart@ @ execute
+   r@ .infifo .charsout @
+   dup if				\ if there are free slots in input FIFO
+      1- r@ .infifo .charsout !
+      r@ .infifo !fifo			\ put character in FIFO
+      r> .infifo .charsin signal	\ and signal its arrival
+   else drop drop rdrop
+   then ;
+
+\ ------------------------------------------------------------------------
+\ Initialization
+ttystruct constant tty-size \ hack: public needs to know size of ttystruct
+
+: tty-init	\ ( 'u! 'uf! 'u@ 'st tty -- )  Initialize the tty data
+		\ structure.
+   >r
+   r@ .'stop-transints !
+   r@ .'uart@ !
+   r@ .'uart-first! !  r@ .'uart! !
+   QUIET r@ .state !
+   0 r@ .outfifo .charsin !
+   FIFOSIZE r@ .outfifo .charsout !
+   0 r@ .outfifo .inptr !
+   0 r@ .outfifo .outptr !
+   0 r@ .infifo .charsin !
+   FIFOSIZE r@ .infifo .charsout !
+   0 r@ .infifo .inptr !
+   0 r> .infifo .outptr !
+;

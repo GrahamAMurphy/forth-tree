@@ -1,0 +1,26 @@
+\ (c) 2000 Johns Hopkins University / Applied Physics Laboratory
+\ Time management
+hex
+
+\ * Time keeping module.  Provides management of time, used to tag data.
+
+module> time
+
+2variable future-time
+2variable curr-time
+
+public:
+
+: set-time	\ ( time-ls time-ms -- ) Set time of upcoming sync-time.
+   future-time 2! ;			\ doesn't disable; called from interrupt
+
+: sync-time	\ ( -- ) Propogate time (from set-time) to actual time.
+		\ Use this new time until another set-time/sync-time occurs.
+   future-time 2@ curr-time 2! ;	\ doesn't disable; called from interrupt
+
+: get-time	\ ( -- time-ls time-ms ) Return current time.
+   disable curr-time 2@ enable ;
+
+private:
+
+endmodule>

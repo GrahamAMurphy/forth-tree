@@ -1,0 +1,1071 @@
+\ (c) 1992 Johns Hopkins University / Applied Physics Laboratory
+\			68000 Forth system
+
+verbatim
+/*			data areas			*/
+
+	.data
+
+TAB = 011
+BLANK = 040
+NAMESIZE = 6
+PTRSIZE = 4
+
+/* These variables are defined here because some assembly language
+   primitives need to access them.  For example, push-stream must
+   save the variables that describe the current input stream */
+_TIBPTR:.long	0			/* pointer to text input buffer */
+_IN:	.long	0			/* >IN buffer offset */
+_NTIB:	.long	0			/* #tib */
+_BLK:	.long	0			/* blk */
+_SFILE:	.long	0			/* 'source-id */
+_CURREGION:.long 0			/* region pointer */
+_DEFAULTDOES:
+	.long	return			/* thread to return primitive */
+
+	.=.+256				/* parameter stack */
+TOPPS:	.=.+8				/* underflow buffer */
+
+end
+
+\		68000 forth indirect threaded code
+\			inner interpreter
+
+
+\  The primitives are organized into two sections. The first section
+\  contains common executed primitives.  The second section contains
+\  rarely executed primitives.  The purpose of this division is so that
+\  the common primitves stay in the cache if we are running on an '020.
+
+
+~ code docolon
+_colon:movl	iar,sp@-		/* stack iar */
+	movl	a0,iar
+end
+
+verbatim
+_nop_:
+lnext:
+	movl	iar@+,a0		/* get cfa */
+	movl	a0@+,a1			/* get pfa */
+	jmp	a1@			/* execute */
+end
+
+~ code return
+	movl	sp@+,iar		/* restore iar */
+
+	movl	iar@+,a0		/* get cfa */
+	movl	a0@+,a1			/* get pfa */
+	jmp	a1@			/* execute */
+end
+
+~ alias dovariable variable	\ TBD: bad location
+
+~ code doconstant
+_constant:
+	movl	a0@,psp@-		/* stack value */
+	next
+end
+
+~ code dooffset
+_offset:
+	movl	a0@,d0			/* add literal to TOS */
+	addl	d0,psp@
+	next
+end
+
+~ code docreate
+_create:
+	movl	iar,sp@-		/* save old iar */
+	movl	a0@+,iar		/* new iar */
+_variable:
+	movl	a0,psp@-		/* stack pfa */
+	next
+end
+
+~ code doforeign
+/* interface to foreign C code.  a0 points to:
+   output type, C entry point, #arguments */
+	movl	a0@+,d2			/* output type */
+	movl	a0@+,a1			/* destination address */
+	movl	a0@,d3			/* number of input arguments */
+	movl	d3,d0
+	bras	2$
+1$:	movl	psp@+,sp@-		/* move args to C call stack */
+2$:	dbf	d0,1$
+	jsr	a1@			/* call C routine */
+	asll	#2,d3
+	addl	d3,sp			/* discard arguments */
+	tstl	d2
+	beqs	4$			/* non-void? */
+	bmis	3$
+	movl	d0,psp@-		/* type returned is integer */
+	next
+3$:	movl	a0,psp@-		/* type returned is pointer */
+4$:	next
+end
+
+\ control flow primitives
+
+~ code (literal)
+	movl	iar@+,psp@-		/* stack next value in stream */
+	next
+end
+
+~ alias branch branch_		\ TBD: bad location
+
+~ code ?branch
+	tstl	psp@+			/* if top of stack is non-zero */
+	beqs	_branch_		/* branch */
+	addql	#4,iar			/* skip branch address */
+	next
+end
+
+code execute
+	movl	psp@+,a0		/* get cfa from stack */
+	movl	a0@+,a1			/* get pfa */
+	jmp	a1@
+end
+
+code perform
+	movl	psp@+,a0
+	movl	a0@,a0			/* get cfa from variable */
+	movl	a0@+,a1			/* get pfa */
+	jmp	a1@
+end
+
+~ code (do)
+	movl	rlimit,sp@-		/* save old limit */
+	movl	rcount,sp@-		/* save old counter */
+	movl	psp@+,rcount
+	movl	psp@+,rlimit
+	addl	#0x80000000,rlimit	/* limit' = limit + 80000000 */
+	subl	rlimit,rcount		/* init' = init - limit' */
+	next
+end
+
+~ code (loop)
+	addql	#1,rcount		/* increment loop counter */
+	bvs	loopdone		/* loop again of v=0 */
+_branch_:
+	movl	iar@,iar		/* new iar from stream */
+	next
+
+loopdone:
+	addql	#4,iar			/* skip branch pointer */
+_unloop_:
+	movl	sp@+,rcount		/* restore counter */
+	movl	sp@+,rlimit		/* restore limit */
+	next
+end
+
+~ code (+loop)
+	addl	psp@+,rcount
+	bvs	loopdone		/* loop again of v=0 */
+	movl	iar@,iar		/* new iar from stream */
+	next
+end
+
+code i
+	movl	rcount,d0
+	addl	rlimit,d0		/* i = i' + limit' */
+	movl	d0,psp@-
+	next
+end
+
+code j
+	movl	sp@,d0
+	addl	sp@(4),d0		/* j = j' + limit' */
+	movl	d0,psp@-
+	next
+end
+
+~ code (leave)
+	movl	sp@+,rcount		/* restore counter */
+	movl	sp@+,rlimit		/* restore limit */
+	movl	iar@,iar		/* exit loop */
+	next
+end
+
+alias unloop unloop_		\ TBD: bad location
+
+verbatim	/* TBD */
+/* catch and throw, non-local control flow */
+	.data
+fp:	.long	0
+bogus:	.long	catchercfa
+catchercfa: .long catcherpfa
+	.text
+catcherpfa: addql #4,sp			/* discard saved param. stack pointer */
+	movl	sp@+,iar		/* restore instruction pointer */
+	movl	sp@+,fp			/* ... and original frame pointer */
+	movl	#0,psp@-		/* return zero */
+	next
+end
+
+code catch
+	movl	fp,sp@-			/* save old frame pointer */
+	movl	iar,sp@-		/* ... instruction pointer */
+	movl	#bogus,iar		/* set default catcher */
+	movl	psp@+,a0		/* prepare to execute */
+	movl	a0@+,a1
+	movl	psp,sp@-		/* save parameter stack pointer */
+	movl	sp,fp			/* record sp as frame pointer */
+	jmp	a1@
+end
+
+code throw
+	movl	psp@+,d0
+	beqs	0$			/* if non-zero throw, continue */
+	movl	fp,sp			/* restore original stack depth */
+	movl	sp@+,psp		/* ... parameter stack too */
+	movl	sp@+,iar		/* ... and the instruction pointer */
+	movl	sp@+,fp			/* ... and original frame pointer */
+	movl	d0,psp@-		/* return non-zero throw value */
+0$:	next
+end
+
+\ return stack primitives for local variables
+
+code (rfetch)	( --- n )  ( returns return stack item )
+	movl	iar@+,d0
+	movl	sp@(0,d0:L),psp@-
+	next
+end
+
+code (rstore)	( n --- )  ( store in return stack )
+	movl	iar@+,d0
+	movl	psp@+,sp@(0,d0:L)
+	next
+end
+
+code (rpop)	( --- )   ( clean up return stack )
+	addl	iar@+,sp
+	next
+end
+
+~ code (initlocals)
+	movl	iar@+,d0		/* number of locals */
+	subql	#1,d0
+1$:	movl	psp@+,sp@-		/* move onto return stack */
+	dbf	d0,1$			/* continue if count not zero */
+	next
+end
+
+\ stack primitives
+
+code !
+	movl	psp@+,a0		/* get address */
+	movl	psp@+,a0@		/* store */
+	next
+end
+
+code !sp
+	movl	psp@,psp		/* new stack pointer */
+	next
+end
+
+code +
+	movl	psp@+,d0
+	addl	d0,psp@
+	next
+end
+
+code +!
+	movl	psp@+,a0		/* get address */
+	movl	psp@+,d0
+	addl	d0,a0@			/* add to destination */
+	next
+end
+
+code -
+	movl	psp@+,d0
+	subl	d0,psp@
+	next
+end
+
+code -1
+	moveq	#-1,d0   		/* stack a -1 */
+	movl	d0,psp@-
+	next
+end
+
+code -2
+	moveq	#-2,d0   		/* stack a -2 */
+	movl	d0,psp@-
+	next
+end
+
+code -4
+	moveq	#-4,d0   		/* stack a -4 */
+	movl	d0,psp@-
+	next
+end
+
+code 0
+	clrl	psp@-			/* stack a 0 */
+	next
+end
+
+code 0<
+	tstl	psp@			/* test top of stack */
+	smi	d0
+	extw	d0
+	extl	d0
+	movl	d0,psp@			/* stack true/false */
+	next
+end
+
+code 0=
+	tstl	psp@			/* test top of stack */
+	seq	d0
+	extw	d0
+	extl	d0
+	movl	d0,psp@			/* stack true/false */
+	next
+end
+
+code 1
+	movl	#1,psp@-
+	next
+end
+
+code 1+
+_oneplus_:
+	addql	#1,psp@			/* increment top of stack */
+	next
+end
+
+code 1-
+	subql	#1,psp@			/* decrement top of stack */
+	next
+end
+
+code 2
+	movl	#2,psp@-
+	next
+end
+
+code 2+
+	addql	#2,psp@			/* add two to top of stack */
+	next
+end
+
+code 2-
+	subql	#2,psp@			/* subtract two to top of stack */
+	next
+end
+
+code 2*
+	movl	psp@,d0
+	asll	#1,d0
+	movl	d0,psp@
+	next
+end
+
+code 2/
+	movl	psp@,d0
+	asrl	#1,d0
+	movl	d0,psp@
+	next
+end
+
+code 2pick
+	movl	psp@(8),psp@-
+	next
+end
+
+code 3pick
+	movl	psp@(12),psp@-
+	next
+end
+
+code 4
+_four_:
+	moveq	#4,d0
+	movl	d0,psp@-
+	next
+end
+
+code 4+
+_fourplus_:
+	addql	#4,psp@			/* add 4 to top of stack */
+	next
+end
+
+code 4-
+_fourminus_:
+	subql	#4,psp@		/* subtract top of stack by 4 */
+	next
+end
+
+code 4*
+_fourstar_:
+	movl	psp@,d0
+	asll	#2,d0
+	movl	d0,psp@
+	next
+end
+
+code 4/
+_fourslash_:
+	movl	psp@,d0
+	asrl	#2,d0
+	movl	d0,psp@
+	next
+end
+
+code <
+	movl	psp@+,d1
+	cmpl	psp@,d1
+	sgt	d0
+	extw	d0
+	extl	d0
+	movl	d0,psp@			/* stack true/false */
+	next
+end
+
+code =
+	movl	psp@+,d1
+	cmpl	psp@,d1
+	seq	d0
+	extw	d0
+	extl	d0
+	movl	d0,psp@			/* stack true/false */
+	next
+end
+
+code >
+	movl	psp@+,d1
+	cmpl	psp@,d1
+	slt	d0
+	extw	d0
+	extl	d0
+	movl	d0,psp@			/* stack true/false */
+	next
+end
+
+code >body
+	addql	#4*(cells_in_code_field+1),psp@	/* convert cfa to pfa */
+	next
+end
+
+code >r
+	movl	psp@+,sp@-		/* move from p-stack to r-stack */
+	next
+end
+
+code ?dup
+	movl	psp@,d0
+	beqs	0$
+	movl	d0,psp@-
+0$:	next
+end
+
+code @
+	movl	psp@,a0			/* get address */
+	movl	a0@,psp@		/* fetch */
+	next
+end
+
+code @sp
+	movl	psp,psp@-		/* stack stack pointer */
+	next
+end
+
+code and
+	movl	psp@+,d0
+	andl	d0,psp@
+	next
+end
+
+code body>
+	subql	#4*(cells_in_code_field+1),psp@	/* convert pfa to cfa */
+	next
+end
+
+alias char+ oneplus_ 
+alias chars nop_	immediate
+
+alias cell  four_
+alias cell+  fourplus_
+alias cell-  fourminus_
+alias cells  fourstar_
+alias cell/  fourslash_
+
+code c!
+	movl	psp@+,a0		/* get address */
+	movl	psp@+,d0
+	movb	d0,a0@			/* store byte */
+	next
+end
+
+code c@
+	movl	psp@,a0			/* get address */
+	movb	a0@,d0			/* fetch byte */
+	andl	#0xff,d0
+	movl	d0,psp@
+	next
+end
+
+code cmove
+	movl	psp@+,d0		/* length */
+	movl	psp@+,a1		/* destination */
+	movl	psp@+,a0		/* source */
+	bras	cmovef
+cmover:	movb	a0@+,a1@+
+cmovef:	dbf	d0,cmover
+	clrw	d0
+	subql	#1,d0			/* dbf only works for 64k */
+	bhss	cmover			/* so, go again for another 64k */
+	next
+end
+
+code cmove>
+	movl	psp@+,d0		/* length */
+	movl	psp@+,a1		/* destination */
+	movl	psp@+,a0		/* source */
+cmoveb:	addl	d0,a0
+	addl	d0,a1
+	bras	1$
+0$:	movb	a0@-,a1@-
+1$:	dbf	d0,0$
+	clrw	d0
+	subql	#1,d0			/* dbf only works for 64k */
+	bhss	0$			/* so, go again for another 64k */
+	next
+end
+
+code move
+	movl	psp@+,d0		/* length */
+	movl	psp@+,a1		/* destination */
+	movl	psp@+,a0		/* source */
+	cmpl	a0,a1
+	blss	cmovef			/* if destination <= source, cmove */
+	movl	a0,a2
+	addl	d0,a2
+	cmpl	a2,a1
+	bhss	cmovef			/* if destination > source + length */
+	bras	cmoveb
+end
+
+~ code codefieldsize	\ return code field size in address units
+	moveq	#4*cells_in_code_field,d0
+	movl	d0,psp@-
+	next
+end
+
+code da>>				( dl dh count --- dl' dh' )
+	movl	psp@+,d0		/* count */
+	beqs	1$			/* zero length shift */
+	subql	#1,d0
+	movl	psp@,d1			/* dh */
+	movl	psp@(4),d2		/* dl */
+0$:	asrl	#1,d1
+	roxrl	#1,d2
+	dbf	d0,0$
+	movl	d1,psp@
+	movl	d2,psp@(4)
+1$:	next
+end
+
+code d<					| l1 h1 l2 h2 --- t/f
+	clrl	d0
+	movl	psp@+,d1		/* get h2 */
+	cmpl	psp@(4),d1
+	blts	2$			/* compare ms part */
+	bnes	1$			/* if ms parts are equal */
+	movl	psp@,d1
+	cmpl	psp@(8),d1		/* do unsigned comparison */
+	blss	2$			/* blss (branch on low or same) */
+1$:	moveq	#-1,d0			/* true */
+2$:	addql	#8,psp			/* throw away stack stuff */
+	movl	d0,psp@
+	next
+end
+
+code dnegate				| ( dl dh --- dl' dh' )
+	movw	#0,cc			/* clear x bit */
+	negxl	psp@(4)			/* negate dl */
+	negxl	psp@			/* negate dh */
+	next
+end
+
+code d+				| ( dl1 dh1 dl2 dh2 --- dl3 dh3 )
+	movl	psp@+,d0
+	movl	psp@+,d1
+	addl	d1,psp@(4)		/* add ls part */
+	movl	psp@,d1
+	addxl	d0,d1			/* add ms part */
+	movl	d1,psp@
+	next
+end
+
+alias d>s drop_
+
+code drop
+_drop_:
+	addql	#4,psp			/* pop stack */
+	next
+end
+
+code dup
+	movl	psp@,psp@-
+	next
+end
+
+alias invert not_:	\ TBD: alias not invert_ ?
+
+code lshift
+	movl	psp@+,d1		/* count */
+	movl	psp@,d0
+	lsll	d1,d0			/* rotate d1 bits */
+	movl	d0,psp@
+	next
+end
+
+code negate
+	negl	psp@			/* negate top of stack */
+	next
+end
+
+code nip				( a b --- b )
+	movl	psp@+,psp@
+	next
+end
+
+code not
+_not_:
+	notl	psp@			/* one's complement of top of stack */
+	next
+end
+
+code or
+	movl	psp@+,d0
+	orl	d0,psp@
+	next
+end
+
+code over
+	movl	psp@(4),psp@-
+	next
+end
+
+code r>
+	movl	sp@+,psp@-		/* move from r-stack to p-stack */
+	next
+end
+
+code r@
+	movl	sp@,psp@-		/* copy top of r-stack */
+	next
+end
+
+code rdrop
+	addql	#4,sp			/* pop return stack */
+	next
+end
+
+code aligned
+	movl	psp@,d0
+	addql	#3,d0
+	andl	#0xfffffffc,d0
+	movl	d0,psp@
+	next
+end
+
+code rot
+	movl	psp@(8),d0
+	movl	psp@(4),psp@(8)
+	movl	psp@,psp@(4)
+	movl	d0,psp@
+	next
+end
+
+code rotate
+	movl	psp@+,d1		/* count */
+	andb	#0x1f,d1		/* limit to 31 */
+	movl	psp@,d0
+	roll	d1,d0			/* rotate d1 bits */
+	movl	d0,psp@
+	next
+end
+
+code rshift
+	movl	psp@+,d1		/* count */
+	movl	psp@,d0
+	lsrl	d1,d0			/* rotate d1 bits */
+	movl	d0,psp@
+	next
+end
+
+code sp0	( -- sp0 ) ( return address of bottom of param. stack )
+	movl	#TOPPS,psp@-
+	next
+end
+
+~ code spreset				( --- )   ( reset return stack )
+	movl	INITSP,sp
+	next
+end
+
+code swap
+	movl	psp@+,d0
+	movl	psp@,psp@-
+	movl	d0,psp@(4)
+	next
+end
+
+code tuck				( a b --- b a b )
+	movl	psp@+,d0
+	movl	psp@,psp@-
+	movl	d0,psp@(4)
+	movl	d0,psp@-
+	next
+end
+
+code u<
+	movl	psp@+,d1
+	cmpl	psp@,d1
+	shi	d0
+	extw	d0
+	extl	d0
+	movl	d0,psp@			/* stack true/false */
+	next
+end
+	
+code u>
+	movl	psp@+,d1
+	cmpl	psp@,d1
+	slo	d0
+	extw	d0
+	extl	d0
+	movl	d0,psp@			/* stack true/false */
+	next
+end
+
+code um*				| ( cd ba --- ul uh )
+#ifdef mc68020
+	movl	psp@,d0
+	movl	psp@(4),d1
+	mulul	d0,d2:d1
+	movl	d1,psp@(4)
+	movl	d2,psp@
+#else
+	movw	psp@(2),d0		/* d0 = b */
+	movw	psp@(4),d1		/* d1 = c */
+	movw	psp@(6),d2		/* d2 = d */
+	mulu	d2,d0			/* d0 = b*d */
+	movl	d0,psp@(4)
+	movw	psp@,d3			/* d3 = a */
+	movw	psp@(2),d4		/* d4 = b */
+	movw	d3,d0
+	mulu	d1,d0			/* d0 = a*c */
+	movl	d0,psp@
+	mulu	d4,d1			/* d1 = b*c */
+	mulu	d3,d2			/* d2 = a*d */
+	addl	d1,psp@(2)
+	bccs	1$
+	addqw	#1,psp@
+1$:	addl	d2,psp@(2)
+	bccs	2$
+	addqw	#1,psp@
+2$:
+#endif
+	next
+end
+
+code um/mod				| ( ud u(div) --- u(rem) u(quot) )
+#ifdef mc68020		/* this version only works on 68020, 68030, etc. */
+	movl	psp@+,d1		/* divisor */
+	movl	psp@,d2			/* ms word */
+	movl	psp@(4),d3		/* ls word */
+	divul	d1,d2:d3
+	movl	d2,psp@(4)		/* remainder */
+	movl	d3,psp@			/* quotient */
+#else			/* plain 68000 version */
+	moveq	#31,d0			/* loop counter */
+	movl	psp@+,d1		/* divisor */
+	movl	psp@,d2			/* ms word */
+	movl	psp@(4),d3		/* ls word */
+1$:	asll	#1,d3
+	addxl	d2,d2			/* shift x into register */
+	bcs	2$			/* if carry out, subtract */
+	cmpl	d2,d1
+	bhis	3$
+2$:	subl	d1,d2
+	addql	#1,d3
+3$:	dbf	d0,1$
+	movl	d2,psp@(4)		/* remainder */
+	movl	d3,psp@			/* quotient */
+#endif
+	next
+end
+
+code w!
+	movl	psp@+,a0		/* get address */
+	movl	psp@+,d0
+	movw	d0,a0@			/* store word */
+	next
+end
+
+code w@
+	movl	psp@+,a0		/* get address */
+	movw	a0@,psp@-		/* fetch word */
+	clrw	psp@-
+	next
+end
+
+code within	( x y z --- t/f ) x >= y  and x < z
+	movl	psp@+,d0		/* z */
+	movl	psp@+,d1		/* y */
+	movl	psp@,d2			/* x */
+	subl	d1,d0			/* z-y */
+	subl	d1,d2			/* x-y */
+	cmpl	d2,d0			/* x-y cmp z-y */
+	shi	d0			/* x-y u< z-y */
+	extw	d0
+	extl	d0
+	movl	d0,psp@			/* stack true/false */
+	next
+end
+
+code xor
+	movl	psp@+,d0
+	eorl	d0,psp@
+	next
+end
+
+\ '2' words
+code 2>r
+	movl	psp@+,d0
+	movl	psp@+,sp@-
+	movl	d0,sp@-
+	next
+end
+
+code 2drop
+	addql	#8,psp
+	next
+end
+
+code 2dup
+	movl	psp@(4),psp@-
+	movl	psp@(4),psp@-
+	next
+end
+
+code 2over
+	movl	psp@(12),psp@-
+	movl	psp@(12),psp@-
+	next
+end
+
+code 2r>
+	movl	sp@+,d0
+	movl	sp@+,psp@-
+	movl	d0,psp@-
+	next
+end
+
+code 2r@
+	movl	sp@(4),psp@-
+	movl	sp@,psp@-
+	next
+end
+
+code 2swap
+	movl	psp@+,d0
+	movl	psp@+,d1
+	movl	psp@(4),psp@-
+	movl	psp@(4),psp@-
+	movl	d0,psp@(8)
+	movl	d1,psp@(12)
+	next
+end
+
+\ input stream helpers
+code push-stream ( c-addr u fileid -- )
+	movl	_TIBPTR,sp@-
+	movl	_IN,sp@-
+	movl	_NTIB,sp@-
+	movl	_BLK,sp@-
+	movl	_SFILE,sp@-
+	movl	psp@+,_SFILE
+	movl	psp@+,_NTIB
+	movl	psp@+,_TIBPTR
+	clrl	_IN
+	clrl	_BLK
+	next
+end
+
+code push-block-stream ( u -- )
+	movl	_TIBPTR,sp@-
+	movl	_IN,sp@-
+	movl	_NTIB,sp@-
+	movl	_BLK,sp@-
+	movl	_SFILE,sp@-
+	movl	psp@+,_BLK
+	clrl	_IN
+	next
+end
+
+code pop-stream	( -- )
+	movl	sp@+,_SFILE
+	movl	sp@+,_BLK
+	movl	sp@+,_NTIB
+	movl	sp@+,_IN
+	movl	sp@+,_TIBPTR
+	next
+end
+
+\	high level words code in assembly language for efficiency
+
+\  (find)	( tstring u addr[chain] vocab# -- tstring u addr[chain] false )
+\	   <or> ( tstring u addr[chain] vocab# -- cfa -1 true )
+\	   <or> ( tstring u addr[chain] vocab# -- cfa  1 true )
+~ code (find)
+	movl	psp@(4),d0		/* test for empty chain */
+	movl	d0,a0
+	beqs	3$
+	movl	psp@,d3			/* vocab# */
+	movl	psp@(8),d2		/* length of input word */
+	movl	d2,d1
+	cmpl	#5,d1
+	blss	9$
+	movl	#5,d1
+9$:	subql	#1,d1			/* loop counter for dbeq instruction */
+	movl	psp@(12),a1		/* address of first character in word */
+
+0$:	cmpw	a0@(6),d3		/* does vocab# match */
+	bnes	2$
+	movb	a0@,d0
+	andb	#0x7f,d0		/* mask off immediate bit */
+	cmpb	d2,d0			/* does length match */
+	bnes	2$
+	movl	d1,d0
+	lea	a0@(1),a2		/* dictionary string */
+	movl	a1,a3			/* search string */
+1$:	cmpmb	a2@+,a3@+
+	dbne	d0,1$
+	beqs	4$
+2$:	movl	a0@(8),d0		/* get link pointer */
+	movl	d0,a0
+	bnes	0$			/* continue if not at end of dict. */
+3$:	movl	a0,psp@			/* not found: return 0 */
+	next
+
+4$:	addql	#4,psp			/* return three things */
+	moveq	#-1,d2
+	movl	d2,psp@			/* return true */
+	movb	a0@,d0			/* fetch count of found string */
+	andb	#0x80,d0		/* mask off all but immediate bit */
+	beqs	5$
+	moveq	#1,d2			/* it is an immediate word */
+5$:	movl	d2,psp@(4)		/* return 1 or -1 */
+	addl	#12,a0
+	movl	a0,psp@(8)		/* return cfa */
+	next
+end
+
+\	Input stream parsing:  the following routines share these registers:
+\ input: d1: offset d2: buffer length d3: delimiter
+\	a0: buffer start
+\ local: d0: parsed length d4: X
+\ global: a2: string
+verbatim
+scandel:clrl	d0			/* length of string */
+	cmpb	#BLANK,d3		/* blank? */
+	beqs	4$			/* search for white space */
+	bras	1$			/* search for delimiter */
+
+0$:	movb	a0@(0,d1:l),d4		/* next character */
+	addql	#1,d1			/* bump offset */
+	cmpb	d3,d4			/* if delimiter found */
+	beqs	2$			/* drop out */
+	addql	#1,d0			/* bump length of parsed string */
+1$:	cmpl	d1,d2			/* if not at end of buffer */
+	bnes	0$
+2$:	rts
+
+3$:	movb	a0@(0,d1:l),d4		/* next character */
+	addql	#1,d1			/* bump offset */
+	cmpb	d3,d4			/* if white space found */
+	blss	5$			/* drop out */
+	addql	#1,d0			/* bump length of parsed string */
+4$:	cmpl	d1,d2			/* if not at end of buffer */
+	bnes	3$
+5$:	rts
+
+skipdel:cmpb	#BLANK,d3		/* blank? */
+	beqs	4$			/* skip white space */
+	bras	1$			/* skip delimiter */
+
+0$:	movb	a0@(0,d1:l),d4		/* next character */
+	cmpb	d3,d4			/* if non-delimiter found */
+	bnes	2$			/* drop out */
+	addql	#1,d1			/* bump offset */
+1$:	cmpl	d1,d2			/* if not at end of buffer */
+	bnes	0$
+2$:	rts
+
+3$:	movb	a0@(0,d1:l),d4		/* next character */
+	cmpb	d3,d4			/* if non-white space found */
+	bhis	5$			/* drop out */
+	addql	#1,d1			/* bump offset */
+4$:	cmpl	d1,d2			/* if not at end of buffer */
+	bnes	3$
+5$:	rts
+end
+
+~ code _parse	\ ( del c-addr1 u1 -- c-addr2 u2 )
+	movl	psp@+,d2		/* buffer length */
+	movl	psp@+,a0		/* buffer start */
+	movl	psp@,d3			/* delimiter */
+	movl	_IN,d1			/* >IN offset */
+	movl	a0,a2
+	addl	d1,a2			/* start of parsed string */
+	movl	a2,psp@			/* return string */
+	bsrs	scandel			/* look for end of string */
+	movl	d1,_IN			/* record new >IN offset */
+	movl	d0,psp@-		/* return length of string */
+	next
+end
+
+~ code _parse-word \ ( del c-addr1 u1 -- c-addr2 u2 )
+	movl	psp@+,d2		/* buffer length */
+	movl	psp@+,a0		/* buffer start */
+	movl	psp@,d3			/* delimiter */
+	movl	_IN,d1			/* >IN offset */
+	bsr	skipdel			/* look for start of string */
+	movl	a0,a2
+	addl	d1,a2			/* start of parsed string */
+	movl	a2,psp@			/* return string */
+	bsr	scandel			/* look for end of string */
+	movl	d1,_IN			/* record new >IN offset */
+	movl	d0,psp@-		/* return length of string */
+	next
+end
+
+~ code _word	\ ( del c-addr1 u1 -- c-addr2 u2 )
+	movl	psp@+,d2		/* buffer length */
+	movl	psp@+,a0		/* buffer start */
+	movl	psp@,d3			/* delimiter */
+	movl	_IN,d1			/* >IN offset */
+	bsr	skipdel			/* look for start of string */
+	movl	a0,a2
+	addl	d1,a2			/* start of parsed string */
+	bsr	scandel			/* look for end of string */
+	movl	d1,_IN			/* record new >IN offset */
+
+	movl	_CURREGION,a1		/* find HERE */
+	movl	a1@,a1
+	movl	a1,psp@			/* return string (at HERE) */
+	movb	d0,a1@+			/* save length at HERE */
+	beqs	1$			/* if length is zero, don't copy */
+	subql	#1,d0
+0$:	movb	a2@+,a1@+		/* copy word to HERE+1 */
+	dbf	d0,0$
+1$:	movb	#BLANK,a1@		/* put blank at end for number routine*/
+	next
+end

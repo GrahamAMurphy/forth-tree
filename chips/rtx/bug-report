@@ -1,0 +1,37 @@
+   A bug has been found in the RTX cross-compiler.  Any function that
+contains a literal value of a020 will not be compiled correctly
+(e.g. : foo ... a020 ... ;).  The bug has been fixed.
+
+   This bug has a low, but non-zero probability of effecting the NEAR
+flight programs.  For example, it has no effect on NIS-MAG or XGRS.  We
+should re-compile everything else and make sure that nothing changes.
+If you were using the cross-compiler on ulysses, you should save the
+old binary, re-compile, and make sure the new binary matches the old
+one.  If you have saved the cross-compiler with your flight source
+code, you should add the changes to your version of the cross-compiler
+(contained in a postscript).
+
+- John
+
+Changes to RTX cross-compiler:
+
+In rtx/rules.fr, replace rule <x><exit> with:
+rule <x><exit>
+	<i	?class	?alu	?sub	0 rbit	?data	i>
+	<i	a class	0 alu	0 sub	1 rbit	0 abit	0 shift	i>
+-->	<o	0 ??	1 ??	2 ??	1 rbit	3 ??	o>
+	constraint:
+	   0 non-flow?			\ no calls or branches
+	   0 not-longlit? and		\ don't combine longlit with argument!
+	   dup if			\ no return stack access
+	      0 2 g-form? if 3 non-raccess? and then
+	   then
+	;constraint
+endrule
+
+In rtx/optcheck.fr, add the following function after the function "non-flow?"
+: not-longlit?	\ ( wildindex -- t/f ) Return true if indicated wildcard
+		\ is not a long literal instruction.
+   wildcard-match d000 <> ;
+
+

@@ -1,0 +1,14 @@
+\ (c) 2004 Johns Hopkins University / Applied Physics Laboratory
+\ Forth primitives - 32-bit extensions
+hex
+
+nohead
+code set-base	\ ( x -- ) Set base register, i.e. CPR.
+	<reg!	nopa cpr popp >.
+	<exit> inline
+
+nohead
+code get-base	\ ( -- x ) Get base register, i.e. CPR.
+	<reg@	cpr nopb pushp >.
+	<exit> inline
+

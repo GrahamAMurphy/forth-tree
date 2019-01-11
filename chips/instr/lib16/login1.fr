@@ -1,0 +1,20 @@
+\ (c) 1998 Johns Hopkins University / Applied Physics Laboratory
+\ Startup (cross-compile only).
+hex
+
+variable first-boot			\ first boot flag
+   true first-boot !
+
+: flight	\ ( -- ) Startup flight system directly from boot.
+		\ Second call just runs Forth; this assumes that either
+		\ watchdog is disabled, either because it was never
+		\ enabled or because of a reset.
+   first-boot @ if			\ if first boot
+      false first-boot !		\ next time, just run forth
+      go				\ start up flight code
+      begin				\ wake forth after magic key series
+	 begin key [char] j = until
+	 key [char] h =
+      until
+   then
+   doforth ;

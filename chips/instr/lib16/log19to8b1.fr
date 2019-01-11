@@ -1,0 +1,38 @@
+\ (c) 2008 Johns Hopkins University / Applied Physics Laboratory
+\ Pseudo-log compression
+decimal
+
+: norm-4b	\ ( x -- 1.xxxx e ) Normalize input to consist of a one
+		\ followed by four bits.  The number of bits of right
+		\ shift needed to normalize are also returned (0 - 11).
+		\ Note: assumes input is >=0x10.
+   0 swap				\ shift count
+   begin dup h# ff00 and while		\ possibly shift 8 or 4 bits
+      4 rshift  swap 4 + swap
+   repeat
+   dup h# 00c0 and if			\ possibly shift 2 bits
+      2 rshift  swap 2 + swap
+   then
+   dup h# 0020 and if			\ possibly shift 1 bit
+      1 rshift  swap 1+ swap
+   then
+   swap ;
+
+: log19to8	\ ( xls xms -- log8 ) Generate the 8-bit log format (4-bit
+		\ exponent and 4-bit mantissa) from 19-bit input.  If the
+		\ input is larger than 19 bits, the maximum 8-bit code
+		\ is returned.
+   dup if				\ if large number
+      dup 7 u> if			\ if too large to fit in 8-bit format
+	 2drop h# ff			\   return maximum
+      else				\ else 17, 18, or 19-bit straddles
+	 4 lshift swap 12 rshift or	\   get msbs, convert to single
+	 norm-4b 12 +			\   normalize and adjust exponent
+	 4 lshift +			\   combine exponent and mantissa
+      then
+   else					\ else, if small number
+      drop dup h# 0f u> if		\ but still big enough
+	 norm-4b			\ normalize
+	 4 lshift +			\ combine exponent and mantissa
+      then				\ if small, pass through
+   then ;

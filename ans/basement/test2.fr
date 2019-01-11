@@ -1,0 +1,13 @@
+" genlocals.fr" used
+
+: foo1
+ { local x
+   x . } ;
+
+: foo2
+ { local x local y
+   x y + . } ;
+
+: foo3
+ { local x local y local z
+   x . y . z . } ;

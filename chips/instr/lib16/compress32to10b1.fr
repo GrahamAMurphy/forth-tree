@@ -1,0 +1,97 @@
+\ (c) 2009 Johns Hopkins University / Applied Physics Laboratory
+\ Compression
+decimal
+
+module> compress
+
+\ * Provides log compression (32 bits to 10 bits) and log compression
+\ * followed by lossless "Fast" compression.
+
+\ * Requires configuration parameters:
+\ *    #fast-blk: Fast compression block size
+\ *    compress-mem#, compress-size#: memory and size of compression buffer
+
+\ * Uses modules log32to10b1, fast10b2, and packbits2.
+
+\ ------------------------------------------------------------------------
+\ Local data
+
+\ Compression buffer; sized to hold largest possible result
+compress-size# compress-mem# far-allot
+   constant compress-buf
+
+\ Bit stream descriptor
+bit-pack-struct makestruct compress-bits
+
+\ ------------------------------------------------------------------------
+\ * Start/stop compression.
+
+public:
+
+: open-compress	\ ( -- ) Start compression, i.e. by opening bit stream.
+   compress-buf compress-mem# compress-bits open-pack ;
+
+: close-compress \ ( -- addr memid len ) End compression and return bit
+		\ stream location and length, rounded up to multiple of
+		\ 16 bits.
+   compress-buf compress-mem# compress-bits close-pack ;
+
+private:
+
+\ ------------------------------------------------------------------------
+\ * Log (lossy) compress
+
+public:
+: log-compress	\ ( addr bins -- ) Log-compress given array of 32-bit bins
+		\ and append results to compression bit stream.
+		\ Precondition: remote memory source of array is set.
+   0 do					\ for each bin
+      dup far2@ log32to10		\   log-compress to 10 bits
+      10 compress-bits pack-bits	\   pack into stream
+      2 cells +				\   step to next bin
+   loop drop ;
+private:
+
+\ ------------------------------------------------------------------------
+\ * Log (lossy) and Fast (lossless) compress
+
+: compress-log32to10 \ ( addr bins -- ) Log-compress (32 bits to 10 bits) array.
+		\ The array is overwritten by the results, one result every
+		\ cell.
+   >r dup r> 0 do			\ for each value
+      over 2@ log32to10 over !		\ compress and save
+      swap 2 cells + swap cell+		\ step pointers
+   loop drop drop ;
+
+: fast-block	\ ( addr u -- addr' ) Fast compress data at given location
+		\ and append block to current bit stream.  The block is
+		\ assumed to be delta-coded.
+		\ Precondition: remote memory selected.
+   2dup far fast10 near			\ find number of bits needed for
+      dup 4 compress-bits pack-bits	\   block; send block header
+   swap 0 do				\ output packed values
+      >r dup far@ r@ compress-bits pack-bits cell+ r>
+   loop drop ;
+
+: compress-fast \ ( addr u -- ) Fast compress array of cells u elements
+		\ long and append to current bit stream.
+		\ Precondition: remote memory selected and input array
+		\ has 10-bit values.
+   over far@ dup >r			\ array header: first value
+      10 compress-bits pack-bits
+   2dup r> far delta10 near		\ code deltas for compression
+   begin ?dup while			\ while there is data remaining
+      dup #fast-blk umin swap over - >r	\ block data
+      fast-block r>			\   and compress
+   repeat drop ;
+
+public:
+: log/fast-compress \ ( addr bins -- ) Log and fast compress given array of
+		\ 32-bit bins and appends results to compression bit stream.
+		\ Note: Array is overwritten in the process.
+		\ Precondition: remote memory source of array is set.
+   2dup far compress-log32to10 near	\ log compress in place
+   compress-fast ;			\ fast compress
+private:
+
+endmodule>

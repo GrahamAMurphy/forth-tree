@@ -1,0 +1,59 @@
+\ (c) 1988 Johns Hopkins University / Applied Physics Laboratory
+\ Structure access words
+\ Examples of use:
+\	structure foo		\ declare a structure named foo
+\	      cell: .thing1	\ with a one word field named .thing1
+\	   2 cells: .thing2	\ and a two word field named .thing2
+\	endstructure
+\	
+\	structure foobar	\ another structure
+\	         cell: .thing
+\	   foo struct: .blah	\ nested structure
+\	endstructure
+\
+\	foobar makestruct test	\ allocate space for a structure instance
+\	1234 test .blah .thing1 ! \ access structure
+
+\ NOTE: in this implementation of structures, when a structure name or member
+\ name is used in a colon definition, a call is compiled.  Also, headers
+\ and code is compiled in the target system. TBD: is this still right?
+\ The structure and offset code are placed in ROM and any structure
+\ allocated is placed in RAM space.
+\ TBD: I think this code is wrong!
+hostinterp				\ search host then forth, defs in host
+
+forth : structure \ ( --- here 0 ) structure access
+   [host]
+   t-create
+      t-here 0 t-, 0 ;
+
+forth : struct:	\ ( offset size --- offset' ) nested structure definition
+   [host]
+   t-create
+      over t-, +
+   t-does> 	\ ( addr --- addr' ) add member's offset to addr.
+      [forth] @ metastate @ if		\ if compiling
+         [meta] literal [target] + [forth] \ compile a literal and a plus
+      else
+         +				\ otherwise, add in offset
+      then ;
+
+forth : cells:	\ ( offset size --- offset' ) create structure member size
+		\ words long starting at offset.
+   [host] cells struct: ;
+
+forth : cell:	\ ( offset --- offset' ) create structure member 1 word long
+		\ starting at offset.
+   [host] cell struct: ;
+
+forth : endstructure \ ( structdef size --- )
+   [forth] swap ! [host] ;
+
+forth : makestruct \ ( size --- ) allocate memory for a struct of given size
+   [host]
+   createnotarget
+      ram-here [forth] , [host] ram-allot
+   t-does>	\ ( --- addr ) return address of structure
+      [forth] @ metastate @ if		\ if compiling
+         [meta] literal [host]		\ compile a literal
+      then ;

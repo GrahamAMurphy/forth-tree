@@ -1,0 +1,25 @@
+\ (c) 2004 Johns Hopkins University / Applied Physics Laboratory
+\ Setup stacks, etc.
+hex
+
+noheads
+
+\ Stacks (used by default process in multitasking systems)
+align-stack d# 64 cells allot		\ allocate parameter stack
+   label pstack				\   the stack grows down
+align-stack d# 64 cells allot		\ allocate return stack
+   label rstack				\   the stack grows down
+
+code spreset	\ ( r: ... -- ) Reset return stack.  Does not affect parameter
+		\ stack.  Note: resets the default process' return stack.
+	rstack *literal*
+	<reg!	nopa md popp >.		\ tuck away new rsp
+	<lil	nopb pushp >.	00fd >.
+	<lil	notb pushp >.	00ff >.
+	<reg@	scr banda >.		\ start atomic operation
+	<reg!	bora scr >.
+	<reg@	md nopb popp >.
+	<reg!	nopa rsp popp >.	\ end atomic operation
+	<exit> inline			\ must be inlined to work
+
+heads

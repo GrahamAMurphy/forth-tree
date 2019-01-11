@@ -1,0 +1,32 @@
+\ (c) 1995 Johns Hopkins University / Applied Physics Laboratory
+\ RTX cross-compiler emulation.  For use when downloading instead of
+\ cross-compiling RTX code.
+hex
+
+: heads ;
+: noheads ;
+: ram ;
+: rom ;
+be82 ucode times||
+: || ; immediate
+e542 ucode @-	\ ( a -- x a-2 ) Fetch x from a and decrement a.
+e942 ucode @+	\ ( a -- x a+1 ) Fetch x from a and increment a.
+e9c2 ucode !+	\ ( x a -- a+1 ) Store x at a and increment a.
+f941 ucode c@+
+f9c1 ucode c!+	\ TBD/BUG: what if bytesim is enabled?
+be83 ucode cr!
+be03 ucode cr@
+be84 ucode md!
+be04 ucode md@
+be85 ucode sq!
+be86 ucode sr!
+be06 ucode sr@
+be09 ucode sp@
+be8e ucode upr!
+be0e ucode upr@
+be8f ucode cpr!
+be0f ucode cpr@
+be91 ucode lsp!
+a006 ucode u2/
+a00a ucode d2*
+a00f ucode d2/

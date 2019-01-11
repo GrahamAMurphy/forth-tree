@@ -1,0 +1,36 @@
+		Known Bugs and Limitations
+
+Bugs:
+   accept behaves strangely when number of characters typed exceeds
+expected number of characters.
+
+   key must be called before anything has been typed; if not, the data
+will be echoed, ^C will kill, etc.  This is problematic for programs
+that try to respond to cursor keys, etc. using key.
+
+   The system is case sensitive and all Forth words are lower case.
+   However, input number conversion is case insensitive (0a = 0A).
+
+   abort (and abort") actually say "ok" when they are done.
+
+   : foo [ :noname ; ( foo is now findable)
+
+   chdir gives no indication of failure.
+
+   if abort occurs while loading a command line file (which can happen
+if an unknown file is 'fload'ed) you will land in the interactive
+interpreter.
+
+Limitations:
+   move only copies a byte at a time; it could be faster.
+
+   test for eof in read-line isn't very portable and doesn't work if
+tty is in raw mode. (How could you ever detect EOF in raw mode?)
+
+   By default, ( comments do not span lines in files.  Load ansparen.fr
+to get the standard (.
+
+   Word names are five characters and a hash code instead of the required
+31 characters.  This is a characteristic inherited from progenitors that
+were memory conscious.  It rarely causes problems and I don't feel like
+changing it.

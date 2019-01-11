@@ -1,0 +1,9 @@
+\ (c) 2005 Johns Hopkins University / Applied Physics Laboratory
+\ Finish
+hex
+
+label done
+]  key #testpat =			\ test test pattern
+   10 set-mem 0002 far ! near		\ write t/f flag to parallel port
+   begin again
+[

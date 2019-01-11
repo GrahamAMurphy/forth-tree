@@ -1,0 +1,53 @@
+#!/home/users/local/bin/forth
+\ Compile RTX Forth
+
+\ Load utilities
+" onlyalso.fr" used
+" genlocal.fr" used
+
+\ First, load the metacompiler
+" crosscompiler.fr" sload		\ Rtx target model
+" meta1.fr" sload			\ metacompiler part 1
+" metaasm.fr" sload			\ metaassembler
+" opt.fr" sload				\ peephole optimizer
+\ " optfrisc4.fr" sload			\ Frisc4 constraints on optimizer
+\ " rules.fr" sload			\ rules for optimizer
+
+\ Configure metacompiler
+8000 ram  heads    metamap			\ rambased system
+
+\ Load the primitives for the Forth system
+\ " parameters.fr" sload			\ formats, initial values, etc.
+" vector.fr" sload			\ reset and interrupt vectors
+" osdata.fr" sload			\ data needed by the outer interpreter
+" prims.fr" sload			\ low level code primitives
+" bootdata.fr" sload			\ boot todo lists
+
+\ Extend the metacompiler to handle compiling and defining words
+" meta2.fr" sload			\ metacompiler part 2
+" struct.mfr" sload			\ metacompile structure defintions
+" boot.mfr" sload			\ metacompile boot todo list
+
+\ Load the rest of the Forth system
+" moreprims.fr" sload			\ more RTX primitives
+   noheads
+" init.fr" sload			\ initialize registers
+" stacks2000.fr" sload			\ allocate parameter and return stacks
+" inter.fr" sload			\ interrupts
+   heads
+\ " intcontrol.fr" fload			\ FRISC 4 interrupt controller
+" tty.fr" sload				\ fake emit and key for sim.
+" forthio.fr" sload			\ rest of Forth's I/O primitives
+" osprims.fr" sload			\ interpreter helper routines in asm.
+" os.fr" sload				\ Forth outer interpreter
+" interrupt.fr" sload			\ user-level interrupt definitions
+\ " sim/fakeio.fr" sload			\ Unix I/O via simulator
+\ " lib/offset.fr" sload		\ data structure access primitive
+" startup.fr" sload			\ start up
+
+.(    here = ) here . cr
+.( ramhere = ) ramhere . cr
+\ " dict.fr" sload
+decimal
+" newforth" saveobj
+.( stack depth = ) depth . cr

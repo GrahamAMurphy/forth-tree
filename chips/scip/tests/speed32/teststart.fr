@@ -1,0 +1,13 @@
+\ (c) 2005 Johns Hopkins University / Applied Physics Laboratory
+\ Test
+hex
+
+\ Count iterations of test.
+variable test-count
+
+label test	\ ( -- ) Test processor.  Does not return.
+]  test-count @ dup 1+ test-count !	\ toggle state
+   \ 8 rshift 100002 w!			\   and write to LVPS
+   8 rshift 100008 w!			\   and write to LVPS
+[					\ run test
+\ compile test here ...

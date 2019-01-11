@@ -1,0 +1,9 @@
+Wed Feb  6 15:30:54 EST 2002
+Created MESSENGER variant of DPU.  It is almost identical to CONTOUR
+but the interrupt mask register is active high.  A custom version of
+dpuinit.fr is needed because of this.
+
+Wed Nov 12 19:23:38 EST 2003
+Created CRISM variant of DPU derived from MESSENGER.  It has G-bus
+registers for sending 32-bit command to motor and receiving 32-bit
+status.

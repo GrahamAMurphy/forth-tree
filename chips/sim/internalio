@@ -1,0 +1,31 @@
+/*	Internal memory-mapped IO decode
+ */
+
+finesse
+
+#include "encoding.h"
+#include "states.h"
+
+input	state;
+input	amsbs[3:0],			/* ms nibble of Abus */
+	alsbs[3:0];			/* Abus[5:2] *
+
+output	comb readrsp, writersp, readpsp, writepsp, readscc, writescc;
+
+symbolic state STATECODE;
+
+eqn
+{
+
+/*************************************************************************
+ *	Stack Cache Controller
+ */
+
+readrsp	=	(state==load)  & (amsbs==iopage) & (alsbs==rsp);
+writersp =	(state==store) & (amsbs==iopage) & (alsbs==rsp);
+readpsp	=	(state==load)  & (amsbs==iopage) & (alsbs==psp);
+writepsp =	(state==store) & (amsbs==iopage) & (alsbs==psp);
+readscc	=	(state==load)  & (amsbs==iopage) & (alsbs==scc);
+writescc =	(state==store) & (amsbs==iopage) & (alsbs==scc);
+
+}

@@ -1,0 +1,5 @@
+
+       send                             define 0002 
+       get                              define 0010 
+       greet                            define 001c 
+here = 40 

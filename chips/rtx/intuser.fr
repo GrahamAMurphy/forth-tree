@@ -1,0 +1,10 @@
+\ (c) 1993 Johns Hopkins University / Applied Physics Laboratory
+\	Interpreter-level interrupt definitions
+\ See inter.fr for details.
+decimal
+
+: int:		\ ( u -- ) Install code in interrupt vector table at given slot.
+   32 * int-table + int-entry-size + align-here *callop* swap ! ] ;
+
+: ;int		\ ( -- ) Compile a return from interrupt.
+   postpone return postpone [ ; immediate

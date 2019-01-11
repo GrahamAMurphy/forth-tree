@@ -1,0 +1,27 @@
+Running self-test.
+1. vfsim32 testplan32.mem
+2. xxx start				\ where xxx is address of starttest
+3. xxx simuntil				\ where xxx is address of done
+4. Success if test completes and T=0
+
+Running self-test with interrupt torture mode.
+1. vfsim32 testplan32.mem
+2. 1 interrupt
+... rest is same as above.
+
+Running multiply and divide tests.
+1. fsim32 testplan32.mem
+2. xxx start				\ where xxx is address of reboot
+3. 2 simuntil
+4. test-m*				\ test variety of multiply and
+5. test-um*				\   divide cases.  silence denotes
+6. test-um/mod				\   success.
+7. test-/mod
+8. 0 execute				\ quits
+
+Running Forth automated regression test
+1. fsim32 testplan32.mem
+2. xxx start				\ where xxx is address of reboot
+3. 2 simuntil
+4. " testcore.fr" fload			\ run test. ignore case and s" errors
+5. 0 execute				\ quits

@@ -1,0 +1,19 @@
+\ (c) 1995 Johns Hopkins University / Applied Physics Laboratory
+\ Cross-compiler for locals
+hex
+
+: *locstore*	\ ( u --- ) compile code to store a number in local
+		\ variable u.
+   [target] lsp@ [host] t-cells *offset* optimize [target] ! [host] ;
+
+: *locload*	\ ( u --- ) compile code to load a number from local
+		\ variable u.
+   [target] lsp@ [host] t-cells *offset* optimize [target] @ [host] ;
+
+: *locinit*	\ ( u --- ) compile code to allocate and initialize u local
+		\ variables.  u > 0.
+   [host] *literal* [target] (localloc) [host] ;
+
+: *locfree*	\ ( u --- ) compile code to deallocate u local variable
+		\ slots.
+   [target] lsp@ [host] t-cells *offset* [target] lsp! [host] ;

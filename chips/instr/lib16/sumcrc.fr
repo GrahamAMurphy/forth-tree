@@ -1,0 +1,16 @@
+\ (c) 2002 Johns Hopkins University / Applied Physics Laboratory
+\ Checksum - Cyclic Redundancy Check (CRC)
+hex
+
+\ Expects two constants to be defined:
+\  #crc-poly that represents the polynomial
+\  #crc-seed for the initial seed value for the shift register
+
+: crc		\ ( crc x -- crc' ) Do 16-bit CRC calculation.
+   xor 10 for dup 0< if 2* #crc-poly xor else 2* then next ;
+
+: checksum	\ ( addr memid #words -- checksum ) Compute CRC checksum of
+		\ given memory region.
+   get-mem >r swap set-mem		\ access remote memory
+   #crc-seed -rot far for @+ >r crc r> next drop
+   r> set-mem ;				\ restore memory selection

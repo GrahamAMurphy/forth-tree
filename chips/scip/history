@@ -1,0 +1,32 @@
+Wed Nov 17 12:34:04 EST 2004
+Created.
+
+Thu Jun 30 15:20:38 EDT 2005
+Added heads to "md@" and "md!".  This allows some libraries to be
+implemented more efficiently.  These words are not intended for
+end-users.
+
+Wed Jul  6 13:14:16 EDT 2005
+Mask off interrupts as part of "safe" function.  Because this is not
+part of the processor, it is implementation/board specific.  Assumes
+that "#ints" defines number of interrupts and "mask-int" exists to mask
+off interrupts.  Board-specific code must be compiled before "safe".
+Consequently, "safe" and other initialization functions were moved from
+stacks.fr into a new file, inits.fr.  kernel2.fr was modified to load
+inits.fr.
+
+Thu Aug 18 09:16:14 EDT 2005
+Stack empty functions pspreset and spreset can fail if interrupted.
+Rewrite so that update of SCR and PSP/RSP are done atomically.
+
+Fri Sep 23 10:37:24 EDT 2005
+Fixed bug in pspreset in stacknotask.fr.
+
+Fri Sep 23 10:38:06 EDT 2005
+Modified 32-bit architecture to fetch interrupt vector and make short
+calls with respect to CPR.  Modified cross-compiler and Forth interpreter
+compiler accordingly.
+
+Mon Oct 22 12:18:21 EDT 2007
+Did a number of code clean-ups, mostly invisible to users.  Added support
+for per-process "user" variables.  Removed "w," from 16-bit version.

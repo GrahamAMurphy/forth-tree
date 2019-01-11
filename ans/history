@@ -1,0 +1,5 @@
+Sat Feb 28 16:23:54 EST 2009 "version ANS 1.3"
+Changed number of characters in dictionary name from 5 to 6.  This is
+what the RTX and SCIP Forth systems use.  The wordlist id was reduced
+from 2 bytes to 1.  Files affected were meta/fc.h, meta/dirs.c,
+cmach/macro.fr, cmach/prims.fr, and os.fr.

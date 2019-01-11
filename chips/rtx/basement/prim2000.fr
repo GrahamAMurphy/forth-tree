@@ -1,0 +1,15 @@
+\ (c) 1993 Johns Hopkins University / Applied Physics Laboratory
+\ More RTX primtives.  These are RTX2000 specific; there is a corresponding
+\ file for RTX2010 primitives.
+\ This 'primitives' are written in Forth with the assumption that
+\ a peephole optimizer will generate code as good as could be written
+\ by hand.  The spacing between words indicates whether I expect
+\ the optimizer to combine words into a single RTX instruction:
+\ one space indicates that combination is possible, two spaces otherwise.
+hex
+
+: 0=	( x -- flag )		if  0 exit  then  -1 ;
+\ TBD lshift could be improved by using "?dup if".
+: lshift ( x u -- x' )		dup if  1-  times|| 2*  || exit then drop ;
+: rshift ( x u -- x' )		dup if  1-  times|| u2/ || exit then drop ;
+: rotate ( x u -- x' )		f and  for  2*c  0+c  next ;

@@ -1,0 +1,34 @@
+\ (c) 1993 Johns Hopkins University / Applied Physics Laboratory
+\ Setup stacks (and control registers)
+\ The following code is specific to the RTX2000
+
+decimal
+\ TBD
+ram
+40 cells allot label LOCALS		\ local variables stack
+rom
+hex
+
+: cacheenable
+   \ There are no stack caches on RTX; this will be removed by cross compiler
+   || ; inline
+
+\		Initialize the stack pointers
+
+: pspreset				\ reset parameter stack
+\ The following code was copied from an RTX2000 Forth written by Harris.
+\ I don't know why it decrements the return stack pointer (-100 sp@+)
+\ but it doesn't work unless you do this!
+   -100  sp@+  ff00  and  sp!  || ;
+
+: spreset				\ reset return stack
+\ The following code was copied from an RTX2000 Forth written by Harris.
+\ The parameter stack pointer must be decremented by 2 (-2 sp@+) !
+   -2  sp@+  ff  and  sp!  || ; inline
+
+: under?	\ ( --- t/f )  Return t if stack has underflowed
+	sp@  ff  and  2  80  within  not ;
+
+: initlocals	\ reset the interpreter's local variable stack.
+\ TBD
+;

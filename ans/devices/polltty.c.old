@@ -1,0 +1,22 @@
+/*
+ * Forth I/O routines: emit and key
+ */
+
+
+int
+cmd_getc(void) {
+	volatile TTYPORT * const sra = (TTYPORT *)STATUS;
+	volatile TTYPORT * const rxa = (TTYPORT *)RECV;
+	unsigned char c;
+	while((*sra&RECV_MASK) == 0) ;		/* wait for data */
+	c = *rxa;
+	return(c=='\r' ? '\n' : c);		/* map '\r' to '\n' */
+}
+
+void
+cmd_putc(unsigned char c) {
+	volatile TTYPORT * const sra = (TTYPORT *)STATUS;
+	volatile TTYPORT * const txa = (TTYPORT *)XMIT;
+	while((*sra&XMIT_MASK) == 0) ;
+	*txa = c;
+}

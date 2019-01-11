@@ -1,0 +1,27 @@
+\ (c) 1992 Johns Hopkins University / Applied Physics Laboratory
+\ The following is a fully compliant definition of ANS Forth's
+\ '(' comment operator: it spans lines when found in an 'included'
+\ text file.
+\ There are two reasons why you shouldn't use this:
+\ 1. It is inconsistent with keyboard input: if a ( is typed directly
+\ to the interpreter, the comments terminates at the closing ) or the end
+\ of the line, whichever comes first.
+\ 2. If a text file is to be later downloaded into an embedded computer,
+\ you will have a problem.  A common technique for downloading is to
+\ disable echoing in the embedded computer and send the text file verbatim.
+\ The embedded computer's interpreter sees text being typed (quickly).
+\ If there is a comment that spans a line, the interpreter will end the
+\ comment at the end of the first line, then try to execute or compile
+\ the remainder of the comment.  Disastrous.
+hex
+
+: (
+   source-id 0= source-id -1 = or	\ if input stream is not file
+   if postpone ( exit then		\ use original (
+   begin
+      [char] ) parse 2drop
+      source drop >in @ 1- + c@ [char] ) <> \ if last is ')'
+      while				\ continue
+      source drop 80 source-id read-line ?error while
+      reset-stream			\ and load another line into stream
+   repeat then ; immediate

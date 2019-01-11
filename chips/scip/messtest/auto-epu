@@ -1,0 +1,60 @@
+\ Compile generic instrument for MESSENGER
+
+" target.fr" used
+" Frisc5/16bits" is-target		\ cross compile for 16-bit Frisc5
+
+\ Configure crosscompiler
+hex
+0 set-ram				\ ram-based system
+\ 0 8000 set-rom/ram			\ rom-based system
+def interactive
+def multitasking			\ include multitasker
+" epuapp.map" is-logfile
+
+\ Load the kernel.
+" kernel1.fr" ftload			\ primitives and extend crosscompiler
+
+\ Load low-level tty code
+" intprims.fr" ftload			\ test interrupt support
+" intuser.mfr" ftload			\    and cross-compiler
+" tty.fr" ftload			\ emit and key through simulator
+
+\ Load the interpreter
+" kernel2.fr" ftload			\ interpreter for Forth, processes, etc.
+" fakeio.fr" ftload	\ TBD: ifdef interactive ...
+
+\ ------------------------------------------------------------------------
+\ Load application
+
+\ Load EPU board simulation
+" messepusim.fr"	fload
+" rtxprims.fr"		used
+
+\ Download common code (some customization files are plucked from current dir)
+" generic.fr"		fload
+" loadcommon.fr"	used
+
+\ Application-specific code
+" macro-dflt.fr"	fload
+" monitor-dflt.fr"	fload
+" 1hz-proc.fr"		fload
+
+\ Test
+" testload.fr"		fload
+
+\ Initialization
+" main-epu.fr"		fload
+" login1.fr"		used
+
+\ Load startup
+" startup.fr" ftload
+' doforth is-startup
+\ ' flight is-startup
+
+report
+far-report
+" epuapp.mem" saveobj
+
+cr .( stack depth = ) depth . cr
+
+decimal >log rulestats !>log

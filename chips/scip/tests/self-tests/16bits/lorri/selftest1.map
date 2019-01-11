@@ -1,0 +1,6 @@
+
+       send                             define 0002 
+       get                              define 0010 
+       iotest                           define 001c 
+       done                             define 0032 
+here = 3a 

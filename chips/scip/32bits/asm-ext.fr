@@ -1,0 +1,150 @@
+\ (c) 2004 Johns Hopkins University / Applied Physics Laboratory
+\ Microcode/instruction assembler - 32-bits
+hex
+
+\ ------------------------------------------------------------------------
+\ Instruction formats and encoding - 32 bits
+
+\ Register, opcodes, etc. only available to 32 bit processors.
+2 memsize mem32
+
+8000 constant <call2
+b010 constant <lih
+
+\ ------------------------------------------------------------------------
+\ Compilers - 32 bits
+
+: *shortcallop*	\ ( xt -- x ) Return instruction that calls xt.  Return
+		\ short form; it is up to user to know if short form can
+		\ be used.
+   ffff and 1 rshift ;
+: *callop*	\ ( xt -- x ) Return instruction that calls xt.  Return
+		\ long form.
+   1 rshift <call2 d# 16 lshift or ;
+: *call*	\ ( xt -- ) Compile call.  Use shortest form possible.
+   dup ffff0000 and			\ if page of destination
+   w0 @ ffff0000 and = if		\   is base page
+      *shortcallop* t-i,		\ use short call
+   else					\ otherwise, must
+      *callop* t-,			\   use long call
+   then ;
+
+<lis notb pushp constant <small-lit>	\ push embedded 5 bit negative literal
+<lis nopb pushp constant <small+lit>	\ push embedded 5 bit positive literal
+<lih nopb pushp 10 lshift constant <hi-lit> \ push high 16 bit literal
+<lil nopb pushp 10 lshift constant <lo-lit> \ push low 16 bit literal
+<lil bplusa 10 lshift constant <lo-off>	\ add low 16 bit literal
+
+\ TBD: there may be further optimizations here ...
+: *literal*	\ ( n -- ) Compile a literal instruction.
+   dup 20 u< if				\ if 0 - 31
+      <small+lit> swap +# t-i,		\ compile small positive literal
+   else dup ffffffdf u> if		\ if 0xffffffe0 - 0xffffffff or -32 - -1
+      invert <small-lit> swap +# t-i,	\ compile small negative literal
+   else dup ffff u> if			\ if big literal
+      dup -10 rotate ffff and		\ get bit part of literal
+      <hi-lit> or t-,			\ get lah instruction
+      ffff and ?dup if			\ if low part is non-zero
+         <lo-off> or t-,		\ add it in
+      then
+   else					\ else, small literal
+      <lo-lit> or t-,			\ compile it
+   then then then ;
+
+<lis aminusb constant <small-off>	\ subtract embedded 5 bit literal
+<lis bplusa constant <small+off>	\ add embedded 5 bit literal
+<lih bplusa 10 lshift constant <hi-off>	\ add high 16 bit literal
+
+: *offset*	\ ( n -- ) Compile a literal offset instruction.
+   dup 20 u< if				\ if 0 - 31
+      <small+off> swap +# t-i,		\ compile small positive literal offset
+   else dup ffffffe0 u> if		\ if 0xffffffe1 - 0xffffffff or -31 - -1
+      negate <small-off> swap +# t-i,	\ compile small negative literal offset
+   else dup ffff u> if			\ if big offset
+      dup -10 rotate ffff and		\ get bit part of literal
+      <hi-off> or t-,			\ add it in
+      ffff and ?dup if			\ if low part is non-zero
+         <lo-off> or t-,		\ add it in
+      then
+   else					\ else, small literal
+      <lo-off> or t-,			\ compile it
+   then then then ;
+
+\ TBD: this and others know too much about instruction encoding ...
+: *branch-dest-help*	\ ( src dst -- src dst-blkpatt/offset )
+   dup 3ff and 2/ >r			\ save destination offset
+   fffffc00 and				\ s: src dstblk
+   dup 0= if				\ if branch to page 0
+      drop 400 ( page0)			\ s: src blkpattern
+   else
+      over t-i+ fffffc00 and		\ s: src dstblk srcblk
+      2dup <>				\ if block crossing
+      if				\ make sure not too far to branch
+	 - dup abs 400 u> if ." branch too far" then
+	 0< if 600 ( back) else 200 ( fwd) then \ select previous or next block
+      else 2drop 0			\ current block
+      then				\ s: src blkpattern
+   then
+   r> or ;				\ s: src dst-blkpatt/offset
+
+: *branch-dest*	\ ( src dst -- )
+   *branch-dest-help*
+   over t-i@ f800 and or		\ assemble new instruction
+   swap t-i! ;
+
+: *branch-unpack* \ ( addr -- dst ) Extract destination address from branch
+		\ branch instruction at given address.
+   dup t-i@ dup 1ff and 2* >r		\ record dst offset
+   600 and				\ src dsttype
+   dup 400 = if 2drop 0
+   else
+      swap t-i+ fffffc00 and swap	\ s: srcblk dsttype
+      2* dup 800 and if fffff000 or then \ compute 
+      +
+   then
+   r> or ;
+
+\ ------------------------------------------------------------------------
+\ Local labels for use in assembly language code
+
+\ Labels numbered 0 to 15.  First cell is address of label.  Second cell
+\ is address of branch-linked unresolved forward references.
+create labels  10 2* cells allot
+   labels 10 2* cells 0 fill
+
+: back		\ ( label# -- ) Patch previous instruction, presumably a
+		\ branch, to go to given label.
+   t-here t-i-
+   swap 2* cells labels + @ *branch-dest* ;
+
+: fwd		\ ( label# -- ) Patch previous instruction, presumably a
+		\ branch, to go to previous unresolved forward branch for
+		\ given label.  Record address of the patched instruction.
+   2* cells labels + cell+ >r
+   t-here t-i- dup r@ @ *branch-dest*	\ add to list
+   r> ! ;
+
+: l:		\ ( label# -- ) Resolver forward branches to this label.
+		\ Remember location for subsequent backward branches.
+   2* cells labels +
+   dup cell+ @
+   begin				\ for each unresolved forward branch
+      dup while
+      dup *branch-unpack* >r		\ extract next address
+      t-here *branch-dest* r>		\ patch branch
+   repeat
+   over cell+ !				\ empty list
+   t-here swap ! ;			\ record new label address
+
+\ ------------------------------------------------------------------------
+\ Create support
+
+<reg@	pc nopb pushp		constant <does-default1>
+<lis	2 +# bplusa return	constant <does-default2>
+<@	2 +# mem32 return	constant <remote-does-default2>
+
+<does-default1> d# 16 lshift <does-default2> or
+   constant <does-default>
+\ This is only needed for ../sysparam.fr, which doesn't really use it ...
+<does-default1> d# 16 lshift <remote-does-default2> or
+   constant <remote-does-default>

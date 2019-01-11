@@ -1,0 +1,24 @@
+: forward:	\ ( "name" -- ) Define a forward reference.  All subsequent
+		\ uses of name will compile a place holder.  The place
+		\ holder will be filled in with a call once the forward
+		\ reference is resolved (see resolves).
+   create-target
+      0 [forth] ,
+   t-does>
+      dup >r [forth] @ [host] t-here r> [forth] ! [host] t-, ;
+
+only forth also host also meta definitions
+: resolves	\ ( "name" -- ) Resolve given forward reference to
+		\ currently compiling definition.
+   [forth] bl word count target-wid search-wordlist
+   if
+      >body @
+      [host] t-here *callop* swap	\ s: dst-call addr
+      begin dup while			\ while not at end of list
+	 dup t-@ >r over swap t-! r>	\ replace link with call
+      repeat 2drop
+   else
+      [forth] ." can't find "
+      here count type ."  ? [meta]" cr [host]
+   then ;
+hostinterp

@@ -1,0 +1,49 @@
+\ (c) 1994 Johns Hopkins University / Applied Physics Laboratory
+\ Multitasking primitives: process list manipulation.
+hex
+
+nohead
+: insertprocess	\ ( pd-init1 pd-run2 --- )   insert process descriptor 1
+		\ in process list immediately following process descriptor 2.
+		\ Note that pd 1 is the initializer and pd 2 is the
+		\ run-time structure.
+   >r dup initprocess @ r>		\ initialize run time structures
+   disable				\ list access must be atomic
+   2dup @ swap ! !
+   enable ;
+
+: nextprocess	\ ( pd-init1 pd-init2 --- )   insert process descriptor 1
+		\ in process list immediately following process descriptor 2.
+		\ if pd-init2 is 0 process 1 is made the highest priority.
+   ?dup if				\ if pd-init2 is 0
+      @ insertprocess
+   else
+      dup initprocess @			\ initialize run-time structures
+      disable				\ list access must be atomic
+      @head over ! !head		\ put at head of list
+      enable
+   then ;
+
+: run		\ ( pd-init --- )   insert process descriptor in process list
+		\ after currently running process.
+   @run insertprocess ;
+
+nohead
+: removeprocess	\ ( pd-run --- )   remove process descriptor from list.
+   disable				\ list access must be atomic
+   dup @head =
+   if @ !head				\ first process is special case
+   else >r @head			\ otherwise: search process list
+      begin				\ assume at least one process in list
+         dup @ dup r@ =
+         if drop r@ @ over ! 0 then	\ unlink process; pretend null pointer
+         nip dup 0=			\ search until end of list
+     until rdrop drop
+   then enable ;
+
+: kill		\ ( pd-init --- )   remove process descriptor from list.
+   @ removeprocess ;
+
+: terminate	\ ( --- )   commit suicide.
+   @run removeprocess resched ;
+

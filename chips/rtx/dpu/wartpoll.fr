@@ -1,0 +1,11 @@
+\ (c) 1993 Johns Hopkins University / Applied Physics Laboratory
+\ NEAR DPU UART Wart Control
+hex
+
+: uart@		\ ( -- c ) Read character from UART
+   RXRDYMASK dpu-icr!  00 dpu-icr!	\ reset event flip-flop
+   testport@ ff and ;			\ read character
+
+: uart!		\ ( c -- ) Write character to UART
+   TXRDYMASK dpu-icr!  00 dpu-icr!	\ reset event flip-flop
+   testport! ;				\ write character

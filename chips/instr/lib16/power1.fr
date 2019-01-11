@@ -1,0 +1,55 @@
+\ (c) 2002 Johns Hopkins University / Applied Physics Laboratory
+\ Read/write power boards via I2C
+hex
+
+module> power
+\ Uses i2c-user module
+
+\ * This interface applies to the low-voltage power supply boards and
+\ * other power boards.  Each board has a configuration register for
+\ * turning power off or on.  Each board monitors sixteen analog channels;
+\ * eleven of these are common to all instruments with the other five
+\ * being instrument-specific.  There are calls for reading an individual
+\ * channel or reading a block of channels into memory.
+
+private:
+
+: set-read-src	\ ( device addr -- ) Next read from given device will be at
+		\ given address.
+   ( 0000 or ) swap i2c! ;
+
+public:
+
+: select-a/d	\ ( device -- ) Set read pointer to A/D.  Subsequent reads
+		\ will return A/D values.  Uses 1 bus cycle.
+   0 set-read-src ;
+
+: read-analog	\ ( chan device -- x ) Read analog value from given
+		\ device and channel.  Value ranges from -8192 ... 8191.
+		\ Uses 3 bus cycles.
+		\ Precondition: device read source already set to A/D
+		\ via select-a/d.
+   swap 0100 or over i2c!		\ select channel in mux address
+	0200    over i2c!		\ start conversion
+   i2c@ ;				\ read channel
+
+: read-sel-analogs \ ( addr device #end+1 #first -- addr' ) Read the selected
+		\ range of analogs (first .. end) from the device and store
+		\ them at the destination address.  Uses 1 + 3*#read bus cycles.
+   >r >r
+   dup select-a/d			\ set read source to A/D
+   swap r> r> do			\ for each A/D channel, s: device addr
+      i 2pick read-analog over !  cell+	\ read channel and save
+   loop nip ;
+
+: read-device-analogs \ ( addr device #read -- addr' ) Read the given number
+		\ of analogs from the device and store them at the destination
+		\ address.  Read starts at A/D channel 0.  Uses 1 + 3*#read
+		\ bus cycles.
+   0 read-sel-analogs ;
+
+: set-power	\ ( x device -- ) Load value into device's power register.
+		\ Uses 1 bus cycle.
+   swap 0300 or swap i2c! ;
+
+endmodule>

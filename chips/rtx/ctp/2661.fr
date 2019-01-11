@@ -1,0 +1,76 @@
+\ (c) 1993 Johns Hopkins University / Applied Physics Laboratory
+\ Serial device driver interface for intttyws.fr
+\ 2661
+hex
+
+noheads					\ only emit, key, etc. have heads
+
+\ status bits
+01 define TXRDYMASK
+02 define RXRDYMASK
+
+\ command register values
+26 define CMD-DISTRANS			\ 2661 command reg, disable transmitter
+27 define CMD-ENATRANS			\ 2661 command reg, enable transmitter
+
+\ ------------------------------------------------------------------------
+\ Device configuration
+
+ttystruct makestruct tty
+
+\ ------------------------------------------------------------------------
+\ Low-level UART access routines
+
+: uart-status	\ ( -- x ) Return UART status.
+   uart-status-reg @ ;
+
+: uart@		\ ( -- c ) Read character from UART.
+   uart-data-reg @ ff and ;
+
+: uart!		\ ( c -- ) Send character to UART.
+   uart-data-reg ! ;
+
+: uart-first!	\ ( c -- ) Send character; start generating interrupts.
+   uart-data-reg !
+   CMD-ENATRANS uart-cmd-reg ! ;
+
+: stop-transints \ ( -- ) Stop generating transmit interrupts.
+   CMD-DISTRANS uart-cmd-reg ! ;
+   
+\ ------------------------------------------------------------------------
+\ Interrupt routine
+
+UARTINT# int:	\ ( -- ) UART interrupt routine.
+   uart-status dup RXRDYMASK and
+   if drop tty tty-rcvint		\ receive interrupt
+   else TXRDYMASK and
+   if tty tty-transint			\ transmit interrupt
+   then then
+;int
+
+\ ------------------------------------------------------------------------
+\ Initialization
+
+every-boot:	\ ( -- )
+\ setup registers for 2661B
+   4e uart-mode-reg !			\ mr1: 8 bits, no parity, 1 stop
+   3d uart-mode-reg !			\ mr2: internal clock, 9600 baud
+   CMD-DISTRANS uart-cmd-reg !		\ cr: enable receiver
+
+   ['] uart!  ['] uart-first!  ['] uart@  ['] stop-transints
+   tty tty-init
+;boot
+
+\ ------------------------------------------------------------------------
+\ High level driver interface routines
+
+heads
+
+: emit		\ ( c -- )
+   tty tty-putc ;
+
+: key		\ ( -- c )
+   tty tty-getc ;
+
+: key?		\ ( -- t/f )
+   tty tty-incount 0= not ;

@@ -1,0 +1,46 @@
+#!/usr/local/bin/forth
+\ Compile RTX Forth
+
+" target.fr" used
+" rtx/ctp" is-target			\ cross compile for J.Perschy's CDH
+
+\ Configure crosscompiler
+hex
+0000 set-ram				\ ram-based system
+def interactive
+def bytesim				\ byte simulator needed; no byte strobes
+" ctpmap" is-logfile
+
+\ RTX/MPE specific configuration
+def rtx2010				\ expoit 2010 specific features
+100 define substack-size		\ stack size: see ../chpparam.fr
+" brdparam.fr" ftload			\ useful addresses and defines
+
+\ Load the kernel
+" kernel1.fr" ftload			\ primitives and extend crosscompiler
+
+\ Load low-level tty code
+   noheads
+" devices/intttypoll.fr" ftload		\ tty interface
+   heads
+" 2661.fr" ftload			\ 2661 specific pieces of tty driver
+
+\ Load rest of kernel and multitasker and interpreter if desired
+" kernel2.fr" ftload			\ interpreter?, multitasker?
+
+\ CDH specific
+\ " lib/far.fr" ftload			\ far memory utilities
+\ " eeproms.fr" ftload			\ EEPROM save and restore
+" ctpinit.fr" ftload			\ initialize registers
+
+\ Load initialization stuff
+" startup.fr" ftload			\ start up
+' doforth is-startup			\ run Forth interpreter
+
+report
+" romboot.fr" ftload
+" ctpforth" saveobj
+
+cr .( stack depth = ) depth . cr
+
+decimal >log rulestats !>log

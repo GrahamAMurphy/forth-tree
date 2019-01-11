@@ -1,0 +1,33 @@
+Call	0DDDDDDDDDDDDDDD
+Branch	100  tbd
+ALUimm	1010RSSIIIIIAAAA			T op imm -> T
+ALUstep	1011RSS tbd
+ALU	1100RSS0CCCCAAAA			T op N -> T, cond -> Fl
+						TBD: or T op N, cond -> T
+ALUimm2	1100RSS1L   AAAAIIIIIIIIIIIIIIII	T op imm -> T
+ALUReg1	1101RSS00rrrAAAA			T op Reg -> T
+ALUReg2	1101RSS01rrrAAAA			T op N -> Reg
+	1101RSS10
+	1101RSS11
+Shift	1110RSSIIIIIOO00			T shift imm -> T
+Load	1110RSSIIIIIMM01			*(T + imm) -> T
+Store	1110RSSIIIIIMM10			*(T + imm) <- N
+	1110RSS       11
+	1111
+
+Notes:
+1. ALUReg2 could be: T op Reg -> Reg.  What if Reg was push/pop version of R?
+2. 3-bit Reg field: R, Rpop/Rpush, PSW, MD, PC, CPR, PSP, and RSP.
+Is this list complete?  What about C?  Make 4 bits for expansion?
+Can PC be written?  Why?  View PC as 16 bits?  Or, CPR|PC as 32 bits.
+Do we have enough registers to do efficient do/loop?
+3. Add ShiftReg?
+4. ALU instruction could be split into ALU and compare versions.
+5. If ALU can do both A-B and B-A, then we don't need every possible
+condition test.
+6. Writing to CPR holds off interrupts for one cycle.  Others?  Writing
+to PSW to disable interrupts also (avoid FRISC3 bug).
+7. Instruction set is also suitable for 16-bit datapath.  Would need to
+add DPR and near/far bit.
+8. Could add 32-bit call instruction.  Then, it is a software decision
+whether to limit code to 64K.

@@ -1,0 +1,24 @@
+\ (c) 2005 Johns Hopkins University / Applied Physics Laboratory
+\ Boot boot program.
+\ Copies boot program from ROM in to RAM.  The parameters boot-mem# and
+\ #boot-words define the destination memory and number of words to copy.
+\ After the copy, execution continues in RAM via reboot.
+hex
+
+noheads
+
+: copy-out	\ ( page# -- ) Copy local ROM page, starting at address 0,
+		\ to given page.  Copies #boot-words of data.
+   set-mem
+   0 #boot-words 0 do			\ for each of word
+      dup @ over far ! near cell+	\ copy word to remote page
+   loop drop ;
+
+rom label romboot \ ( -- ) Start running boot program.  ROM phase.
+here *callop* w0 forth @ host ! ram	\ patch reset vector
+]
+   boot-mem# copy-out			\ copy ROM to RAM
+   boot-mem# set-code reboot		\ jump to RAM and start application
+[
+
+heads

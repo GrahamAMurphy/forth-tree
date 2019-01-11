@@ -1,0 +1,21 @@
+\ TBD: these rules are missing from rules.fr
+\ Note: the <!><short> rule causes possibly better optimizations: <short>...
+
+rule <!><short>
+	<i	7 sclss	?c-acc	e alu	2 sub	0 rbit	i>
+	<i	b class		e alu	1 sub	0 rbit	?data	i>
+-->	<o	7 sclss	0 ??	f alu	3 sub	0 rbit	1 ??	o>
+endrule
+
+rule <over><over><!>
+	<i	a class		e alu	3 sub	0 rbit	0 abit	0 shift i>
+	<i	a class		e alu	3 sub	0 rbit	0 abit	0 shift i>
+	<i	7 sclss	?c-acc	e alu	2 sub	0 rbit	i>
+-->	<o	7 sclss	0 ??	0 alu	3 sub	0 rbit	o>
+endrule
+
+rule [<over><over><!>][<short><+>]
+	<i	7 sclss	?c-acc	0 alu	3 sub	0 rbit	i>
+	<i	b class		8 alu	3 sub	0 rbit	?data	i>
+-->	<o	7 sclss 0 ??	8 alu	3 sub	0 rbit	1 ??	o>
+endrule

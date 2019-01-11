@@ -1,0 +1,9 @@
+variable 'prim
+
+: prim:
+   :noname ;
+: ;prim
+   postpone ; 'prim ! ; immediate
+
+: prim
+   'prim @ state @ if compile, else execute then ; immediate

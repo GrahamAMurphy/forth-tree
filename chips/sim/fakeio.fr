@@ -1,0 +1,73 @@
+\ (c) 1992 Johns Hopkins University / Applied Physics Laboratory
+\ Simulator interface
+hex
+
+40000000 define trap-base
+
+: arg		\ ( x --- ) pass an argument to the simulator
+   trap-base 1+ ! || ; inline
+
+: trap		\ ( trap# --- ) trap to simulator for doing I/O
+   + @ || ; inline
+
+\ File primitives
+create r/o	1 c,  char r c,
+
+: open-file		\ ( "file" mode --- fp ior ) open a file
+   count arg arg arg arg trap-base 3 trap dup 0= ;
+
+: close-file	\ ( fp --- ior ) close a file
+   arg trap-base 4 trap ;
+
+: reposition-file \ ( ud fp --- ior ) set file position
+   arg drop arg trap-base 5 trap ;	\ truncate ud to u
+
+: read-file	\ ( addr count fp --- actcount ior ) read count bytes to addr
+   arg arg arg trap-base 6 trap 0 ;	\ bogus ior
+
+: fgetc		\ ( fp --- byte ) read one byte from file
+   arg trap-base 7 trap ;
+
+: fputc		\ ( byte fp --- ) send one byte to file
+   arg arg trap-base 8 trap drop ;
+
+: fexpect	\ ( addr count fp --- count' ) read one line from file
+   arg arg arg trap-base 9 trap ;
+
+: chdir		\ ( "dir" --- ) change current directory
+   arg arg trap-base a trap drop ;
+
+: bye		\ ( --- ) return to simulator.  equivalent to typing ^C.
+   trap-base b trap drop ;
+
+: trace		\ ( mode --- ) enable/disable address tracing
+   arg trap-base c trap drop ;
+
+: visual	\ ( mode --- ) enable/disable screen update
+   arg trap-base d trap drop ;
+
+: set-trap	\ ( addr n --- ) simulate until nth occurrence of addr
+   arg arg trap-base e trap drop ;
+
+: cycle-count	\ ( --- count ) find number of cycles simulated so far
+   trap-base f trap ;
+
+: clear-stats	\ ( --- ) clear statistics.
+   trap-base 10 trap drop ;
+
+\ High level I/O
+: fquery	\ ( fp --- actcount ) read one line, up to 120 characters,
+		\ from indicated file. actcount is actual number of
+		\ characters read. will be zero on end of file.    
+ kib 78 rot fexpect dup reset-stream ; \ steal kib
+
+\ Word for loading Forth source into a running system.
+: fload		\ ( addr len --- )
+ r/o  open-file				\ open for reading
+ if
+    drop ." can't open" cr
+ else
+    >r begin r@ fquery while interpret repeat
+    r> close-file drop chuckbuf
+ then ;
+

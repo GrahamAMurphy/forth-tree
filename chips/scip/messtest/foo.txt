@@ -1,0 +1,13 @@
+Script started on Wed 07 Aug 2002 11:03:26 AM EDT
+vulcan% ls
+1hz-proc.fr      dpuapp1.abs      epuapp1e.mem     safe/
+MODULES          dpuapp1.mem      foo.txt          showapi.sh*
+auto-dpu         dpuapp1e.abs     generic.fr       stat-db.fr
+auto-epu         dpuapp1e.mem     host-io-sim.fr   tags
+cross.sh*        epu-serve.fr     logs/            test-macros.fr
+cross.zip        epuapp.map       macro-dflt.fr    test.sh*
+down-dpu.sh*     epuapp1.abs      main-dpu.fr      testload.fr
+down-epu.sh*     epuapp1.mem      main-epu.fr
+dpuapp.map       epuapp1e.abs     monitor-dflt.fr
+vulcan% 
+script done on Wed 07 Aug 2002 11:03:30 AM EDT

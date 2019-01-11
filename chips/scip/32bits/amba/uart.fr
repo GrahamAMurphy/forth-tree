@@ -1,0 +1,70 @@
+\ (c) 2005 Johns Hopkins University / Applied Physics Laboratory
+\ Serial device driver interface for intttyws.fr
+\ Assumes AMBA APB UART:
+\   uart-a# returns address of device
+\   uart-tx-int# and uart-rx-int# return appropriate interrupt numbers
+hex
+
+noheads
+
+\ ------------------------------------------------------------------------
+\ Device configuration
+
+ttystruct makestruct tty
+
+\ ------------------------------------------------------------------------
+\ Low-level UART access routines
+
+: uart!		\ ( c -- ) Write a character to UART.
+		\ Note: always called from an interrupt routine.
+   uart-a# w! ;				\ load character into transmitter
+
+: uart-first!	\ ( c -- ) Write first character to UART.
+		\ Note: called both from interrupt and user level.
+   uart-a# w! ;				\ load character into transmitter
+
+: uart@		\ ( -- c ) Read a character from UART.
+		\ Note: always called from an interrupt routine.
+   uart-a# w@ ;				\ read character from receiver
+
+: stop-transints \ ( -- ) Disable further transmit interrupts.
+   ;
+
+\ ------------------------------------------------------------------------
+\ Interrupt routines
+
+uart-tx-int# int: \ ( -- ) Transmit interrupt.  Hardware is configured as
+		\ edge-triggered interrupt.  Reading the vector clears
+		\ the FF automatically and prevents further interrupts if
+		\ there is no more data to transmit.
+   tty tty-transint ;int
+
+uart-rx-int# int: \ ( -- ) Receive interrupt.  Hardware is configured as
+		\ level-triggered interrupt.  Reading the character from
+		\ the UART clears the interrupt automatically.
+   tty tty-rcvint ;int
+
+\ ------------------------------------------------------------------------
+\ Initialization
+
+every-boot:	\ ( -- )
+   ['] uart!  ['] uart-first!  ['] uart@  ['] stop-transints
+      tty tty-init
+   uart-tx-int# get-mask		\ enable UART interrupts
+   uart-rx-int# get-mask or unmask-int
+;boot
+
+\ ------------------------------------------------------------------------
+\ High level driver interface routines
+
+heads
+
+: emit		\ ( c -- )
+   tty tty-putc ;
+
+: key		\ ( -- c )
+   tty tty-getc ;
+
+: key?		\ ( -- t/f )
+   tty tty-incount 0= not ;
+

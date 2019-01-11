@@ -1,0 +1,14 @@
+\ (c) 1993 Johns Hopkins University / Applied Physics Laboratory
+\ Postpone macro: postpones every word following it until
+\ a ']' is encountered.  The entire phrase must appear on a
+\ single line, e.g.: ]] if do-this then ]
+hex
+
+: ]]		\ ( -- )
+   begin
+      >in @				\ remember position of input stream
+      bl word count 1 = swap c@ [char] ] =
+      and invert while			\ and while " not found
+      >in !  postpone postpone		\ back input stream; apply postpone
+   repeat drop ; immediate
+

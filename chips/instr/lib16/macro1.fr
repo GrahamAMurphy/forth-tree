@@ -1,0 +1,628 @@
+\ (c) 1997 Johns Hopkins University / Applied Physics Laboratory
+\ Macros
+decimal
+
+\ Note: the entire macro module is run by the message process with one
+\ exception:  any process can fork a new macro.  Therefore, reentrancy
+\ is acheived by just dealing with this special case.  The code that
+\ allocates the run-time context is protected by a semaphore.
+
+\ Note: commands stored in macros are constrained to being less than
+\ 256 bytes long.  Longer commands will not compile.
+
+module> mac
+
+\ ------------------------------------------------------------------------
+\ Data structures and constants
+
+256 constant #macros			\ number of macros
+ 32 constant #block-size		\ number of bytes of macro per block
+ 16 constant #nest-macros		\ maximum macro nesting depth
+ 64 constant #macro-contexts		\ maximum number of concurrent macros
+
+structure m-block-struct		\ layout of macro block
+	cell: .next			\ linked list
+#block-size
+       chars: .m-data			\ macros
+endstructure
+
+structure m-context-struct		\ layout of macro context
+	char: .m-id			\ macro id (assume #macros < 256)
+	char: .m-state			\ state:
+		0 constant m-state=unused  \ unused, unallocated
+		1 constant m-state=run	   \ ready to run (or running)
+		2 constant m-state=sleep   \ sleeping
+	cell: .m-echo			\ set true to enable command echoes
+     2 cells: .m-pc			\ program counter: block, offset
+     2 cells: .m-time			\ time to resume if sleeping
+	cell: .m-sp			\ stack pointer (cell offset from top)
+   #nest-macros 2*
+       cells: .m-stack			\ stack
+endstructure
+
+\ ------------------------------------------------------------------------
+\ Macro object code
+
+\ Macros.  Each macro is represented as a pointer to the first macro block.
+\ A null indicated an undefined macro.  The macro table is indexed by
+\ macro ids.
+create macros  #macros cells allot
+
+: install-macro	\ ( block id -- block' ) Install new macro, represented
+		\ by its first block, in the macro table.  The old macro
+		\ is returned.
+		\ Preconditions: macro-id-ok?
+   cells macros + dup @ >r ! r> ;
+
+: macro-id-ok?	\ ( id -- t/f ) Return true if macro id is ok.
+   #macros u< ;
+
+: macro-ok?	\ ( id -- t/f ) Return true iff given macro id is good
+		\ and corresponding macro is defined.
+   dup macro-id-ok? if			\ if good id and macro defined
+      cells macros + @ 0= not		\  return true
+   else drop false			\ otherwise, return false
+   then ;
+
+: macro-code	\ ( id -- pc-block pc-offset ) Return a program counter
+		\ describing the beginning of the macro indicated by id.
+		\ Precondition: macro-ok?.
+   cells macros + @ 0 ;
+
+: init-macro-obj \ ( -- ) Initialize macro object code.
+   macros #macros cells erase ;		\ null pointers, no macros defined yet
+
+\ ------------------------------------------------------------------------
+\ * Macro run-time contexts
+
+\ Discard first cell of page; guarantees that null pointer indicates end
+\ of a list.
+cell macro-mem# far-allot drop
+
+\ Allocate run-times contexts
+#macro-contexts m-context-struct *
+   macro-mem# far-allot constant macro-contexts
+
+\ Allocate macro storage blocks.
+\  compute number of blocks:
+#max-macro-addr macro-mem# far-here -
+h# ffff and ( for 32-bit cross environment )
+m-block-struct u/ constant #macro-blocks
+\  allocate blocks:
+#macro-blocks m-block-struct *
+   macro-mem# far-allot constant macro-blocks
+
+\ Points to context save buffer of current macro if a macro is running, null
+\ otherwise.  Note: the actual state of the macro is updated in the
+\ local buffer: run-context
+\ Invariant: macro-running non-null indicates runnable macro in run-context
+variable macro-running
+
+\ Context buffer for currently executing macro
+m-context-struct makestruct run-context
+
+\ Macro instruction fetch (and store)
+
+: macro-step	\ ( pc-blk pc-offset -- pc-blk' pc-offset' ) Step macro PC.
+		\ Precondition: remote macro memory selected.
+   1+ dup #block-size = if drop .next far@ 0 then ;
+
+: m!+		\ ( pc-blk pc-offset byte -- pc-blk' pc-offset' ) Store
+		\ byte in macro at location indicated by given pc and step
+		\ the pc.  Returns pc-blk of zero if buffer fills.
+		\ Precondition: remote macro memory selected.
+   2pick .m-data 2pick + farc!
+   macro-step ;
+
+: m@+		\ ( pc-blk pc-offset -- pc-blk' pc-offset' byte ) Return
+		\ a byte from a macro at given pc and step pc.
+		\ Precondition: remote macro memory selected.
+   over .m-data over + farc@ >r
+   macro-step r> ;
+
+\ Helpers
+
+variable context-access			\ allows re-entrant context allocation;
+					\ see note at top for full discussion.
+	1 context-access !		\ available
+
+: flush-context	\ ( -- ) Move local macro context to its remote buffer.
+		\ Precondition: remote macro memory selected.
+		\ Precondition: macro-running is valid
+   run-context macro-running @ m-context-struct cell/ words-out
+   0 macro-running ! ;
+
+: load-context	\ ( context -- ) Load given macro into local buffer.
+		\ Precondition: remote macro memory selected.
+   dup run-context m-context-struct cell/ words-in
+   macro-running !
+   run-context .m-id c@ macro-id set ;	\ status for housekeeping
+
+: init-context	\ ( id context -- ) Initialize context with macro indicated
+		\ by given id.
+		\ Precondition: remote macro memory selected.
+   >r 0 r@ .m-sp far!			\ empty stack
+   dup r@ .m-id farc!			\ macro id
+   true r@ .m-echo far!			\ assume command echoes are desired
+   macro-code r@ .m-pc far2!		\ initialize program counter
+   m-state=run r> .m-state farc! ;	\ allow macro to run
+
+: kill-context	\ ( context -- ) Kill given context.
+		\ Precondition: remote macro memory selected.
+   m-state=unused swap .m-state farc! ;
+
+: get-context	\ ( id -- context/0 ) Search for an unused context.  If
+		\ a context is found, initialize it with indicated macro.
+		\ Return address of context or null on failure.
+		\ Precondition: remote macro memory selected.
+   context-access wait			\ get access
+   0 macro-contexts			\ s: id, default of 0, scanner
+   #macro-contexts 0 do			\ for each context
+      dup .m-state farc@ m-state=unused =
+      if				\ if unused context found
+	 nip 2dup init-context 0 leave	\ initialize and return it
+      then	
+      m-context-struct +		\ try next context
+   loop
+   context-access signal
+   drop nip ;
+
+: match-context	\ ( id -- context/0 ) Try to find runnable context with
+		\ given id.  Return address of context or null on failure.
+		\ Precondition: remote macro memory selected.
+   0 macro-contexts			\ s: id, default of 0, scanner
+   #macro-contexts 0 do			\ for each context
+      2pick over .m-id farc@ =		\ if ids match
+      over .m-state farc@ m-state=unused <> \ and runnable or sleeping context
+      and if nip 0 leave then		\ return it
+      m-context-struct +		\ try next context
+   loop
+   drop nip ;
+
+: check-contexts \ ( -- ) Check each sleeping context.  If its time has
+		\ come, wake it up.
+		\ Precondition: remote macro memory selected.
+   get-time macro-contexts		\ s: time-ls, time-ms, scanner
+    #macro-contexts 0 do			\ for each context
+      dup .m-state farc@ m-state=sleep =
+      if				\ if sleeping  and time >= context time
+	 2pick 2pick 2pick .m-time far2@ \ make macro runnable
+	 du< not if m-state=run over .m-state farc! then
+      then
+      m-context-struct +		\ try next context
+   loop drop 2drop ;
+
+: runnable-context \ ( -- context/0 ) Try to find a runnable context.  Return
+		\ context if successful, null otherwise.
+		\ Precondition: remote macro memory selected.
+   0 macro-contexts			\ s: default of 0, scanner
+   #macro-contexts 0 do			\ for each context
+      dup .m-state farc@ m-state=run =	\ if runnable context found
+      if nip 0 leave then		\ return it
+      m-context-struct +		\ try next context
+   loop drop ;
+
+\ High-level macro context manipulation
+
+: fork-macro	\ ( id echo? -- t/f ) Try to fork off macro indicated by id.
+		\ If the echo flag is true, commands in the macro (and all
+		\ nested macros) will be echoed.  Return true on error.
+   get-mem >r  macro-mem# set-mem	\ macros are in remote memory
+   swap get-context ?dup if		\ if context allocated
+      .m-echo far!  false		\ record echo flag; return success flag
+   else					\ if cannot get a context
+      drop  true			\ return error flag
+   then
+   r> set-mem ;
+
+: halt-macro	\ ( id -- t/f ) Halt given macro.  Return true on error.
+   get-mem >r  macro-mem# set-mem	\ macros are in remote memory
+   macro-running @ if flush-context then \ flush local context if necessary
+   match-context ?dup if		\ if request macro context found
+      kill-context  false		\ kill it; return success flag
+   else					\ if problem
+      true				\ return error flag
+   then
+   r> set-mem ;
+
+: delay-macro	\ ( time-ls time-ms -- ) Delay running macro until given time.
+		\ Precondition: run-context is in local memory.
+   get-mem >r  macro-mem# set-mem	\ macros are in remote memory
+   run-context .m-time 2!		\ record future wake-up time
+   m-state=sleep run-context .m-state c! \ put current context to sleep
+   flush-context
+   r> set-mem ;
+
+: nest-macro	\ ( id -- ) Nest macro indicated by id in current macro.
+		\ Precondition: run-context is in local memory.
+   run-context .m-pc 2@			\ push current PC onto stack
+      run-context .m-sp @ dup 2 + run-context .m-sp !
+      cells run-context .m-stack + 2!
+   macro-code run-context .m-pc 2! ;	\ new program counter for nested macro
+
+: end-macro	\ ( -- ) End current macro.
+		\ Precondition: run-context is in local memory.
+   run-context .m-sp @ ?dup if		\ if stack not empty
+      2 - dup run-context .m-sp !	\ pop stack into pc
+      cells run-context .m-stack + 2@ run-context .m-pc 2!
+   else					\ if empty
+      get-mem  macro-mem# set-mem	\ macros are in remote memory
+      m-state=unused run-context .m-state c!
+      flush-context			\ kill current macro
+      set-mem
+   then ;
+
+: loop-macro	\ ( u -- ) Start macro loop for the given number of iterations.
+   run-context .m-pc 2@			\ push current PC onto stack
+   run-context .m-sp @ dup 3 + run-context .m-sp !
+      cells run-context .m-stack + dup >r
+      2!  r> 2 cells + ! ;
+
+: unloop-macro	\ ( -- ) Decrement loop counter and either repeat loop or
+		\ fall through.
+   run-context .m-sp @			\ get stack pointer
+      cells run-context .m-stack +
+   dup cell- @ 1- ?dup if		\ decrement counter; if not complete
+      over cell- !			\ store new loop counter
+      3 cells - 2@ run-context .m-pc 2!	\ jump back to start of loop
+   else					\ if loop complete
+      drop -3 run-context .m-sp +!	\ pop counter and address
+   then ;
+
+: run-prog-macro \ ( id t/f --- ) Run macro with given id.  The macro is
+		\ started from a program call, not a command uplink.  If
+		\ the macro is undefined, the call silently returns.  If
+		\ there is no context thread to run the macro, an alarm
+		\ is generated.  If the input flag is true macro commands
+		\ are echoed.
+   >r dup macro-ok? if			\ if macro id is ok and macro is defined
+      dup r@ fork-macro if		\ run macro; if out of contexts
+	dup #no-contexts-alm sw-alarm	\ generate alarm
+      then
+   then
+   rdrop drop ;
+
+: run-cmd-macro	\ ( id t/f --- ) Run macro with given id.  The macro is
+		\ started from the command process, either via uplink or
+		\ another macro.   If the macro is undefined, a bad-arg
+		\ result is generated.  If there is no context thread
+		\ to run the macro, a macro-run result is generated.  If
+		\ the input flag is true macro commands are echoed.
+   >r dup macro-ok? if			\ if macro id is ok and macro is defined
+      dup r@ fork-macro if		\ run macro; if out of contexts
+	#macro-run-cmd cmd-error	\ reject command
+      then
+   else					\ if bad id or macro undefined
+      #badarg-cmd cmd-error		\ reject command
+   then
+   rdrop drop ;
+
+public:					\ used by command handler
+
+: macro-ready?	\ ( -- t/f ) Return true if there is a runnable macro.  
+   get-mem  macro-mem# set-mem		\ macros are in remote memory
+   macro-running @ 0= if		\ if no local (i.e. runnable) macro
+      check-contexts			\ poll sleepers
+      runnable-context ?dup if		\ if there is a runnable context
+	 load-context			\ make it local
+	 true				\ and return success flag
+      else false			\ if no context, return failure flag
+      then
+   else true				\ return success if local context
+   then
+   swap set-mem ;
+
+: macro-load	\ ( addr -- len ) Load next command from currently executing
+		\ macro into given address.  Return length of macro loaded.
+		\ Precondition: there is a macro command ready.
+   get-mem >r  macro-mem# set-mem	\ macros are in remote memory
+   run-context .m-pc 2@ m@+ >r		\ get length of macro
+   rot dup r@ + swap do			\ for each byte in macro
+      m@+ i c!				\ save byte
+   loop run-context .m-pc 2!		\ save final position
+   r> r> set-mem ;
+
+: macro-echo?	\ ( -- t/f ) Return true iff commands of current macro 
+		\ should be echoed.
+   run-context .m-echo @ ;
+
+: run-macro	\ ( id -- ) Start up identified macro in its own thread.
+   true run-prog-macro ;
+
+: run-macro-silent \ ( id -- ) Start up identified macro in its own thread.
+		\ Commands in the macro and nested macros will not be echoed.
+   false run-prog-macro ;
+
+private:
+
+: init-macro-run \ ( -- ) Initialize macro run-time system.
+   get-mem  macro-mem# set-mem		\ macros are in remote memory
+   macro-contexts #macro-contexts 0 do	\ for each context
+      dup kill-context			\ kill context
+      m-context-struct +
+   loop drop
+   0 macro-running !			\ no macro is running.
+   set-mem ;
+
+\ ------------------------------------------------------------------------
+\ * Macro compiler
+
+farq-struct makestruct comp-macro	\ blocks for macro being compiled
+variable comp-id			\ id of macro being compiled
+2variable comp-pc			\ block/offset of macro being compiled
+farq-struct makestruct mac-free-list	\ macro block free list
+
+\ Free list management
+
+: count-blocks	\ ( count -- ) Adjust count of free macro blocks.
+   mac-free-blocks get + mac-free-blocks set ;
+
+: alloc-block	\ ( -- block/0 ) Attempt to allocate a macro block.
+		\ Return block address or null on failure.
+		\ Precondition: remote macro memory selected.
+   mac-free-list farq-get
+   dup if
+      -1 count-blocks			\ log allocation
+      dup .m-data #block-size far erase	\ zero fill block
+   then ;
+
+: free-block	\ ( block -- ) Return block to free list.
+		\ Precondition: remote macro memory selected.
+   mac-free-list farq-put
+   1 count-blocks ;
+
+: release-mac-blocks \ ( block -- ) Release given list of macro blocks.
+		\ Since it is possible that the macro is still running,
+		\ the blocks are kept together and placed on the end of
+		\ the free list.
+		\ Precondition: remote macro memory selected.
+   dup 1 begin				\ given old macro
+      swap dup far@ ?dup while		\ count blocks and find last block
+      nip swap 1+
+   repeat swap
+   count-blocks				\ keep track of number of free blocks
+   mac-free-list farq-append ;		\ append macros blocks to free list
+
+\ Helpers
+
+: alloc-blocks	\ ( u -- t/f ) Attempt to allocate given number of blocks
+		\ and add to macro being compiled.  Return true on success.
+		\ Precondition: remote macro memory selected.
+   0 do					\ for each block
+      alloc-block ?dup if		\ if it can be allocated
+	 comp-macro farq-put		\ add it to compiling macro
+      else				\ if out of blocks
+	 unloop false exit		\ bail out with error flag
+      then
+   loop true ;				\ all blocks allocated, success flag
+
+: alloc-macro?	\ ( len -- t/f ) Preallocate len bytes of space in macro
+		\ currently being constructed.  Return true on success.
+		\ Precondition: a macro is being compiled.
+		\ Precondition: remote macro memory selected.
+   comp-pc 2@ swap 0= if		\ if there is no current block
+      drop alloc-block ?dup if		\ try to allocate a new one
+	 dup comp-macro farq-put	\ add it to compiling macro
+	 0 comp-pc 2!			\ fix up PC
+      else				\ bail out if error
+	 drop false exit
+      then 0				\ offset into new block
+   then					\ s: len pc-offset
+   #block-size swap -			\ compute space left in current block
+   2dup u> if				\ if not enough room
+      - #block-size u/^ alloc-blocks	\ compute number of additional blocks
+   else					\ if already enough room
+      2drop true			\ return success flag
+   then ;
+
+: save-macro	\ ( addr len -- ) Save macro command in macro currently
+		\ being constructed.
+		\ Precondition: remote macro memory selected.
+		\ Precondition: space has been preallocated.
+   comp-pc 2@ 2pick m!+			\ save length at beginning of macro
+   2swap over + swap do			\ for each byte in macro
+      i c@ m!+				\ append byte
+   loop comp-pc 2! ;			\ save final position
+
+\ High-level macro compiler
+
+: start-macro-comp \ ( id -- t/f ) Start compilation of macro with given id.
+		\ Return true on error.
+		\ Precondition: comp-macro empty.
+   get-mem >r  macro-mem# set-mem	\ macros are in remote memory
+   macro-learn get 0= if		\ if not already compiling
+      0 0 comp-pc 2!			\ null compilation PC
+      comp-id !				\ remember id for later
+      true macro-learn set		\ set compilation flag
+      false				\ success flag
+   else drop true
+   then
+   r> set-mem ;
+
+public:					\ for use by command processor
+: append-cmd	\ ( addr len -- t/f ) Append given command to macro currently
+		\ being compiled.  Return true if successful.  Return false
+		\ if command is too big, we are not compiling, or we are
+		\ out of memory.
+   get-mem >r  macro-mem# set-mem	\ macros are in remote memory
+   dup 256 u< if			\ if command not too big
+      macro-learn get if		\ if compiling
+	 dup 1+ alloc-macro? if		\ if there is room for the new command
+	    save-macro			\ add command to macro
+	    true			\ success flag
+	 else 2drop false		\ error flag
+	 then
+      else 2drop false
+      then
+   else 2drop false
+   then
+   r> set-mem ;
+private:
+
+\ macro end command automatically appened at end of each macro
+rom
+create end-macro-cmd
+	#mac-end c: ( no args ) ;c
+ram
+
+: end-macro-comp \ ( -- t/f ) Complete macro currently being compiled
+		\ and add it to the macro object code library.  Return
+		\ true on error.
+   end-macro-cmd count append-cmd >r	\ try to append 'end' command
+   get-mem  macro-mem# set-mem		\ macros are in remote memory
+   comp-macro farq-peek			\ compiled macro
+   r> if				\ if append successful
+      comp-id @ install-macro		\ install, get old macro, if defined
+      false				\ success flag
+   else					\ if append failed
+      true				\ error flag
+   then
+   swap ?dup if release-mac-blocks then	\ free old macro or incomplete macro
+   comp-macro farq-empty		\ empty compilation queue
+   swap set-mem
+   false macro-learn set ;		\ quit learn mode
+
+: install-builtin \ ( addr id -- addr' ) Convert macro from builtin
+		\ format, a series of counted strings, to internal format.
+   start-macro-comp drop		\ start compiling; ignore results
+   begin
+      count ?dup while			\ while there is another command
+      2dup + >r append-cmd drop r>	\ append it to macro being compiled
+   repeat
+   end-macro-comp drop ;
+
+public:
+: install-macros \ ( addr id #macros -- ) Load macros from given data
+		\ structure into macro subsystem.  The macros will be
+		\ loaded starting at the given macro identifier.
+   over + swap do			\ for each macro
+      i install-builtin			\ install it
+   loop drop ;
+private:
+
+: init-macro-comp \ ( -- ) Initialize macro compiler.  Assumes that
+		\ any other allocations of macro memory (e.g. contexts)
+		\ have already occurred.
+   get-mem  macro-mem# set-mem		\ macros are in remote memory
+   mac-free-list farq-empty		\ empty free list
+   macro-blocks #macro-blocks 0 do	\ for each block
+      dup free-block			\ put it on freelist
+      m-block-struct +			\ step to next block
+   loop drop
+   comp-macro farq-empty		\ empty compilation queue
+   set-mem ;
+
+\ ------------------------------------------------------------------------
+\ Commands
+
+: c-mac-def	\ ( -- ) Start defining a macro.
+   arg0 macro-id-ok? if			\ if good id
+      arg0 start-macro-comp		\ start compilation
+      if #macro-comp-cmd cmd-error then	\ if problem, report error
+   else
+      #badarg-cmd cmd-error
+   then ;
+
+: c-mac-delay	\ ( -- ) Pause a macro.  Can only be used within a macro.
+   in-macro? if				\ if in a macro
+      arg1 arg0 join seconds-d get-time d+ \ compute target MET
+      delay-macro			\ schedule sleep
+   else
+      #need-macro-cmd cmd-error
+   then ;
+
+: c-mac-pause	\ ( -- ) Pause a macro.  Can only be used within a macro.
+   in-macro? if				\ if in a macro
+      arg3 arg2 join arg1 arg0 join	\ form MET
+      delay-macro			\ schedule sleep
+   else
+      #need-macro-cmd cmd-error
+   then ;
+
+: c-mac-end	\ ( -- ) End macro execution.  Can only be used within a macro.
+   in-macro? if				\ if in a macro
+      end-macro				\ end it
+   else
+      #need-macro-cmd cmd-error
+   then ;
+
+: c-mac-enddef	\ ( -- ) End macro compilation.
+   end-macro-comp			\ end compilation
+   if #macro-comp-cmd cmd-error then ;	\ if problem, report error
+
+: c-mac-halt	\ ( -- ) Halt a running (or sleeping) macro.
+   arg0 macro-ok? if			\ if id good and macro defined
+      arg0 halt-macro			\ try to kill it
+      if #macro-kill-cmd cmd-error then	\ if problem, report error
+   else
+      #badarg-cmd cmd-error
+   then ;
+
+: c-mac-nest	\ ( -- ) Nest a macro.  Can only be used within a macro.
+   in-macro? if				\ if in a macro
+      arg0 macro-ok? if			\ if id good and macro defined
+	 arg0 nest-macro		\ nest
+      else
+	 #badarg-cmd cmd-error
+     then
+   else
+      #need-macro-cmd cmd-error
+   then ;
+
+: c-mac-run	\ ( -- ) Run a macro in a new thread of control.
+   arg0 true run-cmd-macro ;
+
+: c-mac-run-silent \ ( -- ) Run a macro in a new thread of control, silently.
+   arg0 false run-cmd-macro ;
+
+: c-mac-loop-begin \ ( -- ) Start a macro loop.
+   in-macro? if				\ if in a macro
+      arg1 arg0 join loop-macro		\ start a macro loop
+   else
+      #need-macro-cmd cmd-error
+   then ;
+
+: c-mac-loop-end \ ( -- ) Complete a macro loop: either resume at start
+		\ of loop or fall through.
+   in-macro? if				\ if in a macro
+      unloop-macro			\ complete loop
+   else
+      #need-macro-cmd cmd-error
+   then ;
+
+\ ------------------------------------------------------------------------
+\ * Shutdown
+
+\ Standard, predefined macros
+ 1 constant #shutdown			\ shutdown macro
+
+public:
+: run-shutdown	\ ( -- ) Run shutdown macro.  Report errors as alarms.
+   #shutdown run-macro ;
+private:
+
+\ ------------------------------------------------------------------------
+\ * Initialization
+
+public:
+
+: init-macro	\ ( -- ) Initialize macro subsystem.
+   init-macro-obj			\ inititalize object code,
+   init-macro-comp			\  compiler, and
+   init-macro-run			\  contexts
+   ['] c-mac-def	#mac-def	1 register-cmd/args
+   ['] c-mac-delay	#mac-delay	2 register-cmd/args
+   ['] c-mac-end	#mac-end	0 register-cmd/args
+   ['] c-mac-enddef	#mac-enddef	0 register-cmd/args
+   ['] c-mac-halt	#mac-halt	1 register-cmd/args
+   ['] c-mac-loop-begin	#mac-loop-begin	2 register-cmd/args
+   ['] c-mac-loop-end	#mac-loop-end	0 register-cmd/args
+   ['] c-mac-nest	#mac-nest	1 register-cmd/args
+   ['] c-mac-pause	#mac-pause	4 register-cmd/args
+   ['] c-mac-run	#mac-run	1 register-cmd/args
+   ['] c-mac-run-silent	#mac-run-silent	1 register-cmd/args
+;
+
+private:
+
+endmodule>

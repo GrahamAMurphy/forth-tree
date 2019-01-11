@@ -1,0 +1,38 @@
+\ (c) 1992 Johns Hopkins University / Applied Physics Laboratory
+\ Simulator interface
+hex
+
+: arg		\ ( x --- ) pass an argument to the simulator
+   trap-base ! || ; inline
+
+: trap		\ ( trap# --- ) trap to simulator for doing I/O
+   trap-base + @ || ; inline
+
+\ File primitives
+create r/o	1 c,  char r c,
+
+: open-file	\ ( "file" mode --- ior ) open file
+   count arg arg arg arg 3 trap ;
+
+: close-file	\ ( --- ior ) close file
+   4 trap ;
+
+: fexpect	\ ( addr count --- count' ) read one line from file
+   arg arg 9 trap ;
+
+: chdir		\ ( "dir" --- ) change current directory
+   arg arg a trap drop ;
+
+\ Word for loading Forth source into a running system.
+: fload		\ ( addr len --- )
+ r/o  open-file				\ open for reading
+ if
+    ." can't open" cr
+ else
+    begin
+       kib 78 fexpect dup 0< not while	\ steal kib
+       reset-stream interpret
+    repeat drop
+    close-file drop chuckbuf
+ then ;
+

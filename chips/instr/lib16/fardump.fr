@@ -1,0 +1,19 @@
+\ (c) 1994 Johns Hopkins University / Applied Physics Laboratory
+hex
+
+: far-dump	\ ( addr u -- ) Dump at given address in far address space.
+		\ Assumes that far memory has been set.
+   cr
+   -1 0 <# #s #> nip -rot
+   ff 0 <# #s #> nip -rot
+   over + swap do
+      i 2pick u.lz ." :" space
+      i 8 + i do
+         i far c@ near over u.lz space
+      loop 4 spaces
+      i 8 + i do
+         i far c@ near dup bl < over 7e > or
+         if drop [char] . then
+         emit
+      loop
+   cr 8 +loop 2drop ;

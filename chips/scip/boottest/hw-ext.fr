@@ -1,0 +1,15 @@
+\ (c) 2003 Johns Hopkins University / Applied Physics Laboratory
+\ NH/Pluto LORRI and PEPSSI EPU hardware interface extensions
+hex
+
+\ ------------------------------------------------------------------------
+\ Memory map
+
+8 constant eeprom-prog-mem#		\ default program
+   0000 constant eeprom-prog-addr	\ address of source program header
+
+100 constant m-size
+
+\ ------------------------------------------------------------------------
+\ Interrupts
+

@@ -1,0 +1,152 @@
+verbatim-prolog
+/* (c) 1992 Johns Hopkins University / Applied Physics Laboratory */
+
+#include <stdio.h>
+#include <sys/types.h>
+#include <stdarg.h>
+#include <stdlib.h>
+#include "defs.h"
+#include "io.h"
+#include "forth.h"				/* interface defined here */
+
+/* TBD: where should this stuff go? */
+#define PSTACKSIZE 1024			/* stack sizes in cells */
+#define RSTACKSIZE 1024
+#define UNDERFLOW 2			/* size (in cells) of underflow buffer*/
+
+#define ENTRYINITFORTH	0
+#define ENTRYDOFORTH	1
+#define ENTRYEVALFORTH	2
+
+typedef CELLTYPE	cell;
+typedef SCELLTYPE	scell;
+
+#if defined(__STDC__) || defined(mips)	/* if ANS C. mips doesn't define this */
+
+#define CAT(x,y) x##y
+#else
+#define ID(x) x
+#define CAT(x,y) ID(x)y
+#endif
+
+#ifdef __GNUC__
+
+#define PRIMLIST()\
+typedef void *token;
+#define PRIM(primid)
+#define ENDPRIMLIST()
+
+#else
+
+#define PRIMLIST()\
+typedef enum {
+#define PRIM(primid)\
+CAT(T_,primid),
+#define ENDPRIMLIST()\
+b_o_g_u_s } token;
+
+#endif
+
+/* Dictionary headers
+ * Note: HEADEDDEF and IHEADEDDEF must match NAMESIZE
+ */
+#define NAMESIZE 7			/* name field, includes count */
+#define IMMMASK 0x80
+typedef unsigned char wid_t;
+#define cells_in_code_field 1
+
+typedef struct {
+	unsigned char name[NAMESIZE];	/* count and characters */
+	wid_t wid;			/* wordlist id */
+	cell link;			/* dictionary link */
+} header;
+
+#define HEADEDDEF(defid, l, n1,n2,n3,n4,n5,n6, h, dlink, bodylen)\
+static struct { \
+	header head; \
+	cell body[bodylen + 1]; \
+} CAT(D_,defid) = { \
+	(unsigned char)l, n1,n2,n3,n4,n5,n6, \
+	h, dlink
+
+#define IHEADEDDEF(defid, l, n1,n2,n3,n4,n5,n6, h, dlink, bodylen)\
+static struct { \
+	header head; \
+	cell body[bodylen + 1]; \
+} CAT(D_,defid) = { \
+	(unsigned char)l | IMMMASK, n1,n2,n3,n4,n5,n6, \
+	h, dlink
+
+#define HEADLESSDEF(defid, bodylen)\
+static struct { \
+	cell body[bodylen + 1]; \
+} CAT(D_,defid) = {
+
+/* shorthand for finding pointer to body */
+#define BODYOF(x) CAT(D_,x).body
+
+#ifdef __GNUC__
+
+#define SELF(primid)\
+	(cell)&&CAT(T_,primid),
+#define CODE(primid)\
+	CAT(T_,primid): {
+#define next goto **(w=*ip++)
+
+#else
+
+#define SELF(primid)\
+	(cell)CAT(T_,primid),
+#define CODE(primid)\
+	case CAT(T_,primid): {
+#define next break
+
+#endif
+
+#define ENDCODE()\
+}
+
+#define COLON()\
+	SELF(docolon)
+
+#define VARIABLE()\
+	SELF(dovariable)
+
+#define CONSTANT()\
+	SELF(doconstant)
+
+#define CREATE()\
+	SELF(docreate)
+
+#define OFFSET()\
+	SELF(dooffset)
+
+#define ENDDEF()\
+};
+
+#define SYMREFER(lab)\
+	(cell)&lab,
+
+#define ARRAYREFER(lab)\
+	(cell)lab,
+
+#define REFER(defid)\
+	(cell)BODYOF(defid),
+
+#define VALUE(n)\
+	(cell)n,
+
+#define BRANCH(defid,n)\
+	(cell)&BODYOF(defid)[n+1],
+
+#define NAMEREF(defid)\
+	(cell)&CAT(D_,defid).head,
+#define NULLREF()\
+	0,
+
+#define TABLE(lab)\
+static cell lab[] ={
+#define ENDTABLE()\
+};
+
+end

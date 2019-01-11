@@ -1,0 +1,18 @@
+\ (c) 1992 Johns Hopkins University / Applied Physics Laboratory
+code allocate	( u -- a-addr ior )
+	errno = 0;
+	*psp = (cell)malloc(*psp);
+	*--psp = errno; next;
+end
+
+code free	( a-addr -- ior )
+	errno = 0;
+	free((char *)(*psp));
+	*psp = errno; next;
+end
+
+code resize	( a-addr1 u -- a-addr2 ior )
+	errno = 0;
+	*(psp+1) = (cell)realloc((char *)(*(psp+1)), (unsigned)(*psp));
+	*psp = errno; next;
+end

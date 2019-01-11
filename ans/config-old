@@ -1,0 +1,142 @@
+#!/bin/sh
+# configuration script for JHForth
+# Usage: config [arch [mach]]
+# Arch is target architecture, e.g. C, sparc assembly, 68k assembly, etc.
+# Mach is target machine; this could indicate either host (i.e. Unix) or a
+# cross-compile to a specified board.  If mach is missing it defaults to
+# host.  If both mach and arch are missing, they default to host and C,
+# respectively.
+
+# ------------------------------------------------------------------------
+# Change installat to be the full path name of where you would
+# like the Forth system to be installed.
+installat=/usr/local/bin/forth
+
+# Identify directory of microkernel.  This is only relevent from cross-
+# compiled systems.
+ukernel=/homes/john/ukernel
+
+# ------------------------------------------------------------------------
+# You shouldn't need to edit below here.
+targetarch=${1-generic}	# architecture: default to generic C if no argument
+targetmach=${2-host}	# machine: default to host
+
+# TBD: execprefix and srclist obsolete ...
+execprefix="./"		# default invocation prefix
+srclist='$(UNIXSRCS)'	# default: source files on command line
+
+# Use target architecture to choose architecture directory, C vs. assembly,
+# and forth2m flags.  Assume compile is for this machine (i.e., no cross-
+# compile) and a Unix/large model.  The compiler choice may be overridden
+# later if a cross-compile is requested.
+case $targetarch in
+   68k|m68*|mc68*)
+	echo -n "configuring for Motorola 680x0 "
+	arch="mc68020"
+	f2mflags="-m -o ch"
+	cors="s"
+	cc="cc"; cflags="-O"
+	link="cc"
+	;;
+   sparc)
+	echo -n "configuring for sparc "
+	arch="sparc"
+	f2mflags="-m -o ch"
+	cors="s"
+	cc="gcc"; cflags="-O"
+	link="gcc"
+	;;
+   gnuc)
+	echo -n "configuring for GNU C "
+	arch="cmach"
+	f2mflags="-o tdihc"
+	cors="c"
+	cc="gcc"; cflags="-O"
+	link="gcc"
+	;;
+   dos|msdos)
+	echo -n "configuring for DJ GNU C on DOS "
+	arch="cmach"
+	f2mflags="-o tdihc"
+	cors="c"
+	cc="gcc"
+	cflags="-O"
+	execprefix="go32 "		# note: space is necessary
+	srclist="@files.dos"		# files don't fit on cmd line
+	;;
+   hp)					# -O fails on hp9000/800
+	echo -n "configuring for HP "
+	arch="cmach"
+	f2mflags="-o tdihc"
+	cors="c"
+	cc="cc"; cflags="+O1"
+	link="cc"
+	;;
+   *)
+	echo -n "configuring for generic C "
+	arch="cmach"
+	f2mflags="-o tdihc"
+	cors="c"
+	cc="cc"; cflags="-O"
+	link="cc"
+	;;
+esac
+
+# If compiling for this machine (i.e. no cross-compile), use unix/large
+# model sources.  If cross-compiling, use stand-alone/small model and
+# select compiler and link for that machine
+if [ $targetmach = "host" ]; then
+	echo "on this machine ..."
+	srcs="unix"; objs="unix"	# compile for Unix host
+	$cc -o gendefs gendefs.c 2>&1	# study host
+	gendefs >defs.h
+	rm -f gendefs
+else					# if cross-compiling
+	srcs="sa"			# choose stand-alone model
+	case $targetmach in
+	   turbo)
+		echo "on MIPS R3000 TurboRocket board ..."
+		objs="turbo"
+		cc="mips-elf-gcc"; cflags="-O -I$(UKERNEL)"
+		link="mips-elf-ld -Ttext 80040000 -oformat srec"
+		cp mips/cross-defs.h defs.h
+		;;
+	   timed)
+		echo "on TIMED Mongoose board ..."
+		objs="timed"
+		cc="mips-elf-gcc"; cflags="-O"
+		link="mips-elf-ld -Ttext 90040000 -oformat srec"
+		cp mips/cross-defs.h defs.h
+		;;
+	esac
+fi
+
+# See if compiler generates underlines (important for link with asm code)
+echo 'int foo() {return 0;}' > conftest.c
+$cc -c conftest.c 2>&1
+#TBD: this no longer belongs here ...
+cppflags="-D$arch"
+#TBD: need cross version of nm?
+if nm conftest.o | grep _foo >/dev/null 2>&1 ; then
+	:
+else
+	echo "#define NO_UNDERLINE" >>defs.h
+fi
+rm -f conftest.c conftest.o
+
+# Edit makefile template
+sed	-e "s|%arch%|$arch|" \
+	-e "s|%srcs%|$srcs|" \
+	-e "s|%f2mflags%|$f2mflags|" \
+	-e "s|%cors%|$cors|" \
+	-e "s|%objs%|$objs|" \
+	-e "s|%cc%|$cc|" \
+	-e "s|%cflags%|$cflags|" \
+	-e "s|%cppflags%|$cppflags|" \
+	-e "s|%link%|$link|" \
+	-e "s|%installat%|$installat|" \
+	-e "s|%ukernel%|$ukernel|" \
+	-e "s|%execprefix%|$execprefix|" \
+	-e "s|%srclist%|$srclist|" \
+	<makefile.tem >makefile
+echo "Will be installed at " $installat

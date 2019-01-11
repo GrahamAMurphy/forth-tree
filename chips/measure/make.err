@@ -1,0 +1,9 @@
+cc -g   -target sun4 -o isacache isacache.c 
+"isacache.c", line 126: illegal lhs of assignment operator
+"isacache.c", line 132: illegal lhs of assignment operator
+"isacache.c", line 138: illegal lhs of assignment operator
+"isacache.c", line 138: warning: illegal pointer combination
+"isacache.c", line 139: illegal lhs of assignment operator
+"isacache.c", line 139: warning: illegal pointer combination
+*** Error code 1
+make: Fatal error: Command failed for target `isacache'

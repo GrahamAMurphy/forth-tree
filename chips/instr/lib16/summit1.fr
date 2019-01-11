@@ -1,0 +1,217 @@
+\ (c) 2001 Johns Hopkins University / Applied Physics Laboratory
+\ Summit 1553B Remote Terminal (RT) interface
+\ Assumes an enhanced Summit part operating in mode 2.
+hex
+
+module> summit
+
+\ ------------------------------------------------------------------------
+\ Data structures used by Summit chip in shared memory.
+
+\ Summit transaction descriptor (mode 2)
+structure descriptor
+	cell: .smt-cw			\ controls 1553 transaction
+\ Note: the following addresses are in Summit format (i.e. word-addressed)
+	cell: .smt-data			\ point to start of 1553-buffer (below)
+	cell: .smt-data-scan		\ point into buffer
+	cell: .smt-mib			\ point to message information buffer
+endstructure
+
+\ Number of descriptors.  There are 32 descriptors for the
+\ receive, transmit, receive mode code, and transmit mode code.
+d# 32 4 * constant #descriptors
+
+\ Default control word.  This default can be used in receive,
+\ transmit, mode code receive, and mode code transmit descriptors.
+\ Indexing is set to zero (I think this turns it off); interrupts
+\ occur when index reaches zero.
+0000 constant default-cw
+0080 constant default-int-cw		\ same as above, but interrupts enabled
+
+\ Bit position of Block Accessed bit in control word.
+0010 constant bac-mask
+
+\ Format of message information buffer
+structure mib-struct
+	cell: .info-word		\ summarizes transaction and errors
+	cell: .time-tag			\ summit time stamp of transaction
+endstructure
+
+\ Size of 1553 message and buffer
+d# 32 cells constant 1553-buffer
+
+\ ------------------------------------------------------------------------
+\ * Memory management of 1553 shared memory
+
+\ Memory map of 1553 shared memory.  The data will be in a far
+\ address space; therefore, we cannot use allot, etc.  In the following,
+\ an address is on the stack identifying the next free location
+\ is on the stack at the end of each allocation.  Each allocation
+\ must compute the next free address.
+\ Note: each address is an RTX address; before giving an address to
+\ the Summit, an RTX address must be mapped into a Summit address.
+
+0					\ begin allocating at zero
+
+\ Message Information Buffer (MIB)
+\ All messages will share an MIB.  We can get away will this since we never
+\ look at the results of a message transaction.  The buffer is worst-case
+\ aligned.
+dup constant mib
+   d# 16 2* cells +			\ space for sixteen messages
+
+\ Interrupt log.  Note: this must be on a 32 word boundary.
+dup constant int-log
+   d# 16 2* cells +			\ space for sixteen pairs of words
+
+\ Descriptor table
+dup constant descriptor-table
+   descriptor #descriptors * +		\ one table entry per descriptor
+
+\ Add new allocations here:
+
+\ Remaining 1553 memory can be allocated at run time.
+variable 1553-dp			\ data pointer
+   1553-dp !
+
+public:
+
+: 1553-remain	\ ( -- u ) Return number of bytes available.
+   1553-dp @ negate ;			\ i.e.: h# 10000 dp -
+
+: 1553-allot	\ ( n -- far-addr ) Allocate the given number of bytes on
+		\ the 1553-board.
+   1553-dp @ swap over + 1553-dp ! ;
+
+: 1553-buffers	\ ( n -- far-addr ) Allocate the given number of 1553-board
+		\ message buffers.  The requested buffers will be contiguous;
+		\ the address of the first is returned.
+   1553-buffer * 1553-allot ;
+
+private:
+
+\ ------------------------------------------------------------------------
+\ * Low-level utilities - summit register access
+
+: summit-reg!	\ ( x reg# -- ) Store x in the given Summit register.
+   get-mem >r summit-mem# set-mem
+   2* far !
+   r> set-mem ;
+
+: summit-reg@	\ ( reg# -- x ) Return the value of the given Summit register.
+   get-mem swap summit-mem# set-mem
+   2* far @
+   swap set-mem ;
+
+\ ------------------------------------------------------------------------
+\ * Low-level utilities - descriptor access
+
+\ * The following translate a transmit or receive subaddres or mode
+\ * code into a corresponding descriptor number.
+: descriptors[]	( u -- descriptor[u] )	descriptor * descriptor-table + ;
+public:
+00 offset: r-subaddr	\ ( r-subaddr -- desc# ) Receive subaddress.
+20 offset: t-subaddr	\ ( t-subaddr -- desc# ) Transmit subaddress.
+40 offset: r-mode	\ ( r-mode -- desc# ) Receive mode code.
+60 offset: t-mode	\ ( t-mode -- desc# ) Transmit mode code.
+private:
+
+: rtx->summit	\ ( rtxaddr -- summitaddr ) Map an RTX address into
+		\ a summit address.  The summit is 16-bit word addressed;
+		\ the RTX is byte addressed.
+   1 rshift ;
+
+: summit->rtx	\ ( summitaddr -- rtxaddr ) Map a Summit address into
+		\ an RTX address.
+   2* ;
+
+: legalize-msg	\ ( desc# -- ) Legalize messages to/from given descriptor.
+   d# 16 /mod dup 4 u< if 10 + else 14 + then >r
+   1 swap lshift invert r@ summit-reg@ and r> summit-reg! ;
+
+: init-desc	\ ( size int? desc# -- bufs ) Initialize descriptor block.
+		\ The control word and the MIB pointer are set.  Returns
+		\ the number of 1553 buffers needed to buffer message.
+		\ Note: assumes that far memory has been set.
+   descriptors[] >r			\ access desciptor block
+   >r 1553-buffer u/^ 1 umax dup	\ how many buffers? at least one
+      mib-struct cell/ * 1-		\ compute max CAF
+      8 lshift
+   r> if default-int-cw or else default-cw or then \ enable or disable ints
+   r> .smt-cw far! ;			\ store control word
+
+\ * These all access descriptor data in remote memory and assume that the
+\ * remote memory has already been selected.
+public:
+
+: reset-1553-buf \ ( desc# -- ) Given a descriptor number, reset scan pointers.
+		\ Note: assumes that far memory has been set.
+   descriptors[] >r
+   r@ .smt-data far@			\ reset scan pointer
+      r@ .smt-data-scan far!
+   mib rtx->summit r> .smt-mib far! ;	\ all share same MIB
+
+: set-1553-buf	\ ( far-addr desc# -- ) Given a descriptor number,
+		\ record address of associated data buffer in 1553 memory.
+		\ Note: assumes that far memory has been set.
+   >r rtx->summit			\ record buffer addres
+      r@ descriptors[] .smt-data far!
+   r> reset-1553-buf ;			\ reset scan pointers
+
+: get-1553-buf	\ ( desc# -- far-addr ) Given a descriptor number,
+		\ return address of associated data buffer in 1553 memory.
+		\ Note: assumes that far memory has been set.
+   descriptors[] .smt-data far@ summit->rtx ;
+
+: 1553-msg	\ ( size buf? int? desc# -- ) Accept 1553 message reception or
+		\ transmission for given descriptor.  The message size is
+		\ given in bytes; a flag indicates whether an appropriately
+		\ sized buffer should be allocated.  Another flag indicates
+		\ whether the message should cause an interrupt.
+		\ Note: assumes that far memory has been set.
+   >r swap if				\ if buffer is to be allocated
+      r@ init-desc			\ initialize descriptor
+      1553-buffers r@ set-1553-buf	\ add buffer
+   else					\ if buffer to be allocated later
+      r@ init-desc drop			\ just initialize descriptor
+   then
+   r> legalize-msg ;			\ legalize message
+
+: 1553-access?	\ ( descriptor# -- t/f ) Check to see if given descriptor
+		\ has been accessed and all messages have been processed.
+		\ Return true if so, false otherwise (and reset access flag
+		\ as a side effect).
+		\ Note: assumes that far memory has been set.
+   descriptors[] dup .smt-cw far @	\ s: desc[] cw
+   dup bac-mask and if			\ if BAC bit set
+      swap dup .smt-data @		\ if all messages processed
+      over .smt-data-scan @ = if
+	 swap bac-mask invert and	\ clear bit and return true
+	 swap .smt-cw ! true
+      else
+	 2drop false			\ otherwise, return false
+      then
+   else 2drop false			\ otherwise, return false
+   then ;
+
+private:
+
+\ ------------------------------------------------------------------------
+\ * Initialization
+
+public:
+
+: setup-summit	\ ( -- ) Initialize summit registers.
+   0000 00 summit-reg!			\ CR: STEX bit must be zero to mod. regs
+   0100 03 summit-reg!			\ IMR: interrupt on index=0
+   int-log rtx->summit 05 summit-reg!	\ ILLPR: int. log ptr (in summit space)
+   descriptor-table rtx->summit		\ DPR: descriptor ptr (in summit space)
+      08 summit-reg!
+   20 10 do ffff i summit-reg! loop ;	\ illegalize all
+
+: start-summit	\ ( -- ) Complete summit initialization and start.
+   9980 00 summit-reg! ;		\ CR: start; A and B enb; enb; mode 2
+
+private:
+
+endmodule>

@@ -1,0 +1,19 @@
+\ (c) 1993 Johns Hopkins University / Applied Physics Laboratory
+hex
+
+rule <><?br>	\ convert <> to - if precedes ?br.  Note could further
+		\ optimize by combining - with earlier instructions.
+	<i	0 cbit	' <> *callop* cdest	i>
+	<i	4 sclss	1 cond	?bdest	i>
+-->	<o	a class	c alu	1 sub	0 rbit	0 data	o>
+	<o	4 sclss	1 cond	0 ??	o>
+endrule
+
+\ ------------------------------------------------------------------------
+\ ?dup
+
+rule ?dup<?br>
+	<i	0 cbit	' ?dup *callop* cdest	i>
+	<i	4 sclss	1 cond	?bdest	i>
+-->	<o	4 sclss	0 cond	0 ??	o>
+endrule

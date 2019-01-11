@@ -1,0 +1,8 @@
+\ (c) 2004 Johns Hopkins University / Applied Physics Laboratory
+\ Define some cross-compile-time constants describing the format
+\ and values of various registers.
+hex
+
+\ PCR
+1 define #pcr-se			\ stack cache enable field
+2 define #pcr-ie			\ interrupt enable field

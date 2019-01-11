@@ -1,0 +1,26 @@
+The tester defines functions that compare the results of a test with a
+set of expected results.  The syntax for each test starts with "{"
+followed by a code sequence to test.  This is followed by "->", the
+expected results, and "}".  For example, the following:
+
+   { 1 1 + -> 2 }
+
+tests that one plus one indeed equals two.  The "{" does nothing; it
+just makes the test look pretty.  The "->" records the stack depth and
+moves the entire stack contents to an array.  In the example test, the
+recorded stack depth is one and the saved array contains one value,
+two.  The "}" compares the current stack depth to the saved stack
+depth.  If they are equal each value on the stack is removed from the
+stack and compared to its corresponding value in the array.  If the
+depths are not equal or if the stack comparison fails, an error is
+reported.  In the example test, the expected stack depth is one, the
+expected value is two, and the test passes.
+
+The tester can be used to define regression tests for a set of
+application words.  It can also be used to define tests of words in a
+standard-conforming implementation.  An example is the test of the ANS
+Forth CORE word set.  The test starts by verifying basic assumptions
+about number representation.  It then builds on this with tests of
+boolean logic, shifting, and comparisons.  It then tests basic stack
+manipulations and arithmetic.  Ultimately, it tests the Forth
+interpreter and compiler.

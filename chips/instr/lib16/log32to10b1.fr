@@ -1,0 +1,38 @@
+\ (c) 2008 Johns Hopkins University / Applied Physics Laboratory
+\ Pseudo-log compression
+decimal
+
+: norm-5b	\ ( x -- 1.xxxxx e ) Normalize input to consist of a one
+		\ followed by five bits.  The number of bits of right
+		\ shift needed to normalize are also returned (0 - 10).
+		\ Note: assumes input is >= 0x20.
+   0 swap				\ shift count
+   begin dup h# fe00 and while		\ possibly shift 8 or 4 bits
+      4 rshift  swap 4 + swap
+   repeat
+   dup h# 0180 and if			\ possibly shift 2 bits
+      2 rshift  swap 2 + swap
+   then
+   dup h# 0040 and if			\ possibly shift 1 bit
+      1 rshift  swap 1+ swap
+   then
+   swap ;
+
+: log32to10	\ ( xls xms -- log10 ) Generate the 10-bit log format (5-bit
+		\ exponent and 5-bit mantissa) from 32-bit input.
+   dup if				\ if large number
+      dup h# 1f u> if			\ if number does not straddle
+	 nip norm-5b 16 +		\   convert to single and normalize
+	 5 lshift +			\ combine exponent and mantissa
+      else				\ if it does straddle
+	 5 lshift swap 11 rshift or	\   get msbs, convert to single
+	 norm-5b 11 +			\   normalize and adjust exponent
+	 5 lshift +			\ combine exponent and mantissa
+      then
+   else					\ else, if small number
+      drop dup h# 1f u> if		\ but still big enough
+	 norm-5b			\ normalize
+	 5 lshift +			\ combine exponent and mantissa
+      then				\ if small, pass through
+   then ;
+

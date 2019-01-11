@@ -1,0 +1,20 @@
+Next year we will look at coprocessor architectures that could be
+customized to support future applications.  Coprocessors to consider
+include floating-point, compression, and particle/event processing.  A
+full-featured floating-point unit will not fit in the FPGAs available
+to us.  We will look at a modular floating-point design that can be
+tailored for specific applications.  Hardware assistance for data
+compression will enhance future missions.  Possible algorithms for
+implementation in hardware include Chebychev, DCT (JPEG), and wavelet
+(JPEG-2000).  Finally, an event coprocessor could enhance future
+particle instruments.  We will look at moving GUVI's event processing
+algorithm into hardware such that it is reconfigurable and tailorable
+for future missions, e.g. AURORA.
+
+This year we implemented the New Horizons spacecraft interface as part
+of the SCIP technology demonstration.  This year we will look at
+current and emerging spacecraft interface standards.  Incorporating a
+1553 remote terminal into the SCIP FPGA could eliminate an entire board
+on missions that use the 1553 bus.  An emerging interface is ESA's
+SpaceWire.  We will look at hardware and software integration of
+SpaceWire into a SCIP processor board.

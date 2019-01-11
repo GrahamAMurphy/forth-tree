@@ -1,0 +1,167 @@
+From aplcomm!uunet!email!mips.complang.tuwien.ac.at!anton Fri Jul 10 17:14:30 EDT 1992
+Article: 28789 of comp.lang.forth
+Path: aplcomm!uunet!email!mips.complang.tuwien.ac.at!anton
+From: anton@mips.complang.tuwien.ac.at (Anton Martin Ertl)
+Newsgroups: comp.lang.forth
+Subject: Re: X3J14 Holding Pattern Here
+Message-ID: <1992Jul10.151550.7755@email.tuwien.ac.at>
+Date: 10 Jul 92 15:15:50 GMT
+References: <3840.UUL1.3#5129@willett.pgh.pa.us>
+Sender: news@email.tuwien.ac.at
+Organization: Institut fuer Computersprachen, Technische Universitaet Wien
+Lines: 151
+Nntp-Posting-Host: mips.complang.tuwien.ac.at
+
+In article <3840.UUL1.3#5129@willett.pgh.pa.us>, E.RATHER [Elizabeth]
+writes:
+|> Uwe Kloss asks about performance comparisons with various implementation
+|> techniques.  According to Guy Kelly's research (published in FD Jan/Feb)
+|> there's relatively small (but some!) difference on a PC.  But on "strange"
+|> chips such as the Forth processors as well as RISCs, the difference can be
+|> very large, as much as x10.
+
+I have done some empirical measurements in order to exorcise another
+RISC myth. For the hasty ones, here are the numbers:
+
+			   R3000		   68040
+			Time	Factor		Time	Factor
+subroutine threading	19.8s	1.12		38.3s	1.72
+direct threading	17.7s	1.00		22.3s	1.00
+indirect threading	25.8s	1.46		30.1s	1.35
+switch threading	46.5s	2.63		63.5s	2.84
+
+And here are the explanations:
+
+The RISC machine is the DECStation 5000/125 under Ultrix 4.2, which
+uses a 25MHz R3000. The CISC is a HP/Apollo 425 under Domain/OS 10.3
+(25Mhz 68040). Sorry, I don't have a PC available.
+
+The benchmark consists of a loop that contains nine NEXTs and a
+looping instruction (a termination test and a jump back for subroutine
+threaded code), i.e. it primarily measures NEXT speed. This loop
+is executed 10,000,000 times (resulting in 100,000,000 NEXTs and a bit
+of overhead). Note that this measurements are an upper bound for the
+performance difference of different threading techniques. I did not
+try to measure native code, since it does not make sense using this
+benchmark.
+
+The benchmarks were written in GNU C 2.x. GNU C 2.x extends C in
+various ways, among them "labels as values" (computed gotos), which
+allow the implementation of direct and indirect threading. The
+benchmarks were compiled with GNU C 2.2.2 (gcc -O2 -fomit-frame-pointer).
+
+I checked the produced assembly code and was pleasantly surprised, as
+I did not find any significant opportunities to improve the compiler's
+output. However, I had to unoptimize the assembly code for subroutine
+threading on the 68040, since the compiler allocated the address of
+the fuction "next" to a register (which is quite unrealistic for real
+ubroutine-threaded code).
+
+CONCLUSION:
+The differences between the different techniques on a RISC are not
+greater than the differences on a CISC.
+
+Appendix
+Here I give the GNU C code for the various programs, if you want to
+experiment. I can post the assembly language code if somebody is
+interested.
+
+/***** subroutine.c *****/
+main()
+{
+ start:
+  next(); next(); next(); next(); next();
+  next(); next(); next(); next();
+  loop(); goto start;
+}
+
+next(){}
+
+loop()
+{
+  static int count=10000000;
+
+  if (count<=0)
+    exit(0);
+  count--;
+}
+/***** direct.c *****/
+/* &&label gives you the address of label (as void *) */
+/* "goto *&&label" is equivalent to "goto label" */
+#define NEXT goto **ip++
+main()
+{
+  static void  *prog[] = {&&next,&&next,&&next,&&next,&&next,
+			  &&next,&&next,&&next,&&next,&&loop};
+  void **ip=prog;
+  int    count = 10000000;
+
+ next:
+  NEXT;
+ loop:
+  if (count>0) {
+    count--;
+    ip=prog;
+    NEXT;
+  }
+}
+/***** indirect.c *****/
+#define NEXT goto ***ip++
+main()
+{
+  static void *nextp=&&next;
+  static void *loopp=&&loop;
+  static void  **prog[] = {&nextp,&nextp,&nextp,&nextp,&nextp,
+			   &nextp,&nextp,&nextp,&nextp,&loopp};
+  void ***ip=prog;
+  int    count = 10000000;
+
+ next:
+  NEXT;
+ loop:
+  if (count>0) {
+    count--;
+    ip=prog;
+    NEXT;
+  }
+}
+/***** switch.c *****/
+#define NEXT break
+#define I_NEXT 0
+#define I_LOOP 1
+
+main()
+{
+  static int prog[] = {I_NEXT,I_NEXT,I_NEXT,I_NEXT,I_NEXT,
+		       I_NEXT,I_NEXT,I_NEXT,I_NEXT,I_LOOP};
+  int *ip=prog;
+  int  count = 10000000;
+
+  for (;;) {
+    switch (*ip++) {
+    case I_NEXT:
+      NEXT;
+    case I_LOOP:
+      if (count>0) {
+	count--;
+	ip=prog;
+	NEXT;
+      }
+      else
+	return;
+/* the rest is to get gcc to make a realistic switch statement */
+    case 21:
+    case 19:
+      count=25;
+      NEXT;
+    case 20:
+      count--;
+      NEXT;
+    }
+  }
+}
+-- 
+M. Anton Ertl                    Some things have to be seen to be believed
+anton@mips.complang.tuwien.ac.at Most things have to be believed to be seen
+
+

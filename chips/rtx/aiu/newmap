@@ -1,0 +1,514 @@
+
+       substack-size                    define 0100 
+       psp-stack-mask                   define 00ff 
+       sp-stack-mask                    define ff00 
+       default-sp                       define ffff0000 
+       init-sur                         define 0707 
+       namesize                         define 0007 
+       nf-size                          define 0008 
+       wid-step                         define 0001 
+       prec-bit                         define 0040 
+       smudge-bit                       define 0020 
+       inline-bit                       define 0080 
+       char-mask                        define 00ff 
+       chars/dump                       define 0008 
+       <does-default>                   define be27 
+       <remote-does-default>            define de20 
+       int-table                        define 0000 
+       int-base                         define 0000 
+       HASHTABLESIZE                    define 0100 
+       HASHTABLE                        define 0220 
+042a H reboot                           code 
+042c   return                           code 
+043a H execute                          code 
+043e   does-default                     code 
+0442   remote-does-default              code 
+0442   branch                           code 
+0446   ?branch                          code 
+044a   (next)                           code 
+       <small-lit>                      define bf40 
+       <small+lit>                      define be40 
+       <biglit>                         define de00 
+       <small-offset>                   define b4c0 
+       <small+offset>                   define b8c0 
+       <bigoffset>                      define d880 
+0458 H !                                code 
+0466 H +                                code 
+0474 H -                                code 
+0482 H 0<                               code 
+0490 H 1+                               code 
+049e H 1-                               code 
+04ac H 2*                               code 
+04ba H 2/                               code 
+04c8 H >r                               code 
+04d6 H @                                code 
+04e4 H and                              code 
+04f2 H char+                            code 
+0500 H drop                             code 
+050e H dup                              code 
+051c H invert                           code 
+052a H negate                           code 
+0538 H nip                              code 
+0546 H nop                              code 
+0554 H not                              code 
+0562 H or                               code 
+0570 H over                             code 
+057e H r>                               code 
+058c H r@                               code 
+059a H rdrop                            code 
+05a8 H swap                             code 
+05b6 H xor                              code 
+05c4 H cell                             code 
+05d2 H cell+                            code 
+05e0 H cell-                            code 
+05ee H cells                            code 
+05fc H cell/                            code 
+0600   h>                               code 
+0600   times||                          code 
+0600   2*c                              code 
+0600   cu2/                             code 
+0600   u2/                              code 
+0600   @+                               code 
+0600   @-                               code 
+0600   !+                               code 
+0600   !-                               code 
+0600   cr!                              code 
+0600   cr@                              code 
+0600   md!                              code 
+0600   md@                              code 
+0600   r@2*                             code 
+0600   sr!                              code 
+0600   sr@                              code 
+060a H imr!                             code 
+0618 H imr@                             code 
+061c   sp!                              code 
+061c   sp@                              code 
+061c   sp@+                             code 
+061c   sur!                             code 
+061c   sur@                             code 
+061c   ipr!                             code 
+061c   ipr@                             code 
+061c   dpr!                             code 
+061c   dpr@                             code 
+0626 H set-page                         code 
+0634 H get-page                         code 
+0642 H far                              code 
+0650 H near                             code 
+0654   cpr!                             code 
+0654   cpr@                             code 
+0654   ibc!                             code 
+0654   ibc@                             code 
+0654   lsp!                             code 
+0658   lsp@                             code 
+065c   mlr@                             code 
+065c   mhr@                             code 
+065c   +cry                             code 
+065c   -cry                             code 
+065c   0+c                              code 
+065c   mulu                             code 
+065c   muls                             code 
+065c   d2*                              code 
+065c   /1                               code 
+065c   /2                               code 
+065c   /3                               code 
+0666 H =                                code 
+066e   (do)                             code 
+0690 H unloop                           code 
+069a   ((loop))                         code 
+06a2   (loop)                           code 
+06a8   ((+loop))                        code 
+06b8   (+loop)                          code 
+       nop-boot                         define 06be 
+       NEXT-BOOT                        define 06c0 
+       EVERY-BOOT                       define 06c2 
+06ce H c@                               code 
+06d2   c@+                              code 
+06d2   c@-                              code 
+06dc H c!                               code 
+06e0   c!+                              code 
+06e0   c!-                              code 
+06ea H +!                               : 
+06fc H rot                              : 
+070e H -rot                             : 
+0722 H 0=                               code 
+0730 H <>                               : 
+0742 H <                                : 
+0754 H >                                : 
+0766 H 0>                               : 
+0774 H u<                               : 
+0782 H u>                               : 
+0790 H 2over                            : 
+07ac H 2swap                            : 
+07c8 H 2pick                            : 
+07da H 3pick                            : 
+07f2 H aligned                          : 
+0802 H chars                            : 
+080e H touch                            : 
+081c H within                           : 
+0830 H lshift                           : 
+0848 H rshift                           : 
+0860 H rotate                           : 
+0878 H d+                               : 
+088e H dnegate                          : 
+08a0 H d<                               : 
+08c4 H um*                              : 
+08d4 H m*                               : 
+08e4 H um/mod                           : 
+08f4   (localloc)                       : 
+0912 H i                                : 
+0922 H j                                : 
+0940 H cmove                            : 
+095e H cmove>                           : 
+0990 H move                             : 
+09b6 H enable                           : 
+09c4 H disable                          : 
+09d4 H true                             : 
+09e2 H false                            : 
+09f0 H ?dup                             : 
+0a02 H 2dup                             : 
+0a12 H s>d                              : 
+0a16   +-                               : 
+0a1e   d+-                              : 
+0a30 H abs                              : 
+0a3e H dabs                             : 
+0a4c H *                                : 
+0a5a H 2drop                            : 
+0a6a H max                              : 
+0a80 H min                              : 
+0a96 H umax                             : 
+0aac H umin                             : 
+0ac2 H 2!                               : 
+0ad6 H 2@                               : 
+0ae6 H um*m                             : 
+0b02 H m/mmod                           : 
+0b20 H sm/rem                           : 
+0b48 H fm/mod                           : 
+0b84 H /mod                             : 
+0b96 H /                                : 
+0ba4 H mod                              : 
+0bb2 H */mod                            : 
+0bc4 H */                               : 
+       int-entry-size                   define 0006 
+       LOCALS                           define 0c18 
+0c18   safe                             : 
+0c18   cacheenable                      : 
+0c18   pspreset                         : 
+0c22   spreset                          : 
+0c22   under?                           : 
+0c32   initlocals                       : 
+       UARTINT#                         define 0004 
+       UARTINTMASK                      define f7ff 
+       FIFOSIZE                         define 0100 
+0c38   KILL                             constant 0003 
+0c38   XOFF                             constant 0013 
+0c38   XON                              constant 0011 
+0c38   .chars                           offset: 0000 
+0c38   .inptr                           offset: 0002 
+0c38   .outptr                          offset: 0004 
+0c38   .buffer                          offset: 0006 
+0c38   fifo                             constant 0106 structure 
+0c38   QUIET                            constant 0000 
+0c38   OUTPUT                           constant 0001 
+0c38   THROTTLED                        constant 0002 
+0c38   .state                           offset: 0000 
+0c38   .outfifo                         offset: 0002 
+0c38   .infifo                          offset: 0108 
+0c38   .'uart!                          offset: 020e 
+0c38   .'uart-first!                    offset: 0210 
+0c38   .'uart@                          offset: 0212 
+0c38   .'stop-transints                 offset: 0214 
+0c38   ttystruct                        constant 0216 structure 
+0c38   @fifo                            : 
+0c62   !fifo                            : 
+0c8c   tty-putc                         : 
+0cc0   tty-transint                     : 
+0d00   tty-getc                         : 
+0d12   tty-incount                      : 
+0d18   tty-rcvint                       : 
+0daa   tty-rcvrawint                    : 
+0dd4   tty-size                         constant 0216 
+0dd4   tty-init                         : 
+       RXRDYMASK                        define 0001 
+       TXRDYMASK                        define 0004 
+       ACKINT                           define 0038 
+       RSTTINTPEND                      define 0028 
+0e32   cmd-bg@                          code 
+0e32   cmd-bg!                          code 
+0e32   cmd-ag@                          code 
+0e32   cmd-ag!                          code 
+0e32   data-bg@                         code 
+0e32   data-bg!                         code 
+0e32   data-ag@                         code 
+0e32   data-ag!                         code 
+1048   tty                              constant 0e32 makestruct 
+1048   uart-status                      : 
+1052   cmd-uart                         : 
+105a   uart-reg!                        : 
+105e   uart@                            : 
+106c   uart!                            : 
+1074   uart-first!                      : 
+1076   stop-transints                   : 
+110e H emit                             : 
+111e H key                              : 
+112e H key?                             : 
+1138   eol                              constant 000a 
+1142 H cr                               : 
+1154 H type                             : 
+1170   ^h                               constant 0008 
+1170   ^u                               constant 0015 
+117a H accept                           : 
+       CURREGION                        define 11ea 
+       IN                               define 11ec 
+       NTIB                             define 11ee 
+       TIBPTR                           define 11f0 
+11f2   match?                           : 
+121e   (find)                           : 
+1280   push-stream                      : 
+12b2   pop-stream                       : 
+12ce   skip-non-white                   : 
+12e6   skip-white                       : 
+1300   skipdel                          : 
+130e   scan-non-white                   : 
+1326   scan-white                       : 
+133e   scandel                          : 
+1356 H parse                            : 
+1398   parse-word                       : 
+13de   regionptr                        constant 11ea 
+13de   hashtablesize                    constant 0100 
+13de   hashtable                        constant 0220 
+13de   kib                              create(adjacent) 13e0 
+1460   sourceptr                        constant 11f0 
+1460   #source                          constant 11ee 
+146a H >in                              constant 11ec 
+147a H next-boot                        constant 06c0 
+148a H every-boot                       constant 06c2 
+149a H forth-wordlist                   constant 0000 
+149e   loc-wordlist                     constant 0001 
+14a0   vocabtag                         constant 149e variable 
+14a2   clue                             constant 14a0 variable 
+14a4   last-colon                       constant 14a2 variable 
+14a6   last                             constant 14a4 variable 
+14a8   to?                              constant 14a6 variable 
+14b4 H stdregion                        constant 14a8 variable 
+14c6 H state                            constant 14ba variable 
+14d8 H #order                           constant 14cc variable 
+14e8 H #vocs                            constant 0008 
+14f8 H current                          constant 14ec variable 
+1508 H context                          create(adjacent) 150a 
+151c   #locals                          constant 151a variable 
+1526 H bl                               constant 0020 
+152c   name>                            : 
+152c   link>                            : 
+152c   body>                            : 
+152c   >name                            : 
+152e   >link                            : 
+1538 H >body                            : 
+1546 H fill                             : 
+156a H environment?                     : 
+1578 H [                                : 
+158a H ]                                : 
+1592   dp                               : 
+159c H allocatefrom                     : 
+15ae H here                             : 
+15c0 H pad                              : 
+15d0 H latest                           : 
+15e0 H align                            : 
+15f6 H allot                            : 
+160a H ,                                : 
+161c H c,                               : 
+1624   *inline*                         : 
+1654   *callop*                         : 
+165e H compile,                         : 
+1662   *code*                           : 
+1676   *literal*                        : 
+16a6   *offset*                         : 
+16d6   *branch-dest*                    : 
+1722   *branch-unpack*                  : 
+175c   *locstore*                       : 
+176c   *locload*                        : 
+177c   *locinit*                        : 
+1784   *locfree*                        : 
+1794   (does)                           : 
+179e   does                             : 
+17a4   <mark                            : 
+17a6   <resolve                         : 
+17ae   >mark                            : 
+17b2   >resolve                         : 
+17b6   >>mark                           : 
+17bc   >>resolve                        : 
+17da H if                               : 
+17ec H else                             : 
+1802 H then                             : 
+180e H begin                            : 
+181a H while                            : 
+182e H until                            : 
+1840 H repeat                           : 
+1854 H again                            : 
+1866 H sel                              : 
+1872 H <<                               : 
+1882 H =>                               : 
+189a H ==>                              : 
+18ac H >>                               : 
+18c4 H otherwise                        : 
+18d4 H endsel                           : 
+18e6 H do                               : 
+1904 H loop                             : 
+192a H +loop                            : 
+1950 H leave                            : 
+1964   chuckbuf                         : 
+1970   reset-stream                     : 
+1988 H source                           : 
+199e H word                             : 
+19d2 H count                            : 
+19e2 H ,word                            : 
+19f4 H string,                          : 
+1a06   "s-buffer                        create(adjacent) 1a08 
+1a62 H "                                : 
+1a76   (")                              : 
+1a80   (.")                             : 
+1a98 H ""                               : 
+1ab0 H ."                               : 
+1ac8 H s"                               : 
+1ae2 H (                                : 
+1af6 H .(                               : 
+1b0a H \                                : 
+1b16 H get-current                      : 
+1b26 H set-current                      : 
+1b36 H definitions                      : 
+1b46 H get-order                        : 
+1b7e H set-order                        : 
+1bb2 H wordlist                         : 
+1bc0   hash                             : 
+1bea H find                             : 
+1c32 H search-wordlist                  : 
+1c4c   (forget)                         : 
+1c8c   notunique?                       : 
+1ca4 H header                           : 
+1ce8   setbits                          : 
+1cf2   clearbits                        : 
+1d08 H immediate                        : 
+1d1a H hide                             : 
+1d2c H reveal                           : 
+1d3e H inline                           : 
+1d50 H constant                         : 
+1d66 H variable                         : 
+1d78 H 2variable                        : 
+1d8e H create                           : 
+1da2 H region                           : 
+1dae   locregion                        create(adjacent) 1db0 
+1fbc H to                               : 
+1fc4   make-local                       : 
+202a H (local)                          : 
+204c   free-locals                      : 
+2058   end-scope                        : 
+208e H does>                            : 
+20a2 H :noname                          : 
+20ba H :                                : 
+20cc H recurse                          : 
+20e0 H exit                             : 
+20f4 H ;                                : 
+210e H base                             constant 2102 variable 
+2116   hld                              constant 2114 variable 
+2116   pno-buffer                       : 
+2120 H hex                              : 
+2132 H decimal                          : 
+2144 H space                            : 
+2156 H spaces                           : 
+2174 H hold                             : 
+218e H <#                               : 
+21a0 H #>                               : 
+21b6 H sign                             : 
+21cc H #                                : 
+21f2 H #s                               : 
+2206 H d.r                              : 
+2220   zeroes                           : 
+2242 H d.lz                             : 
+2266 H d.                               : 
+2276 H .r                               : 
+2288 H .                                : 
+2296 H u.r                              : 
+22a6 H u.lz                             : 
+22b6 H u.                               : 
+22c4 H ?                                : 
+22d2 H u?                               : 
+22e0 H postpone                         : 
+2304 H '                                : 
+231e H [']                              : 
+232e H literal                          : 
+233c H char                             : 
+2350 H [char]                           : 
+2360 H forget                           : 
+238e H dump                             : 
+242e H depth                            : 
+2450 H .s                               : 
+246a H digit                            : 
+24b0 H convert                          : 
+24de H >number                          : 
+2514 H number                           : 
+2548   endinterp                        : 
+2558 H interpret                        : 
+25ba H evaluate                         : 
+25ce H h#                               : 
+25f2 H d#                               : 
+2616 H quit                             : 
+2654 H abort                            : 
+2662 H abort"                           : 
+       dp0                              define 2670 
+2694   doforth                          : 
+2706 H int:                             : 
+2724 H ;int                             : 
+272e   silent-accept                    : 
+2774 H silent                           : 
+278e H offset:                          : 
+27a6 H for                              : 
+27c2 H next                             : 
+27da H ucode                            : 
+       REBOOT                           define 27f0 
+       app-vector                       define 2820 
+rom here = 2822 
+ram here = 2822 
+
+       romboot                          define 2822 Rule ?dup<?br> was applied 10 times.
+Rule <><?br> was applied 15 times.
+Rule <call><exit> was applied 72 times.
+Rule <>r><exit> was applied 3 times.
+Rule <lit><exit> was applied 3 times.
+Rule <x><exit> was applied 122 times.
+Rule <0+> was applied 21 times.
+Rule <lit>to<short> was applied 1 times.
+Rule <lit-op>to<short-op> was applied 3 times.
+Rule <lit><lit-op> was applied 0 times.
+Rule <short><lit-op> was applied 0 times.
+Rule <lit><short-op> was applied 2 times.
+Rule <short><short-op> was applied 1 times.
+Rule <lit-op><lit-op> was applied 0 times.
+Rule <short-op><lit-op> was applied 0 times.
+Rule <lit-op><short-op> was applied 2 times.
+Rule <short-op><short-op> was applied 3 times.
+Rule <@><binop> was applied 12 times.
+Rule <@><short> was applied 5 times.
+Rule <@>[<over><binop> was applied 0 times.
+Rule <@><swap> was applied 3 times.
+Rule <lit><binop> was applied 29 times.
+Rule <drop><lit> was applied 6 times.
+Rule <lit>[<over><binop>] was applied 0 times.
+Rule <dup>[<lit><binop>] was applied 4 times.
+Rule <lit><swap> was applied 0 times.
+Rule <x_g@>[<over><binop>] was applied 2 times.
+Rule <dup>[<x_g@><binop>] was applied 2 times.
+Rule <r>><drop> was applied 2 times.
+Rule <x_g@><binop> was applied 7 times.
+Rule <dup><x_g!> was applied 14 times.
+Rule <short><binop> was applied 20 times.
+Rule <drop><short> was applied 16 times.
+Rule <short>[<over><binop>] was applied 1 times.
+Rule <dup>[<short><binop>] was applied 9 times.
+Rule <alu><shift> was applied 14 times.
+Rule <over>[<over><binop>] was applied 7 times.
+Rule <swap>[<over><binop>] was applied 0 times.
+Rule <over><binop> was applied 18 times.
+Rule <swap><binop> was applied 8 times.
+Rule <move><not>2 was applied 0 times.
+Rule <move><not>1 was applied 0 times.
+Rule <swap><drop><dup> was applied 1 times.
+Rule <drop><dup> was applied 1 times.

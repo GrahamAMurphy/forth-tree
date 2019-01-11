@@ -1,0 +1,129 @@
+Call	0DDDDDDDDDDDDDDD
+Call2	1000DDDDDDDDDDDDDDDDDDDDDDDDDDDD
+Branch	10010BBFFFFFFFFF
+Qbranch	10011BBFFFFFFFFF
+ALUImm	1010RSSIIIIIAAAA			imm op T -> T
+ALUImmL	1011RSS000 LAAAAIIIIIIIIIIIIIIII	imm*2^(16*L) op T -> T
+ALUStep	1011RSS001  aaaa			N op T:MD:Fl -> T:MD:Fl
+ALUOp	1011RSS010  AAAA			N op T -> T
+	1011RSS011
+ALUOpEx	1011RSS1CCCCAAAA			N op T -> T, cond -> Fl
+ALUTs	1100RSS0CCCCAAAA			N op T, cond -> T
+ALUTsEx	1100RSS1CCCCAAAA			N op T -> null, cond -> Fl
+ALURdRg	1101RSS0 rrrAAAA			Reg op T -> T
+ALUWrRg	1101RSS1 rrrAAAA			N op T -> Reg
+ShiftEx	1110RSS     OO00			Fl:T shift 1 -> T shiftout -> Fl
+ShiftIm	1110RSSIIIIIOO01			T shift imm -> T
+Load	1110RSSIIIIIMM10			*(imm + T) -> T
+Store	1110RSSIIIIIMM11			*(imm + T) <- T
+	1111
+
+DDDDDDDDDDDDDDD: Call destination address
+Note: shifted left one bit to form byte address of destination instruction.
+
+BB: Block
+	00 = branch to same block
+	01 = branch to next block
+	10 = branch to block 0
+	11 = branch to previous block
+
+FFFFFFFFF: Branch destination address
+Note: shifted left one bit to form byte address of destination instruction.
+
+SS: Data stack operation
+	00 = nop	T -> T	N -> N
+	01 = push	T -> T	T -> N	N -> stack
+	10 = pop	N -> T	stack -> N
+	11 = swap	N -> T	T -> N
+Note: If a T destination is specified by the instruction type, then that
+is what happens.  Otherwise, the source of T is determined by the stack op.
+
+R: Return
+	0 = nop
+	1 = return
+
+IIIII: Immediate operand: 0 - 31
+
+AAAA: Arithmetic operation
+	0000 = b
+	0001 = a
+	0010 = b + a
+	0011 = b + a + Fl
+	0100 = b - a		b + ~a + 1
+	0101 = b - a - Fl	b + ~a + Fl
+	0110 = -b + a		~b + a + 1
+	0111 = -b + a - Fl	~b + a + Fl
+	1000 = ~b
+	1001 = ~a
+	1010 = a + 1
+	1011 = a - 1
+	1100 = a . b
+	1101 = a | b
+	1110 = a ^ b
+	1111 = TBD
+
+aaaa: Step operation
+	0000 = multiply		3-bit modified Booth step
+	0001 = divide1		non-restoring divide step
+	0010 = divide2		non-restoring divide cleanup step
+	others reserved
+
+CCCC: Condition
+	0000 = 0
+	0001 = 1
+	0010 = V
+	0011 = ~V
+	0100 = N
+	0101 = ~N
+	0110 = Z		=
+	0111 = ~Z		<>
+	1000 = C		u>=
+	1001 = ~C		u<
+	1010 = N^V		<
+	1011 = ~(N^V)		>=
+	1100 = (N^V)|Z		<=
+	1101 = ~(N^V).~Z	>
+	1110 = C.~Z		u>
+	1111 = ~C|Z		u<=
+
+rrr: Register
+	000 = R
+	001 = R (read pops return stack, write pushes returns stack)
+	010 = MD
+	011 = UDR
+	100 = PC (read only)
+	101 = PSW
+	110 = PSP
+	111 = RSP
+
+OO: Shift operation
+	00 = logicial shift right (zero fill)
+	01 = arithmetic shift right (sign fill)
+	10 = shift left
+	11 = rotate left
+
+MM: Memory size
+	00 = byte
+	01 = 16-bit word
+	10 = 32-bit word
+	11 = TBD
+
+Notes:
+- Call2 adds subroutine call beyond 32 bits.  Software convention could
+exclude this instruction limiting programs to 64 KB.  Therefore, dictionary
+links could be 16 bits, etc. saving memory.
+- Immediate values are zero-extended.
+- 8-bit and 16-bit load values are zero-extended.
+- Load and store of 16-bit or 32-bit values must be to even addresses.
+- The 4-bit nibble layout of the instruction is serendipitous but makes
+reading object code easy.
+
+Variations:
+- ALUReg2 could be: T op Reg -> Reg.  What if Reg was push/pop version of R?
+- 3-bit Reg field has room to expand to 4 bits.
+- Add ShiftReg?
+- Instruction set is also suitable for 16-bit datapath.  Would need to
+add CPR, DPR, and near/far bit.
+- Writing (or reading?) PSW holds off interrupts for one cycle.  Others?
+- TBD: what happens on read/write to R and return bit is set?
+- TBD: is list of ALU operations ok?

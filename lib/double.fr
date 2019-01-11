@@ -1,0 +1,38 @@
+\ (c) 1995 Johns Hopkins University / Applied Physics Laboratory
+\ Double number extensions
+hex
+
+: 2constant	\ ( x y -- ) ( -- x y )
+   create , , does> 2@ ;
+
+: 2,  , , ;	\ ( xd -- ) "Comma down" a cell-pair, ms cell first.
+
+: d-		\ ( d1 d2 -- d3 ) Subtract d2 from d1.
+   dnegate d+ ;
+
+: d=		\ ( xd1-ls xd1-ms xd2-ls xd2-ms -- t/f ) Test for equality.
+   d- or 0= ;
+
+: d>		\ d1 d2 -- t/f ) Return true iff d1 > d2.
+   2swap d< ;
+
+: du<		\ ( du1-ls du1-ms du2-ls du2-ms -- t/f ) Return true iff
+		\ du1 is less than du2.
+   >r over r@ - if drop nip r> u< else r> drop nip u< then ;
+
+: du>		\ ( du1-ls du1-ms du2-ls du2-ms -- t/f ) Return true iff
+		\ du1 is greater than du2.
+   >r over r@ - if drop nip r> u> else r> drop nip u> then ;
+
+: dmax		\ ( d1 d2 -- dmax) Return largest of d1 and d2.
+   2over 2over d< if 2swap then 2drop ;
+
+: dmin		\ ( d1 d2 -- dmin) Return smallest of d1 and d2.
+   2over 2over d> if 2swap then 2drop ;
+
+: dumax		\ ( du1 du2 -- dumax) Return largest of du1 and du2.
+   2over 2over du< if 2swap then 2drop ;
+
+: dumin		\ ( du1 du2 -- dumax) Return smallest of du1 and du2.
+   2over 2over du> if 2swap then 2drop ;
+

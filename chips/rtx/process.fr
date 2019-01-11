@@ -1,0 +1,29 @@
+\ (c) 1993 Johns Hopkins University / Applied Physics Laboratory
+\ 	Process management
+hex
+
+: process:	\ ( lsize psize rsize -- ) Create a process.  The
+		\ parameter and return stacks are entirely on chip
+		\ (unless the on-chip stacks are all used up);
+		\ you have no real choice on their size.  When a
+		\ process is executed, the address of its initializer
+		\ is returned.  The given sizes are in cells.
+   2drop				\ no choice of stack size!
+   cells allot here			\ allocate locals stack
+   here user-size allot			\ allocate uninited run-time pd
+   allocate-substack dup >r 0= if	\ if all substacks in use
+      pd-run-swap allot			\ allocate off-chip stacks
+   then
+   create
+   , , r> , ] ;				\ make pd-init
+
+: s-process:	\ ( lsize psize rsize -- ) Create a swappable process.
+   2drop				\ no choice of stack size!
+   cells allot here			\ allocate locals stack
+   here user-size allot			\ allocate uninited run-time pd
+   pd-run-swap allot			\ allocate off-chip stacks
+   create
+   , , 0 , ] ;				\ make pd-init
+
+: ;process	\ ( -- ) end definition of a process.
+   postpone [ ; immediate

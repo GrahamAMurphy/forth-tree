@@ -1,0 +1,40 @@
+\ (c) 2002 Johns Hopkins University / Applied Physics Laboratory
+\ Test macros
+hex
+
+create test-macros
+  fd   m:				\ 1 block
+	#cmd-null	c: 0 c, 1 c, 2 c, 3 c, 4 c, ;c
+	#cmd-null	c: 0 c, 1 c, 2 c, 3 c, 4 c, ;c
+	#cmd-null	c: 0 c, 1 c, 2 c, 3 c, 4 c, ;c
+	#cmd-null	c: 0 c, 1 c, ;c
+      ;m
+( fe ) m:				\ 2 blocks
+	#cmd-null	c: 0 c, 1 c, 2 c, 3 c, 4 c, ;c
+	#cmd-null	c: 0 c, 1 c, 2 c, 3 c, 4 c, ;c
+	#cmd-null	c: 0 c, 1 c, 2 c, 3 c, 4 c, ;c
+	#cmd-null	c: 0 c, 1 c, 2 c, 3 c, 4 c, ;c
+	#cmd-null	c: 0 c, 1 c, 2 c, 3 c, 4 c, ;c
+	#cmd-null	c: 0 c, 1 c, 2 c, 3 c, 4 c, ;c
+	#cmd-null	c: 0 c, 1 c, 2 c, 3 c, 4 c, ;c
+	#cmd-null	c: 0 c, 1 c, ;c
+       ;m
+( ff ) m:				\ 3 blocks
+	#cmd-null	c: 0 c, 1 c, 2 c, 3 c, 4 c, ;c
+	#cmd-null	c: 0 c, 1 c, 2 c, 3 c, 4 c, ;c
+	#cmd-null	c: 0 c, 1 c, 2 c, 3 c, 4 c, ;c
+	#cmd-null	c: 0 c, 1 c, 2 c, 3 c, 4 c, ;c
+	#cmd-null	c: 0 c, 1 c, 2 c, 3 c, 4 c, ;c
+	#cmd-null	c: 0 c, 1 c, 2 c, 3 c, 4 c, ;c
+	#cmd-null	c: 0 c, 1 c, 2 c, 3 c, 4 c, ;c
+	#cmd-null	c: 0 c, 1 c, 2 c, 3 c, 4 c, ;c
+	#cmd-null	c: 0 c, 1 c, 2 c, 3 c, 4 c, ;c
+	#cmd-null	c: 0 c, 1 c, 2 c, 3 c, 4 c, ;c
+	#cmd-null	c: 0 c, 1 c, 2 c, 3 c, 4 c, ;c
+	#cmd-null	c: 0 c, 1 c, ;c
+       ;m
+
+( * ) fd - constant #test-macros
+
+: init-macro-test \ ( -- ) Install test macros.
+   test-macros fd #test-macros install-macros ;

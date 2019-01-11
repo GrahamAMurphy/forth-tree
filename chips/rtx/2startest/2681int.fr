@@ -1,0 +1,136 @@
+\ (c) 1993 Johns Hopkins University / Applied Physics Laboratory
+\ Serial device driver interface to on-board 2681 Dual-channel UART
+hex
+
+noheads					\ only emit, etc. (below) have heads
+
+\ 2681 defines
+08 define DITRANS			\ SCN2681 disable transmitter command
+04 define ENTRANS			\ SCN2681 enable transmitter command
+
+01 define TxRDYA			\ ISR TxRDY A
+02 define RxRDYA			\ ISR RxRDY A
+10 define TxRDYB			\ ISR TxRDY B
+20 define RxRDYB			\ ISR RxRDY B
+
+\ ------------------------------------------------------------------------
+\ Device configuration
+
+ttystruct makestruct ttya
+ttystruct makestruct ttyb
+
+\ ------------------------------------------------------------------------
+\ Low-level UART access routines
+
+: uart-reg!	\ ( x regno -- ) Write x to given UART register.
+		\ Precondition: remote page already set and in far mode.
+   cells UART-base + ! || ; inline
+
+: uart-reg@	\ ( regno -- x ) Read x from given UART register.
+		\ Precondition: remote page already set and in far mode.
+   cells UART-base + 1+ c@ || ; inline	\ use byte fetch, no need to mask
+
+\ Channel A
+: ttya-uart!	\ ( c -- ) Write a character to UART.
+   far 3 uart-reg! ;
+
+: ttya-uart-first! \ ( c -- ) Write first character to UART.
+   far ENTRANS 2 uart-reg!
+   3 uart-reg! ;
+
+: ttya-uart@	\ ( -- c ) Read a character from UART.
+   far 3 uart-reg@ ;
+
+: ttya-stop-transints \ ( -- ) Disable further transmit interrupts.
+   far DITRANS 2 uart-reg! ;
+
+\ Channel B
+: ttyb-uart!	\ ( c -- ) Write a character to UART.
+   far b uart-reg! ;
+
+: ttyb-uart-first! \ ( c -- ) Write first character to UART.
+   far ENTRANS a uart-reg!
+   b uart-reg! ;
+
+: ttyb-uart@	\ ( -- c ) Read a character from UART.
+   far b uart-reg@ ;
+
+: ttyb-stop-transints \ ( -- ) Disable further transmit interrupts.
+   far DITRANS a uart-reg! ;
+
+\ ------------------------------------------------------------------------
+\ High level driver interface routines
+
+heads
+
+: emit		\ ( c --- ) Send a character out debug port.
+   get-page swap UART-pg# set-page
+   ttya tty-putc
+   set-page ;
+
+: key		\ ( --- c ) Get a character from debug port.
+   get-page UART-pg# set-page
+   ttya tty-getc
+   swap set-page ;
+
+: key?		\ ( -- t/f ) Is there a character in the type-ahead buffer?
+   ttya tty-incount 0= not ;
+
+: >mca		\ ( c --- ) Send a character out MCA port.
+   get-page swap UART-pg# set-page
+   ttyb tty-putc
+   set-page ;
+
+: mca>		\ ( --- c ) Get character from MCA port.
+   get-page UART-pg# set-page
+   ttyb tty-getc
+   swap set-page ;
+
+\ ------------------------------------------------------------------------
+\ Interrupt routines
+
+UARTINT# int:	\ ( --- ) UART interrupt routine.  Polls the UART to see
+		\ which channel has interrupted and whether it is a receive
+		\ or a transmit interrupt.
+   get-page UART-pg# set-page
+   far 5 uart-reg@ near			\ get interrupts status
+   dup RxRDYB and			\ if channel B receiver ready
+   if drop ttyb tty-rcvint
+   else dup TxRDYB and			\ or if channel B transmitter ready
+   if drop ttyb tty-transint
+   else dup RxRDYA and			\ or if channel A receiver ready
+   if drop ttya tty-rcvint
+   else TxRDYA and			\ or if channel A transmitter ready
+   if ttya tty-transint
+   then then then then
+   set-page ;int
+
+\ ------------------------------------------------------------------------
+\ Initialization
+
+every-boot:
+   UART-pg# set-page far		\ UART is on remote page
+\ global inits
+   30 4 uart-reg!			\ ACR: baud rate set 1, counter mode
+   33 5 uart-reg!			\ IMR: enable trans. and rcv. ints.
+\ port A corresponds to debug port
+   13 0 uart-reg!			\ MR1A: no parity, 8 bits
+   07 0 uart-reg!			\ MR2A: 1 stop
+   bb 1 uart-reg!			\ CSRA: 9600 baud trans. and receive
+   01 2 uart-reg!			\ CRA:  enable receive only
+\ port B corresponds to MCA
+   13 8 uart-reg!			\ MR1B: no parity, 8 bits
+   07 8 uart-reg!			\ MR2B: 1 stop
+   bb 9 uart-reg!			\ CSRB: 9600 baud trans. and receive
+   01 a uart-reg! near			\ CRB:  enable receive only
+\ register call backs, etc.
+   ['] ttya-uart!  ['] ttya-uart-first!
+   ['] ttya-uart@  ['] ttya-stop-transints
+   ttya tty-init
+   ['] ttyb-uart!  ['] ttyb-uart-first!
+   ['] ttyb-uart@  ['] ttyb-stop-transints
+   ttyb tty-init
+\ unmask interrupt
+   UARTINT# get-mask unmask-int
+;boot
+

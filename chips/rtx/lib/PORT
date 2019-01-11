@@ -1,0 +1,77 @@
+This file examines the portability of each of these file with an eye
+to reusing the code on other 16-bit processors.
+
+alpha.fr:
+   obsolete
+
+autoboot.fr:
+   obsolete: see boot.fr
+
+autoboot2.fr:
+   obsolete: see boot.fr
+
+clock.fr:
+   RTX-specific
+
+condwait.fr: Conditional wait.
+    portable to any system with counting semaphores.
+
+crc.fr:
+   obsolete test
+
+far.fr:
+   obsolete
+   RTXism: streaming I/O, c@+, etc.
+
+far2.fr: far memory helpers.
+   RTXism: @+, !+, etc.
+
+far3.fr: far memory helpers with byte-write emulation.
+   RTXism: @+, !+, sq!, md@, etc.
+
+fast16b1.fr: fast compression on 16-bit values
+   depends on module API (modules2.fr)
+   uses u2/
+
+fast8b1.fr: fast compression on 8-bit values
+   depends on module API (modules2.fr)
+   uses u2/
+
+fastfill.fr:
+   RTXism: streaming I/O, ucode, etc.
+
+intel1.fr: Intel Hex download
+   does not conform to download API, e.g. motor2.fr
+
+intel2.fr: Intel Hex download
+   depends on memory API (memory2.fr)
+   does not conform to download API, e.g. motor2.fr
+
+intel32.fr: Intel Hex loader
+   obsolete
+
+intpatch.fr:
+   RTX-specific
+
+ivt.fr:
+   RTX-specific
+
+log19to8.fr, log32to10.fr:
+   RTXism: md@
+   uses u2/
+   
+rtxcross.fr:
+   RTX-specific
+
+sqrt.fr: square root
+   RTXism: streaming, ucodes, etc.
+
+stackcheck1.fr:
+   RTXism: sp@ and psp-stack-mask
+
+time.fr:
+   RTX-specific
+
+time2.fr:
+   RTX-specific
+

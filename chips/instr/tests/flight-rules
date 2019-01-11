@@ -1,0 +1,24 @@
+Macro rules:
+- Do not nest too deeply.  One macro can call another or can execute
+loops.  Both calls and loops can be nested.  Loop nesting depth is
+traded with macro nesting depth.  Each running macro context has a 32
+element stack.  Each macro call uses two elements; each loop uses three
+elements.
+- XXX_MAC_SAVE and XXX_MAC_RESTORE must not be used while a macro is
+being compiled.  Similarly, macro dumps via XXX_MAC_READ and macro define
+cannot occur at the same time.
+- XXX_MAC_LOOP_BEGIN and XXX_MAC_LOOP_END must be paired correctly.
+Each XXX_MAC_LOOP_BEGIN must be followed by an XXX_MAC_LOOP_END.
+- Avoid macro loops without XXX_MAC_DELAY occurring in the loop.
+This could shut out low priority processes and cause a watchdog reset.
+- Do not use entire macro space.  If there are no free macro blocks,
+all subsequent macro compilations will fail.
+
+Command timing:
+- Some commands take substantial time to execute.  Most commands execute
+in microseconds, but a few take up to a second to execute.  If such
+a command is uplinked, a one second delay should occur before uplinking
+the next command.  Slow commands are: XXX_MAC_SAVE, XXX_MAC_CHECK if
+a large number of macros are checked, XXX_MEM_COPY if a large block of
+memory is copied to EEPROM, and XXX_MEM_CHECK if a large block of memory
+is checked.

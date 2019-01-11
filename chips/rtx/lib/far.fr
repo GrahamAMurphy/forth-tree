@@ -1,0 +1,36 @@
+\ (c) 1993 Johns Hopkins University / Applied Physics Laboratory
+\ Far memory access
+hex
+
+nohead
+10 constant #bytes/block \ TBD propagate through code
+
+: blocks-out	\ ( src dst blocks -- src' dst' ) Copy given number
+		\ of blocks from source in near memory to destination
+		\ in far memory.  Assumes that the dpr has been set.
+		\ Return addresses just past last byte copied.
+   for					\ for each block
+      >r near     f times|| c@+ || md!	\ load up 16 bytes
+      r> far  f + f times|| c!- || md@
+      swap 11 +
+   next ;
+
+: bytes-out	\ ( src dst bytes -- ) Copy given number of bytes
+		\ from source in near memory to destination in far memory.
+		\ Assumes that the dpr has been set.
+   for >r near c@+ swap r> far c!+ next 2drop ;
+
+: blocks-in	\ ( src dst blocks -- src' dst' ) Copy given number
+		\ of blocks from source in far memory to destination
+		\ in near memory.  Assumes that the dpr has been set.
+		\ Return addresses just past last byte copied.
+   for					\ for each block
+      >r far      f times|| c@+ || md!	\ load up 16 bytes
+      r> near f + f times|| c!- || md@
+      swap 11 +
+   next ;
+
+: bytes-in	\ ( src dst bytes -- ) Copy given number of bytes
+		\ from source in far memory to destination in near memory.
+		\ Assumes that the dpr has been set.
+   for >r far  c@+ swap r> near c!+ next 2drop ;

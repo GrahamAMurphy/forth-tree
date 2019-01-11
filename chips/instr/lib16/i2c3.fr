@@ -1,0 +1,44 @@
+\ (c) 2014 Johns Hopkins University / Applied Physics Laboratory
+\ I2C bus low-level interface
+hex
+
+\ * Low-level interface to I2C bus.  Requires constants:
+\ *    io-mem#: "page" number of following
+\ *    i2c-data-a#: I2C data (read or write)
+\ *    i2c-cont-a#: I2C address and trigger (write) and result (read) 
+\ * Note: this is a re-factor of i2c2.fr.  It preserves the I2C interface
+\ * but removes the "slot" scheduler (see slotsched1.fr).
+
+module> i2c
+
+\ ------------------------------------------------------------------------
+\ * Direct bus access
+
+public:
+
+: i2c!s		\ ( value16 device -- ) Start write transaction.
+		\ Note: assumes that 'device' has empty lsb for R/W flag.
+		\ Note: called from within an interrupt routine.
+   \ io-mem# set-mem			\ remote memory-mapped I/O already set
+   swap i2c-data-a# far !		\ save value16
+   i2c-cont-a# ! ;			\ save device|W, trigger
+
+: i2c@s		\ ( device -- ) Start read transaction
+		\ Note: assumes that 'device' has empty lsb for R/W flag.
+		\ Note: called from within an interrupt routine.
+   \ io-mem# set-mem			\ remote memory-mapped I/O already set
+   1+ i2c-cont-a# far ! ;		\ save device|R, trigger
+
+: i2c@r		\ ( -- value16 ) Return result of read.
+   get-mem io-mem# set-mem		\ remote memory-mapped I/O
+   i2c-data-a# far @
+   swap set-mem ;
+
+: i2c-status@	\ ( -- x ) Return bus status.
+		\ Note: called from within an interrupt routine.
+   \ io-mem# set-mem			\ remote memory-mapped I/O already set
+   i2c-cont-a# far @ ;
+
+private:
+
+endmodule>

@@ -1,0 +1,48 @@
+\ (c) 1999 Johns Hopkins University / Applied Physics Laboratory
+\ UART interface functions for 2681 UART on remote page.
+hex
+
+noheads
+
+04 constant TXRDYMASK
+01 constant RXRDYMASK
+
+: uart-reg!	\ ( x regno -- ) Write x to given UART register.
+		\ Precondition: remote page already set and in far mode.
+   cells UART-base + ! || ; inline
+
+: uart-reg@	\ ( regno -- x ) Read x from given UART register.
+		\ Precondition: remote page already set and in far mode.
+   cells UART-base + 1+ c@ || ; inline	\ use byte fetch, no need to mask
+
+: uart-status	\ ( -- x ) Return UART status.
+		\ Precondition: remote page already set and in far mode.
+   1 uart-reg@ ;
+
+: uart@		\ ( -- c ) Read character from UART.
+		\ Precondition: remote page already set and in far mode.
+   3 uart-reg@ ;
+
+: uart!		\ ( c -- ) Send character to UART.
+		\ Precondition: remote page already set and in far mode.
+   3 uart-reg! ;
+
+heads
+
+\ Initialization
+every-boot:
+   UART-pg# set-page far		\ UART is on remote page
+\ global inits
+   30 4 uart-reg!			\ ACR: baud rate set 1, counter mode
+   00 5 uart-reg!			\ IMR: no interrupts
+\ port A corresponds to debug port
+   13 0 uart-reg!			\ MR1A: no parity, 8 bits
+   07 0 uart-reg!			\ MR2A: 1 stop
+   bb 1 uart-reg!			\ CSRA: 9600 baud trans. and receive
+   05 2 uart-reg!			\ CRA:  enable transmitter and receiver
+\ port B corresponds to MCA
+   13 8 uart-reg!			\ MR1B: no parity, 8 bits
+   07 8 uart-reg!			\ MR2B: 1 stop
+   bb 9 uart-reg!			\ CSRB: 9600 baud trans. and receive
+   05 a uart-reg!			\ CRB:  enable transmitter and receiver
+;boot

@@ -1,0 +1,43 @@
+\ Compile Forth for HENA DPU
+
+" target.fr" used
+" rtx/dpu/hena" is-target		\ cross compile for HENA variant of DPU
+
+\ Configure crosscompiler
+hex
+0000 set-ram				\ ram-based system
+def interactive				\ include Forth interpreter
+def multitasking			\ include multitasker
+" forth.map" is-logfile
+
+\ RTX/DPU specific configuration
+def rtx2010				\ exploit 2010 specific features
+20 define substack-size			\ stack size: see ../chpparam.fr
+
+\ Load the kernel.
+" kernel1.fr" ftload			\ primitives and extend crosscompiler
+
+\ Load tty interface
+" brdparam.fr" ftload			\ useful addresses and defines
+" devices/intttyws.fr" ftload		\ tty interface
+" wart.fr" ftload			\ DPU wart specfic pieces of tty driver
+" dpuinit.fr" ftload			\ initialize DPU hardware
+
+\ Load rest of kernel and multitasker and interpreter if desired
+" kernel2.fr" ftload			\ interpreter?, multitasker?
+
+\ ------------------------------------------------------------------------
+\ Load application
+
+\ Forth is the application ...
+
+\ Load startup
+" startup.fr" ftload
+' doforth is-startup
+
+report
+" forhena.dld" saveobj
+
+cr .( stack depth = ) depth . cr
+
+decimal >log rulestats !>log

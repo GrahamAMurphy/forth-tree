@@ -1,0 +1,86 @@
+\ (c) 2004 Johns Hopkins University / Applied Physics Laboratory
+\ Here are some routines to assist the outer interpreter.
+hex
+
+\ ------------------------------------------------------------------------
+\ Wordlist search primitive
+nohead : match?		\ ( s1 s2 u -- t/f ) Compare two name fields characters.
+   namesize 1- umin
+   0 do
+      over c@ over c@ <> if unloop drop drop 0 exit then
+      1+ swap 1+
+   loop drop drop -1 ;
+
+nohead : (find)		\ ( tstring u &[chain] wid# -- tstring u &chain false)
+			\ ( tstring u &[chain] wid# -- cfa 1 true )
+			\ ( tstring u &[chain] wid# -- cfa -1 true )
+   over 0= if drop 0 exit then		\ early out if empty list
+   md! dup >r swap >r			\ setup stack
+   ( s: tstring entry  r: &[chain] u  md: wid# )
+   begin
+      dup c@ 3f and r@ = if		\ if string lengths match
+      over over 1+ r@ match? if		\ and if each character matches
+      dup namesize + c@ md@ = if	\ and if wid# matches
+         rdrop rdrop 
+	 nip dup c@ prec-bit and >r	\ test immediate bit
+	 nf-size + cell+		\ cfa
+	 r> if 1 else -1 then -1 exit	\ return success
+      then then then
+      nf-size + @ dup 0=		\ next entry in chain
+   until				\ until end of chain
+   drop r> r> 0 ;			\ return failure
+
+\ ------------------------------------------------------------------------
+\ Input stream setup
+nohead : push-stream \ ( c-addr u fileid -- )
+   drop r> TIBPTR @ >r IN @ >r NTIB @ >r >r
+   NTIB !  TIBPTR !  0 IN ! ;
+
+nohead : pop-stream \ ( -- )
+   r> r> NTIB ! r> IN ! r> TIBPTR ! >r ;
+
+\ ------------------------------------------------------------------------
+\ Input stream parsing
+
+nohead
+: skip-non-white \ ( end scan -- end scan' ) ( md: del ) Skip non-white del.
+   begin over over <> while dup c@ md@ = while 1+ repeat then ;
+
+nohead
+: skip-white	\ ( end scan -- end scan' ) ( md: del ) Skip white del.
+   begin over over <> while dup c@ md@ u> not while 1+ repeat then ;
+
+nohead
+: skipdel	\ ( end scan -- end scan' ) ( md: del ) Skip delimiters.
+   20 md@ <> if skip-non-white exit then skip-white ;
+
+nohead
+: scan-non-white \ ( end scan -- end scan' ) ( md: del ) Scan for non-white del.
+   begin over over <> while dup c@ md@ <> while 1+ repeat then ;
+
+nohead
+: scan-white	 \ ( end scan -- end scan' ) ( md: del ) Scan for white del.
+   begin over over <> while dup c@ md@ u> while 1+ repeat then ;
+
+nohead
+: scandel	\ ( end scan -- end scan' ) ( md: del ) Scan for delimiters.
+   20 md@ <> if scan-non-white exit then scan-white ;
+
+: parse		\ ( del -- c-addr u )
+   md!
+   TIBPTR @ IN @ +  TIBPTR @ NTIB @ +	\ find current start/end of parse area
+   over scandel				\ s: scan end scan'
+   dup TIBPTR @ - >r			\ compute new >in ...
+   over over <> if r> 1+ else r> then	\ distinguish del found / end of area
+   IN !
+   nip over - ;				\ compute string length
+
+nohead : parse-word	( del --- c-addr u )
+   md!
+   TIBPTR @ NTIB @ +  TIBPTR @ IN @ +	\ find end of parse area/current start
+   skipdel swap
+   over scandel				\ s: scan end scan'
+   dup TIBPTR @ - >r			\ compute new >in ...
+   over over <> if r> 1+ else r> then	\ distinguish del found / end of area
+   IN !
+   nip over - ;				\ compute string length

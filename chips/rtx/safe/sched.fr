@@ -1,0 +1,85 @@
+\ (c) 1993 Johns Hopkins University / Applied Physics Laboratory
+\	RTX Concurrency Primitives
+hex
+
+noheads					\ users cannot access these
+
+variable head				\ points to pd of highest priority proc.
+
+structure pd-run			\ process descriptor - run-time
+   cell: .next				\ next descriptor in process list
+   cell: .pstate			\ process state: 0=run, other=wait
+   cell: .sp				\ saved internal stack pointers: if
+					\ the substack 0 is used, stacks are
+					\ swappable.
+\ could save these on stack, but stack space is very precious
+   cell: .lsp				\ saved local variable stack pointer
+   cell: .sr				\ saved do-loop index cache
+   cell: .remote			\ saved remote page pointer
+endstructure
+
+\ allocate enough user space to hold pd-run.  pd-run must be at
+\ beginning of user space!
+pd-run allocate-user-space
+
+heads					\ following words are public
+
+: @head		\ ( -- addr[pd-run] ) Return pd of highest priority process.
+   head @ ;
+: !head		\ ( addr[pd-run] -- ) Make given pd highest priority process.
+   head ! ;
+
+\ Current process is in User Base Register
+     <@run> code @run	<exit> inline	\ mxr@
+nohead be92 code !run	<exit> inline	\ mxr!
+
+forward: switchto			\ forward reference; see nullproc.fr
+
+: wait		\ ( addr[sem] -- )
+   cr@ dup 4000 and			\ if interrupts are enabled, arrange for
+   0= if r> 1+ >r then			\   them to be re-enabled later.
+   10 or cr!				\ disable interrupts
+   dup @ 1- dup 0< >r over !		\ decrement semaphore
+   r> if				\ if new value <0
+      @run .pstate !			\ mark process as waiting for signal
+      @run begin @ dup .pstate @ 0= until \ search for runnable process
+      switchto || ( does not return )	\ switch to new process
+   else drop
+   then ;
+
+: signal	\ ( addr[sem] -- )
+   cr@ dup 4000 and			\ if interrupts are enabled, arrange for
+   0= if r> 1+ >r then			\   them to be re-enabled later.
+   10 or cr!				\ disable interrupts
+   dup @ dup 0< >r 1+ over !		\ increment semaphore
+   r> if				\ if someone is waiting
+      @head				\ start searching
+      @run md!				\ cache cproc
+      begin				\ s: addr[sem] pd
+         dup md@ <> while		\ while higher priority than signaller
+	 over over .pstate @ <> while	\ while signalled process not found
+	 @				\ examine next pd
+      repeat
+         nip 0 over .pstate !		\ mark signalled process runnable
+	 switchto || ( does not return ) \ switch to new process
+      else				\ signaller has higher priority
+         begin				\ continue searching; s: addr[sem] pd
+	    dup while			\ while not at end of list
+	    over over .pstate @ <> while \ while signalled process not found
+	    @				\ examine next pd
+	 repeat
+	    0 swap .pstate ! drop	\ make signalled process runnable
+	 else drop drop			\ signalled process not found; dead
+	 then
+      then
+   else drop				\ no one waiting; continue
+   then ;
+
+: resched	\ ( -- ) Reexamine process list to see if there is a higher
+		\ priority runnable process.  May switch to self!
+   cr@ dup 4000 and			\ if interrupts are enabled, arrange for
+   0= if r> 1+ >r then			\   them to be re-enabled later.
+   10 or cr!				\ disable interrupts
+   head begin @ dup .pstate @ 0= until	\ search for highest priority runnable
+   switchto || ( does not return ) ;
+

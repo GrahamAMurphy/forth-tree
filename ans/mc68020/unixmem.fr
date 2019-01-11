@@ -1,0 +1,30 @@
+\ (c) 1992 Johns Hopkins University / Applied Physics Laboratory
+code allocate	( u -- a-addr ior )
+	movl	#0,_errno		/* reset error number */
+	movl	psp@,sp@-		/* size */
+	jbsr	_malloc			/* use malloc(3) */
+	addql	#4,sp			/* discard arguments */
+	movl	d0,psp@			/* return pointer to memory */
+	movl	_errno,psp@-		/*  and errno */
+	next
+end
+
+code free	( a-addr -- ior )
+	movl	#0,_errno		/* reset error number */
+	movl	psp@,sp@-		/* size */
+	jbsr	_free			/* use free(3) */
+	addql	#4,sp			/* discard arguments */
+	movl	_errno,psp@		/* return errno */
+	next
+end
+
+code resize	( a-addr1 u -- a-addr2 ior )
+	movl	#0,_errno		/* reset error number */
+	movl	psp@,sp@-		/* size */
+	movl	psp@(4),sp@-		/* address */
+	jbsr	_realloc		/* use realloc(3) */
+	addql	#8,sp			/* discard arguments */
+	movl	d0,psp@(4)		/* return pointer to memory */
+	movl	_errno,psp@		/*  and errno */
+	next
+end

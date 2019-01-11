@@ -1,0 +1,9 @@
+hex
+
+1000 allot here constant copy-limit
+a000 constant save-base
+: boot
+  disable
+   save-base copy-limit			\ destination and length
+   0 do dup c@ i c! 1+ loop
+   >r ;					\ jump to new program

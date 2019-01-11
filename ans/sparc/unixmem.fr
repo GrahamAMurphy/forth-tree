@@ -1,0 +1,37 @@
+\ (c) 1992 Johns Hopkins University / Applied Physics Laboratory
+code allocate	( u -- a-addr ior )
+	sethi	%hi(CLAB(errno)),tmp
+	st	%g0,[tmp+%lo(CLAB(errno))] /* reset error number */
+	mov	tos,%o0			/* size */
+	call	CLAB(malloc)		/* use malloc(3) */
+	sub	psp,4,psp
+	st	%o0,[psp+4]		/* return pointer to memory */
+	next1
+	next2
+	next3
+	ld	[tmp+%lo(CLAB(errno))],tos /*  and errno */
+end
+
+code free	( a-addr -- ior )
+	sethi	%hi(CLAB(errno)),tmp
+	st	%g0,[tmp+%lo(CLAB(errno))] /* reset error number */
+	mov	tos,%o0			/* address */
+	call	CLAB(free)		/* use free(3) */
+	next1
+	next2
+	next3
+	ld	[tmp+%lo(CLAB(errno))],tos /* return errno */
+end
+
+code resize	( a-addr1 u -- a-addr2 ior )
+	sethi	%hi(CLAB(errno)),tmp
+	st	%g0,[tmp+%lo(CLAB(errno))] /* reset error number */
+	mov	tos,%o1			/* size */
+	call	CLAB(realloc)		/* use realloc(3) */
+	ld	[psp+4],%o0		/* address */
+	st	%o0,[psp+4]		/* return pointer to memory */
+	next1
+	next2
+	next3
+	ld	[tmp+%lo(CLAB(errno))],tos /*  and errno */
+end

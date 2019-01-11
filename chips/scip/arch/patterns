@@ -1,0 +1,8 @@
+#!/bin/sh
+
+for pat in '^ip.$' '^.ip'$ '^ip..$' '^.ip.$' '^..ip$' \
+	'^ip...$' '^.ip..$' '^..ip.$' '^...ip$' \
+	'^ip....$' '^.ip...$' '^..ip..$' '^...ip.$' '^....ip$'
+do
+	egrep $pat /usr/dict/words
+done

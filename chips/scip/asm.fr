@@ -1,0 +1,131 @@
+\ (c) 2004 Johns Hopkins University / Applied Physics Laboratory
+\ Microcode/instruction assembler
+hex
+
+\ ------------------------------------------------------------------------
+\ Utilities
+
+\ Here are some utility words for dealing with bit fields
+: mask		\ ( len --- mask ) create a mask len bits long.  doesn't
+		\ work if len is 32.
+   1 swap rotate 1- ;
+
+: @field	\ ( value bit# len --- fieldvalue ) extract field value
+		\ len bits long starting at bit#.
+   mask >r negate rotate r> and ;
+
+: !field	\ ( value fieldvalue bit# len --- value') store fieldvalue
+		\ in the field len bits long starting at bit#.
+   mask over rotate >r
+   rotate r@ and			\ s:( oldvalue <<fieldvalue )
+   swap r> not and or ;
+
+\ Here are some utilities for 2values.  General purpose.
+: 2,   , , ;
+: 2var create 2, does> ;		\ initialized 2variable
+
+\ ------------------------------------------------------------------------
+\ Assembler!
+
+: deffield
+   create 2,				\ s:( pos len --- )
+   does>				\ s:( val addr[len pos] --- )
+      create 2,
+      does>		\ s:( instr addr[ addr[len pos] val] --- newinstr)
+         2@ 2@ !field ;
+
+\ ------------------------------------------------------------------------
+\ Instruction format and encoding
+
+\ field positions and lengths
+decimal
+11  1 deffield returnop
+ 9  2 deffield stackop
+ 4  5 2var     litval
+ 4  1 deffield longop
+ 2  2 deffield shiftop
+ 2  2 deffield memsize
+ 4  4 deffield condop
+ 4  4 deffield register
+ 0  4 deffield ALUop
+ 0  4 deffield stepop
+ 0  1 deffield specop
+hex
+
+\ here are the actual bit level encodings
+1 returnop return
+
+0 stackop nopp	1 stackop pushp	2 stackop popp	3 stackop swapp
+
+1 longop longlit
+
+0 shiftop lsr	1 shiftop asr	2 shiftop lsl	3 shiftop rol
+
+0 memsize mem8	1 memsize mem16
+
+0 condop Fls	1 condop Tru	2 condop V	3 condop Vbar
+4 condop N	5 condop Nbar	6 condop Z	7 condop Zbar
+8 condop Cry	9 condop Cbar	a condop LT	b condop GE
+c condop LE	d condop GT	e condop HI	f condop LS
+( synonyms )
+6 condop EQ	7 condop NE	8 condop HS	9 condop LO
+
+0 register rtop
+1 register popr		1 register pushr
+2 register md
+3 register udr
+4 register pc
+5 register scr
+6 register psp
+7 register rsp
+8 register pcr
+9 register cpr
+
+0 ALUop nopb
+1 ALUop nopa
+2 ALUop bplusa
+3 ALUop bplusax
+4 ALUop bminusa
+5 ALUop bminusax
+6 ALUop aminusb
+7 ALUop aminusbx
+8 ALUop notb
+9 ALUop nota
+a ALUop inca
+b ALUop deca
+c ALUop banda
+d ALUop bora
+e ALUop bxora
+f ALUop nopx
+
+0 stepop mul
+1 stepop div1
+2 stepop div2
+
+\ Some special cases
+
+: +#		\ ( instr lit --- newinstr )
+   litval 2@ !field ;
+
+: <<#		\ ( instr lit --- newinstr )
+   litval 2@ !field ;
+
+\ Construct default instructions
+\ These assume that a nop for a particular field is encoded with 0
+0000 constant <call
+9000 constant <br
+9800 constant <?br
+a000 constant <lis
+b000 constant <lil
+b040 constant <step
+b080 constant <alu
+b100 constant <alux
+c000 constant <test
+c100 constant <testx
+d000 constant <reg@
+d100 constant <reg!
+e000 constant <shift
+e001 constant <shifti
+e002 constant <@
+e003 constant <!
+f000 constant <spec

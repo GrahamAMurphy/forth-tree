@@ -1,0 +1,35 @@
+\ (c) 1994 Johns Hopkins University / Applied Physics Laboratory
+\ Initialization code
+hex
+
+rom label REBOOT
+ here *callop* ' reboot !  ram		\ backpatch reboot routine
+]
+   safe					\ safe PSW/SSW configuration
+   pspreset spreset			\ reset stack pointers
+   cacheenable				\ enable stack caches
+\ TBD: init-cproc could be moved into every-boot: in nullproc.fr ...
+[ifdef] multitasking
+   init-cproc				\ initialize current process 'register'
+[then]
+   initlocals
+
+   EVERY-BOOT @ execute			\ execute custom reboot routines
+\ [ifdef] ramobject
+\ Assume initialized RAM, even for ROM system.
+   NEXT-BOOT @ nop-boot NEXT-BOOT ! execute
+\ [then]
+
+   || [ rom label app-vector 0 ,  ram ] || \ application vector: backpatched
+\ not reached
+[
+
+forth : is-startup \ ( addr -- ) Arranges for the code at the given address
+		\ to be executed on startup/reboot.
+   [host] *callop* app-vector ! ;
+
+[ifdef] interactive			\ to work, this must be loaded last!
+ram-here stdregion !			\ initial dictionary pointer
+forth target-widtag @ host vocabtag !	\ next vocab tag
+[then]
+

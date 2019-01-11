@@ -1,0 +1,249 @@
+\documentstyle[fancyheadings]{article}
+\raggedbottom
+\textwidth 6.5in
+\oddsidemargin 0.0in
+\evensidemargin 0.0in
+\topmargin 0.0in
+\textheight 9.0in
+
+\pagestyle{fancy}
+\newcommand{\memonum}{TES-92-45}
+\newcommand{\issuedate}{February 27, 1992}
+\lhead{}
+\chead{}
+\rhead{\memonum\\\ifnum\value{page}=1\issuedate\else Page \thepage\fi}
+\lfoot{}
+\cfoot{}
+\rfoot{}
+\addtolength{\headheight}{12pt}
+
+\newcommand{\memoaddrlabel}[1]{\mbox{\bf #1}\hfil}
+\newenvironment{memoaddress}{%
+\begin{list}{}
+	{
+		\let\makelabel\memoaddrlabel
+		\setlength{\labelwidth}{1in}
+		\setlength{\leftmargin}{1in}
+		\setlength{\labelsep}{0in}
+		\setlength{\itemsep}{0in}
+	}
+}{%
+\end{list}}
+
+\newcommand{\doctype}{memo}			% memo/article/paper
+
+% namelist environment: from LaTex for Scientists and Engineers.
+\newcommand{\namelistlabel}[1]{\mbox{#1:}\hfil}
+\newenvironment{namelist}[1]{%
+\begin{list}{}
+   {
+      \let\makelabel\namelistlabel
+      \settowidth{\labelwidth}{#1}
+      \setlength{\leftmargin}{1.1\labelwidth}
+   }
+}{%
+\end{list}}
+
+\begin{document}
+\begin{memoaddress}
+	\item[To:] Distribution
+	\item[Via:] R. M. Henshaw
+	\item[From:] J. R. Hayes
+	\item[Subject:] FRISC Forth Programmer's Manual
+	\item[References:] Tracy, M., Anderson, A.,
+	   \underline{Mastering Forth}, Brady Books, 1989.
+	\item[] Hayes, J.R., ``Object-Oriented Programming for Small
+	   Systems'', TES-91-182, November 1, 1991.
+	\item[] Programming Languages - Forth, draft proposed
+	   American National Standard for Information Systems,
+	   X3J14 dpANS-2, August 3, 1991.
+\end{memoaddress}
+
+\newcommand{\fw}[1]{{\bf #1}}			% Forth words are in bold
+
+\section{Introduction}
+This \doctype\ describes the unique features of Forth implemented on
+Forth Reduced Instruction Set Computer
+(FRISC) microprocessors.  FRISC Forth was designed to be ``ordinary''.
+There are many unusual features in the processor that are hidden from
+the programmer.  This allows a Forth programmer who is used to working
+with Forth on conventional computers to take advantage of that
+experience when programming the FRISC.  Ideally, the only way he will be
+able to tell that he is using the FRISC instead of a conventional machine
+is that the FRISC will run much faster.  The low level features of the
+chip are available to the intrepid via the assembler.
+
+FRISC Forth follows the ANS Forth standard.
+Most of this manual is devoted to listing the optional parts of ANS
+Forth that have been implemented in FRISC Forth and in
+describing FRISC Forth's extensions to ANS Forth.
+
+This manual is not a tutorial on Forth.  There are already a number of
+introductory Forth textbooks.  ``Mastering Forth'' by Martin Tracy is a
+good book for the novice.  Nor is this manual a tutorial on ANS Forth.
+The code examples used in ``Mastering Forth'' are close enough to
+ANS Forth that the book can be used with an ANS Forth system.
+
+\section{ANS Forth}
+Since FRISC Forth complies with the ANS Forth standard, the ANS
+Forth standard document can be used as a reference manual for FRISC
+Forth.  FRISC Forth implements the ANS Forth Core, Locals,
+and Search-Order word sets.
+
+There is one area in which FRISC Forth does not conform to ANS Forth.
+At APL, Forth source code is maintained as text files on Unix
+systems.  Handling traditional upper-case Forth source code with
+the Unix utilities is awkward.  Consequently, lower-case is used
+and FRISC Forth expects
+lower-case source code instead of the upper-case source required
+by ANS Forth.
+
+In addition to words of the Core, Locals, and Search-Order word sets,
+FRISC Forth provides some useful words from other ANS Forth
+word sets.  From the Core Extensions word set are:
+\begin{center}
+\fw{.(}\ \ \ \fw{.r}\ \ \ \fw{0$>$}\ \ \ 
+\fw{:noname}\ \ \ \fw{$<>$}\ \ \ \fw{again}\ \ \ \fw{compile,} \\
+\fw{convert}\ \ \
+\fw{false}\ \ \ \fw{hex}\ \ \ \fw{j}\ \ \ \fw{nip}\ \ \ \fw{pad}\ \ \ 
+\fw{parse}\ \ \ \fw{true}\ \ \ \fw{u.r}\ \ \ \fw{u$>$}\ \ \
+\fw{within}\ \ \ \fw{\\}
+\end{center}
+
+From the Double-Number word set are:
+\begin{center}
+\fw{2variable}\ \ \ \fw{d+}\ \ \ \fw{d.}\ \ \ \fw{d.r}\ \ \ \fw{d$<$}\ \ \ 
+\fw{dabs}\ \ \ \fw{dnegate}
+\end{center}
+
+From the Programming-Tools Extensions word set are:
+\begin{center}
+\fw{?}\ \ \ \fw{dump}\ \ \ \fw{forget}
+\end{center}
+
+From the String word set are:
+\begin{center}
+\fw{cmove}\ \ \ \fw{cmove$>$}
+\end{center}
+
+\section{More Words}
+FRISC Forth contains a number of words that have proven useful over
+the years, but are not present in ANS Forth.
+These words are documented
+in an appended glossary.  Some of these words are also discussed in more
+depth below.
+
+\subsection{Cell-Size Independence}
+ANS Forth provides two words, \fw{cell+} and \fw{cells}, for doing
+cell-size independent address calculations.  FRISC Forth provides
+a few extra operators in the same vein.  \fw{cell} returns the size
+of a cell in address units, \fw{cell-} computes the address of the
+preceding cell, and \fw{cell/} computes the number of cells
+that could fit in a given number of address units.  The ANS Forth
+Portability Guide is recommended reading for understanding how
+to write cell-size independent code and portable Forth code in
+general.
+
+\subsection{Case Structure}
+The case selection structure used in FRISC Forth is different from
+the one most used by Forth programmers and merits some
+explanation.  A simple example illustrates most of the capabilities of
+the case structure:
+\begin{verbatim}
+   : .number       ( n --- )
+      sel
+         << 1    ==> ." one" >>
+         << 2    ==> ." two" >>
+         dup . ." is illegal"
+      endsel ;
+\end{verbatim}
+The word \fw{.number} tests its argument and prints the string ``one''
+if the value is one, ``two'' if it is two, and otherwise prints the
+argument followed by the message ``is illegal''.  When the case
+structure is entered at \fw{sel}, a case selector is on the top of the
+data stack.  For each case, the selector is compared
+non-destructively to its selection value between \fw{$<<$} and
+\fw{==$>$}.  If the comparison returns true, the selector is destroyed
+(\fw{drop}), the corresponding code between \fw{==$>$} and \fw{$>>$}
+is executed, and execution continues after \fw{endsel}.  The use of
+literals as a selection value is for illustration only.  Any Forth word
+that returns a single value can be used.  If no match is found, an
+optional fall-through clause is executed.  In the example, a
+copy of the selector is made (\fw{dup}) for use by the code
+in the clause.
+Finally, \fw{endsel}, which is executed only if none of the cases
+matched, destroys the case selector.
+
+An extension to this structure is \fw{=$>$}, which allows more general
+testing for a case.  Another version of \fw{.number} demonstrates its
+use:
+\begin{verbatim}
+   : .number       ( n --- )
+      sel
+         << 0<           => ." negative" >>
+         << 0=           => ." zero" >>
+         << 1 6 within   => ." one through five" >>
+      endsel ;
+\end{verbatim}
+\fw{$<<$} makes a copy of the case selector for testing.  The code
+between \fw{$<<$} and \fw{=$>$} destructively tests the copy leaving true
+or false on the stack.
+
+\subsection{In-line Code Expansion}
+When Forth's kernel primitives are used within a colon definition, the
+FRISC Forth compiler copies the object code of the primitive into the
+colon definition.  One cell at a time is copied until a
+return-from-subroutine instruction is found.  The return is not copied.
+Definitions that are expanded in-line should end with a return so that
+they can also be run via vectored execution.
+
+New operators defined by the programmer can be designated \fw{inline}.
+\fw{Inline} is used, like \fw{immediate}, after the definition.
+\fw{Inline} sets an in-line bit in the name field.  Operators that have
+branches or are defined by \fw{create} can not be brought in-line.
+\fw{Constant}s and \fw{variable}s all have their in-line bits set
+automatically by the compiler.
+
+\section{Source Code Libraries}
+A number of utilities are provided in FRISC Forth in source code
+form.
+\begin{namelist}{xxxxxxxxxxxx}
+        \item[asm.fr] Assembler
+        \item[locals.fr] User-level local variable syntax
+        \item[onlyalso.fr] Vocabularies and \fw{only},
+                \fw{also}, and \fw{previous}
+        \item[struct.fr] Data structure defining words
+        \item[eaker.fr] An alternative case structure (by Eaker)
+        \item[foop.fr] Forth Object-Oriented Programming (FOOP) system
+\end{namelist}
+
+The ANS Forth Locals word set provides a low-level local variable
+construction utility.  A higher-level interface can be defined by the
+user.  Such an interface can be found in the file ``locals.fr''.
+In a similar spirit, the ANS Forth
+Search-Order word set
+provides low-level control of word name scope and system search order.
+A traditional \fw{vocabulary} system with \fw{only}, \fw{also},
+and \fw{previous} or an entire object-oriented programming system
+can be constructed using the Search Order word set.  FRISC Forth
+sources for such systems are in the files ``onlyalso.fr'' and
+``foop.fr''.
+Usage of each utility is documented in its source code except for
+the FOOP system, which is described in
+``Object-oriented programming for Small Systems''.
+
+\vspace{1in}
+\hspace{4in}John R. Hayes
+
+\begin{flushleft}
+{\bf Distribution:} \\
+HKCharles, Jr. \\
+JRDettmer \\
+MEFraeman \\
+RMHenshaw \\
+GDWagner \\
+RLWilliams \\
+TES Files \\
+Archives \\
+\end{flushleft}
+\end{document}

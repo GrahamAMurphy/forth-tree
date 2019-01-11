@@ -1,0 +1,48 @@
+\ (c) 1989 Johns Hopkins University / Applied Physics Laboratory
+\ VT100 control
+hex
+
+1b constant escape
+
+: beep 7 emit ;	\ ( --- ) Beep obnoxiously.
+
+: normal	\ ( --- ) Subsequent characters will be displayed normally.
+   escape emit ." [0m";
+
+: bold		\ ( --- ) Subsequent characters will be bold.
+   escape emit ." [0;1m";
+
+: underline	\ ( --- ) Subsequent characters will be underlined.
+   escape emit ." [0;4m" ;
+
+: flash		\ ( --- ) Subsequent characters will flash.
+   escape emit ." [0;5m" ;
+
+: inverse	\ ( --- ) Subsequent characters will be inverse video.
+   escape emit ." [0;7m" ;
+
+: hidecursor	\ ( --- ) Turn off cursor.
+   escape emit ." [?25l" ;
+
+: showcursor	\ ( --- ) Turn on cursor.
+   escape emit ." [?25h" ;
+
+: at		\ ( row# col# --- ) Place cursor at given row and column
+		\ number.  The program works on a coordinate system where
+		\ 1,1 is in the upper left corner.
+   base @ >r decimal				\ save base
+   >r escape emit [char] [ emit
+   1 .r [char] ; emit r> 1 .r [char] H emit
+   r> base ! ;					\ restore base
+
+: home		\ ( --- ) Place cursor at upper left corner of screen.
+   escape emit ." [H" ;
+
+: erasescreen	\ ( --- ) Clear from cursor position to end of screen.
+   escape emit ." [J" ;
+
+: eraseeol	\ ( --- ) Erase from cursor to end of line.
+   escape emit ." [K" ;
+
+: bottom	\ ( --- ) Place cursor at bottom left corner of screen.
+   escape emit ." [24;1H" ;

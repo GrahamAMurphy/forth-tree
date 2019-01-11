@@ -1,0 +1,52 @@
+\ (c) 1998 Johns Hopkins University / Applied Physics Laboratory
+\ Abstract memory output stream.
+\ Note: uses set-mem/get-mem API.
+\ Note: uses farc@ and farc!.  All writes are done using farc!; if farc!
+\ is implemented to work with non-byte addressed memory, then memory
+\ output stream will too.
+hex
+
+\ ------------------------------------------------------------------------
+\ Data
+
+variable m-memid			\ memory page of next access
+variable m-addr				\ address of next access
+
+\ ------------------------------------------------------------------------
+\ User Interface
+
+: open-mem	\ ( -- ) Open memory stream.  This should not be called
+		\ again until a close-mem has been done (or data may
+		\ be lost).
+   get-code m-memid !  0 m-addr ! ;	\ default to code space
+
+: seek-memid	\ ( memid -- ) Set memory id of memory stream.  This may
+		\ be called as many times as desired.
+   m-memid ! ;
+
+: seek-memaddr	\ ( addr -- ) Set memory address of memory stream.  This
+		\ may be called as many times as desired.
+   m-addr ! ;
+
+: step-mem	\ ( n -- ) Move memory address by n bytes.  The address is
+		\ allowed to wrap around within its memory space.
+   m-addr +! ;
+
+: mem-pos	\ ( -- addr memid ) Return memory id and current address.
+   m-addr @  m-memid @  ;
+
+: mem-peek	\ ( -- byte ) Return byte from current address.
+   get-mem m-memid @ set-mem
+   m-addr @ farc@
+   swap set-mem ;
+
+: >mem		\ ( byte -- ) Store byte at current address and move
+		\ address to next byte.
+   get-mem swap m-memid @ set-mem
+   m-addr @ farc!
+   set-mem
+   1 step-mem ;
+
+: close-mem	\ ( -- ) Close memory interface.  Flush out any dirty
+		\ data and invalidate buffer.
+;

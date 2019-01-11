@@ -1,0 +1,24 @@
+\ Load the primitives for the Forth system
+" chpparam.fr" ftload			\ chip parameters: formats, etc
+" sysparam.fr" ftload			\ system parameters
+" vector.fr" ftload			\ reset and interrupt vectors
+" prims.fr" ftload			\ low level code primitives
+" extprims.fr" ftload			\ model-specific code primitives
+" bootdata.fr" ftload			\ boot todo lists
+
+\ Extend the metacompiler to handle compiling and defining words
+" meta2.fr" ftload			\ metacompiler part 2
+" struct.mfr" ftload			\ metacompile structure defintions
+" boot.mfr" ftload			\ metacompile boot todo list
+
+\ Load more primitives
+" hiprims.fr" ftload			\ "primitives" in Forth
+" rules2.fr" ftload			\ extend optimization rules
+" stacks.fr" ftload			\ allocate parameter and return stacks
+[ifdef] multitasking
+" sched.fr" ftload			\ scheduler and concurrency primitives
+" user.mfr" ftload			\ per-process "user" variables
+" stacktask.fr" ftload			\ stack primitives with multitasker
+[else]
+" stacknotask.fr" ftload		\ stack primitives without multitasker
+[then]

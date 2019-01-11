@@ -1,0 +1,231 @@
+\ (c) 2004 Johns Hopkins University / Applied Physics Laboratory
+\ Optimizer constraints
+hex
+
+\ Define instruction fields not already provided by assembler.
+decimal
+ 0 16 2var allval
+12  4 2var opval
+ 0 12 2var restval
+ 0 15 2var destval
+ 0 11 2var brdestval
+ 4  1 2var highlitval
+hex
+
+\ Wildcards
+makewildcard stackop	?stackop
+makewildcard shiftop	?shiftop
+makewildcard condop	?condop
+makewildcard register	?reg
+makewildcard ALUop	?aluop
+makewildcard memsize	?mem
+
+\ More wildcards
+: ?all	allval wildcard-extract ;
+: ?lit  litval wildcard-extract ;
+: ?op   opval wildcard-extract ;
+: ?rest restval wildcard-extract ;
+: ?dest destval wildcard-extract ;
+: ?high	highlitval wildcard-extract ;
+
+: ',		\ ( -- ) Extract value of field named by next word in input
+		\ stream.
+   ' >body cell+ @ , ;
+
+: '@		\ (C: "name" -- ) ( -- code ) Compile value of field named
+		\ by next word in input stream.
+   ' >body cell+ @ postpone literal ; immediate
+
+create aluswaps
+	', bplusa	', bplusa	\ commutative
+	', bplusax	', bplusax
+	', banda	', banda
+	', bora		', bora
+	', bxora	', bxora
+	', nopb		', nopa		\ non-commutative
+	', nopa		', nopb
+	', notb		', nota
+	', nota		', notb
+	', bminusa	', aminusb
+	', bminusax	', aminusbx
+	', aminusb	', bminusa
+	', aminusbx	', bminusax
+here constant aluswapsend
+
+: alubop?	\ ( index -- t/f ) Return true iff indexed code is for ALU op
+		\ that only uses B side.
+   wildcard-match dup '@ nopb = swap '@ notb = or ;
+
+: swapaluop?	\ ( index -- t/f ) Return true iff indexed alu code is
+		\ "swappable".  Side effect: code is "swapped".
+   wildcard				\ address of value in match table
+   false aluswapsend aluswaps do	\ for each possibility
+      over @ i @ = if			\ if opcode found
+	 i cell+ @ 2pick !		\ replace with swapped opcode
+	 drop true leave		\ set success flag and break out
+      then
+   2 cells +loop
+   nip ;
+
+: notcond?	\ ( index -- t/f ) Return true.  Side effect: invert sense
+		\ of condition code.
+   wildcard dup @ 1 xor swap !		\ invert (hack: knows opcode encoding)
+   true ;
+
+: zerocond?	\ ( index -- t/f ) Return true iff indexed condition is
+		\ Z (equals) or Zbar (not equals).
+   wildcard-match dup '@ Z = swap '@ Zbar = or ;
+
+: return?	\ ( index -- t/f ) Return true iff indexed instruction code 
+		\ can be combined with return.
+   wildcard-match dup opval 2@ @field	\ extract operation class
+   dup a f within if			\ if not call, branch, or special
+      d = if				\ but, if register access
+	 4 rshift f and 1 u>		\ exclude >r/r>
+      else				\ otherwise,
+	 drop true			\ accept
+      then
+   else					\ if call, branch, or special
+      drop drop false			\ reject
+   then ;
+
+: long?		\ ( index -- t/f ) Return true iff indexed instruction code
+		\ is a long call or long literal.
+   wildcard-match long-instr? ;
+
+: nearby?	\ ( wildindex -- t/f ) Return true iff indexed call destination
+		\ address is reachable by a branch instruction.  Side effect:
+		\ if true, addressed is changed to branch from.
+   brdestval over wildcard-resize	\ hack: change size of matched field
+   wildcard >r				\ address in match table
+   t-here 2-				\ hack: branch address will replace call
+   r@ @ 2*				\ s: src call's-dest
+   fffffc00 and swap fffffc00 and	\ s: dstblk srcblk
+   over if				\ if destination not block zero
+      - -400 401 within			\ check for prev, curr, or next block
+   else					\ block zero is always reachable
+      2drop true
+   then
+   dup if 
+      t-here 2- 2-			\ hack: branch address will replace call
+      r@ @ 2* *branch-dest-help*	\ compute dest in branch format
+      r@ ! drop
+   then rdrop ;
+
+: foldable?	\ ( wildindex1 wildindex2 -- t/f ) Returns true if
+		\ indicated wildcards are the same ALU operation and
+		\ can be folded together.
+   wildcard-match swap wildcard-match over =
+   if					\ if operations match
+      sel
+         << '@ banda   ==> true exit >>	\ and,
+         << '@ aminusb ==> true exit >>	\ -,
+         << '@ bora    ==> true exit >>	\ or,
+         << '@ bplusa  ==> true exit >>	\ +,
+         << '@ bxora   ==> true exit >>	\ xor are foldable
+      endsel false
+   else drop false
+   then ;
+
+: lit-op-folds?	\ ( dstindex srcindex opindex -- t/f ) True if folded
+		\ value fits in 16 bits.  Side efffect:  fold literal.
+		\ opindex indicates the ALU operation to done;
+		\ it is assumed to be suitable for folding.
+		\ The folded data is placed in the wildcard indexed
+		\ by dstindex.
+   wildcard-match			\ opcode:
+   sel
+      << '@ banda ==> wildcard-match >r		\ and
+		dup wildcard-match r> and >>
+      << '@ aminusb ==> wildcard-match >r	\ -
+		dup wildcard-match r> + >>
+      << '@ bora ==> wildcard-match >r		\ or
+		dup wildcard-match r> or >>
+      << '@ bplusa ==> wildcard-match >r	\ +
+		dup wildcard-match r> + >>
+      << '@ bxora ==> wildcard-match >r		\ xor
+		dup wildcard-match r> xor >>
+   endsel
+   dup 10000 u< >r			\ check size of result
+   allval 2pick wildcard-resize		\ resize destination field
+   swap wildcard ! r> ;
+
+: lit-op-melds?	\ ( dstindex srcindex opindex -- t/f ) Returns true if
+		\ the ALU operation indicated by opindex can be
+		\ done at compile time and the result fits in 16 bits.
+		\ Side effect:  the resultant data is in the wildcard indexed
+		\ by dstindex.
+   wildcard-match			\ opcode:
+   sel
+      << '@ banda ==> wildcard-match >r		\ and
+		dup wildcard-match r> and >>
+      << '@ aminusb ==> wildcard-match >r	\ -
+		dup wildcard-match r> - >>
+      << '@ bora ==> wildcard-match >r		\ or
+		dup wildcard-match r> or >>
+      << '@ bplusa ==> wildcard-match >r	\ +
+		dup wildcard-match r> + >>
+      << '@ bxora ==> wildcard-match >r		\ xor
+		dup wildcard-match r> xor >>
+      drop 2drop false exit		\ inappropriate ALU op
+   endsel
+   dup 10000 u< >r			\ check size of result
+   allval 2pick wildcard-resize		\ resize destination field
+   swap wildcard ! r> ;
+
+: lit-*-melds?	\ ( dstindex srcindex -- t/f ) Return true if arguments can
+		\ be multiplied at compile-time.  This is only true if the
+		\ arguments are non-negative and the product fits in 16 bits.
+		\ This excludes some uncommon possibilities, but works for
+		\ 16 or 32-bit versions of SCIP.
+		\ Side effect:  the resultant data is in the wildcard indexed
+		\ by dstindex.
+   wildcard-match over wildcard-match	\ get literal values
+      over 0< over 0< or not >r		\   test that neither are negative
+   *					\ multiply at compile time
+   dup 10000 u< r> and >r		\ test for 16-bit product
+   allval 2pick wildcard-resize		\ resize destination field
+   swap wildcard !			\ save product in destination
+   r> ;					\ always succeeds
+
+: shift-foldable? \ ( wildindex1 wildindex2 -- t/f ) Returns true if
+		\ indicated wildcards are the same shift operation.
+   wildcard-match swap wildcard-match = ;
+
+: shift-op-folds? \ ( dstindex srcindex -- t/f ) True if folded value
+		\ fits in shift immediate field.  Side efffect:  fold literal.
+		\ The folded data is placed in the wildcard indexed
+		\ by dstindex.
+   wildcard-match over wildcard-match +	\ add shift counts
+   dup t-dbits u< >r			\ make sure counts fit in shift field
+   swap wildcard ! r> ;			\ save sum
+
+: shift-op-melds? \ ( dstindex srcindex opindex -- t/f ) Returns true if
+		\ the shift operation indicated by opindex can be
+		\ done at compile time and the result fits in 16 bits.
+		\ Side effect:  the resultant data is in the wildcard indexed
+		\ by dstindex.
+   wildcard-match			\ opcode:
+   sel
+      << '@ lsl ==> wildcard-match >r		\ lshift
+		dup wildcard-match r> lshift >>
+      << '@ lsr ==> wildcard-match >r		\ rshift
+		dup wildcard-match r> rshift >>
+      << '@ rol ==> wildcard-match >r		\ rotate
+		dup wildcard-match r> rotate >>
+      << '@ asr ==> wildcard-match >r		\ asr, e.g. 2/, etc.
+		dup wildcard-match dup 8000 u< if
+		   r> rshift			\ if sign zero, use rshift
+		else				\ if sign unknown
+		   rdrop drop drop false exit	\   give up
+		then >>
+   endsel
+\ TBD: reconsider 10000 limit ...
+   dup 10000 u< >r			\ check size of result
+   allval 2pick wildcard-resize		\ resize destination field
+   swap wildcard ! r> ;
+
+: short?	\ ( index -- t/f ) Return true iff indexed literal value
+		\ fits in 5 bits.
+   litval over wildcard-resize		\ resize destination field
+   wildcard-match 20 u< ;

@@ -1,0 +1,21 @@
+\ (c) 1992 Johns Hopkins University / Applied Physics Laboratory
+hex
+
+nohead : silent-accept \ ( c-addr u1 -- u2 ) Read up to u1 characters into
+		\ buffer.  Only an eol will cause return.
+   swap 0 begin				\ s: limit addr count
+      >r over r@ u> while		\ while room in buffer
+      key dup eol <> while		\ while not eol
+      over c! 1+  r> 1+			\ save character; count it
+   repeat
+      drop 2drop r>			\ eol received: return count
+   else					\ buffer full:
+      drop rdrop			\ return limit
+      begin key eol = until		\ and discard characters until eol found
+   then ;
+
+: silent	\ ( -- ) Silent version of quit.  Borrows kib.
+		\ Must interpret "abort" to terminate.
+   begin
+      kib 80 silent-accept reset-stream interpret
+   again ;

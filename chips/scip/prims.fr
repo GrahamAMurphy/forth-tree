@@ -1,0 +1,527 @@
+\ (c) 2004 Johns Hopkins University / Applied Physics Laboratory
+\ Forth primitives
+hex
+
+[ifdef] interactive
+\ create hash table
+100 define HASHTABLESIZE
+label HASHTABLE				\ have metacompiler allot
+   HASHTABLE HASHTABLESIZE createhashtable \  and fill hash table
+default=heads				\ cross compiler makes heads
+[else]
+default=noheads				\ cross compiler makes no heads
+[then]
+
+\ ------------------------------------------------------------------------
+\	Control Flow Primitives
+
+code reboot	\ reboot.  no preconditions.
+	rom t-cell allot ram		\ packpatched with long call later
+
+nohead code branch
+	<br	>.
+	<exit> inline-keepbody
+
+nohead code ?branch
+	<testx	nopa NE popp >.
+	<?br	>.
+	<exit> inline-keepbody
+
+nohead code return
+	<exit> inline-keepbody
+
+code execute
+	<reg!	nopa pushr popp >.
+	<exit>
+
+nohead code does-default		\ RAM created child does this
+	<does-default> t-,
+	<exit>
+[ifdef] ramobject  inline-keepbody  [else]  inline  [then]
+
+nohead code remote-does-default		\ ROM created child does this
+	<remote-does-default> t-,
+	<exit>
+[ifdef] ramobject  inline  [else]  inline-keepbody  [then]
+
+\ ------------------------------------------------------------------------
+\	Looping Primitives
+
+nohead code (do)
+	<alu	nopb swapp >.
+	1 t-dbits 1- lshift *offset*	\ toggle msb
+	<reg@	popr nopb pushp >.
+	<reg@	udr nopb pushp >.
+	<reg!	nopa pushr popp >.
+	<reg!	nopb pushr >.
+	<reg!	nopa pushr popp >.
+	<alu	bminusa popp >.
+	<reg!	nopa udr popp return >.
+
+nohead code (loop)
+	<reg@	udr nopb pushp >.
+	<alux	inca V >.
+	<reg!	nopa udr popp >.
+	<?br	>.
+	<exit> inline-keepbody
+
+nohead code (+loop)
+	<reg@	udr nopb pushp >.
+	<alux	bplusa V popp >.
+	<reg!	nopa udr popp >.
+	<?br	>.
+	<exit> inline-keepbody
+
+code unloop
+	<reg@	popr nopa >.
+ 	<reg@	popr nopb pushp >.
+	<reg!	nopa udr popp >.
+	<exit> inline
+\	<reg@	popr nopb pushp >.
+\	<reg@	popr nopb pushp >.
+\	<reg@	popr nopb >.
+\	<reg!	nopa udr popp >.
+\	<reg!	nopa pushr popp >.
+\	<exit>
+
+code i
+	<reg@	udr nopb pushp >.
+	<reg@	rtop bplusa >.
+	<exit> inline
+
+code j
+	<reg@	popr nopb pushp >.
+	<reg@	popr nopb pushp >.
+	<reg@	popr nopb pushp >.
+	<reg@	rtop bplusa pushp >.
+	<alu	nopb swapp >.
+	<reg!	nopa pushr popp >.
+	<alu	nopb swapp >.
+	<reg!	nopa pushr popp >.
+	<alu	nopb swapp >.
+	<reg!	nopa pushr popp >.
+	<exit>
+
+nohead code (next)
+	<reg@	rtop nopb pushp >.
+	<testx	nopa Z >.
+	<reg!	deca rtop popp >.
+	<?br	>.
+	<exit> inline-keepbody
+
+nohead code unnext
+	<reg@	popr nopa >.
+	<exit> inline-keepbody
+
+\ ------------------------------------------------------------------------
+\	Basic stack operators
+
+code !
+	<!	memcell  popp >.
+	<alu	nopb popp >.
+	<exit> inline
+
+code +
+	<alu	bplusa popp >.
+	<exit> inline
+
+code +!
+	<reg!	nopa pushr >.
+	<@	memcell >.
+	<alu	bplusa popp >.
+	<reg@	popr nopb pushp >.
+	<!	memcell  popp >.
+	<alu	nopb popp return >.
+
+code -
+	<alu	bminusa popp >.
+	<exit> inline
+
+code -rot	\ ( a b c --- c a b )
+	<alu	nopb swapp >.
+	<reg!	nopa md popp >.
+	<alu	nopb swapp >.
+	<reg@	md nopb pushp return >.
+
+code 0<
+	<test	nopa  N >.
+	<exit> inline
+
+code 0=
+	<test	nopa  Z >.
+	<exit> inline
+
+code 0>
+	<test	nopa  GT >.
+	<exit> inline
+
+code 1+
+	<lis	1 +# bplusa >.
+	<exit> inline
+
+code 1-
+	<lis	1 +# aminusb >.
+	<exit> inline
+
+code 2*
+	<shifti	lsl 1 <<# >.
+	<exit> inline
+
+code 2/
+	<shifti	asr 1 <<# >.
+	<exit> inline
+
+code 2over
+	<reg!	nopa pushr popp >.
+	<reg!	nopa pushr popp >.
+	<reg!	nopa md >.
+	<alu	nopb pushp >.
+	<reg@	popr nopb pushp >.
+	<alu	nopb swapp >.
+	<reg@	popr nopb pushp >.
+	<alu	nopb swapp >.
+	<reg@	md nopb pushp return >.
+
+code 2swap
+	<reg!	nopa md popp >.
+	<alu	nopb swapp >.
+	<reg!	nopa pushr popp >.
+	<alu	nopb swapp >.
+	<reg!	nopa pushr popp >.
+	<reg@	md nopb pushp >.
+	<reg@	popr nopb pushp >.
+	<reg@	popr nopb pushp >.
+	<exit>
+
+code 2pick
+	<reg!	nopa pushr popp >.
+	<alu	nopb pushp >.
+	<reg@	popr nopb pushp >.
+	<alu	nopb swapp return >.
+
+code 3pick
+	<reg!	nopa pushr popp >.
+	<reg!	nopa pushr popp >.
+	<alu	nopb pushp >.
+	<reg@	popr nopb pushp >.
+	<alu	nopb swapp >.
+	<reg@	popr nopb pushp >.
+	<alu	nopb swapp return >.
+
+code <
+	<test	bminusa LT popp >.
+	<exit> inline
+
+code >
+	<test	bminusa GT popp >.
+	<exit> inline
+
+code u<
+	<test	bminusa LO popp >.
+	<exit> inline
+
+code u>
+	<test	bminusa HI popp >.
+	<exit> inline
+
+code =
+	<test	bminusa EQ popp >.
+	<exit> inline
+
+code <>
+	<test	bminusa NE popp >.
+	<exit> inline
+
+code >r
+	<reg!	nopa pushr popp >.
+	<exit> inline
+
+code @
+	<@	memcell >.
+	<exit> inline
+
+code aligned
+	<lis	1 +# bplusa >.
+	<shifti	asr 1 <<# >.
+	<shifti	lsl 1 <<# return >.
+
+code and
+	<alu	banda popp >.
+	<exit> inline
+
+code c!
+	<!	mem8  popp >.
+	<alu	nopb popp >.
+	<exit> inline
+
+code c@
+	<@	mem8 >.
+	<exit> inline
+
+code char+				\ alias for 1+
+	<lis	1 +# bplusa >.
+	<exit> inline
+
+code chars				\ nop
+	<exit> inline
+
+code drop
+	<alu	nopb popp >.
+	<exit> inline
+
+code dup
+	<alu	nopa pushp >.
+	<exit> inline
+
+code invert
+	<alu	nota >.
+	<exit> inline
+
+code lshift
+	<alu	nopb swapp >.
+	<shift	lsl popp >.
+	<exit> inline
+
+code negate
+	<lis	0 +# bminusa >.
+	<exit> inline
+
+code nip
+	<alu	nopa popp >.
+	<exit> inline
+
+code not
+	<alu	nota >.
+	<exit> inline
+
+code or
+	<alu	bora popp >.
+	<exit> inline
+
+code over
+	<alu	nopb  pushp >.
+	<exit> inline
+
+code r>
+	<reg@	popr nopb pushp >.
+	<exit> inline
+
+code r@
+	<reg@	rtop nopb pushp >.
+	<exit> inline
+
+code rdrop
+	<reg@	popr nopa >.
+	<exit> inline
+
+code rot
+	<reg!	nopa md popp >.
+	<alu	nopb swapp >.
+	<reg@	md nopb pushp >.
+	<alu	nopb swapp return >.
+
+code rotate	\ ( x n -- x' )
+	<alu	nopb swapp >.
+	<shift	rol popp >.
+	<exit> inline
+
+code rshift
+	<alu	nopb swapp >.
+	<shift	lsr popp >.
+	<exit> inline
+
+code swap
+	<alu	nopb swapp >.
+	<exit> inline
+
+code touch
+	<@	memcell >.
+	<alu	nopb popp >.
+	<exit> inline
+
+code w!
+	<!	mem16  popp >.
+	<alu	nopb popp >.
+	<exit> inline
+
+code w@
+	<@	mem16 >.
+	<exit> inline
+
+code within	\ ( x y z --- t/f ) y<=x<z circular comparison.
+	<alu	aminusb >.
+	<reg!	nopa pushr popp >.
+	<alu	bminusa popp >.
+	<reg@	popr nopb pushp >.
+	<test	bminusa LO popp return >.
+
+code xor
+	<alu	bxora popp >.
+	<exit> inline
+
+\ ------------------------------------------------------------------------
+\	Generic Forth Portability Words - Word Size Independence
+
+code cell
+	<lis	t-cell +# nopb pushp >.
+	<exit> inline
+
+code cell+
+	<lis	t-cell +# bplusa >.
+	<exit> inline
+
+code cell-
+	<lis	t-cell +# aminusb >.
+	<exit> inline
+
+code cells
+	<shifti	lsl t-cell<< <<# >.
+	<exit> inline
+
+code cell/
+	<shifti	asr t-cell<< <<# >.
+	<exit> inline
+
+\ ------------------------------------------------------------------------
+\	Basic Double Precision Words
+
+code d+		\ ( dl1 dh1 dl2 dh2 --- dl3 dh3 )
+	<reg!	nopa md popp >.
+	<alu	nopb swapp >.
+	<reg!	nopa pushr popp >.
+	<alux	bplusa Cry popp >.
+	<reg@	popr nopb pushp >.
+	<reg@	md bplusax return >.
+
+code dnegate	\ ( dl dh --- dl' dh')
+	<reg!	nopa md popp >.
+	<lis	0 +# nopb pushp >.
+	<alux	aminusb Cry popp >.
+	<lis	0 +# nopb pushp >.
+	<reg@	md aminusbx return >.
+
+code d<		\ ( dl1 dh1 dl2 dh2 --- t/f)
+	<alu	nopb swapp >.
+	<reg!	nopa md popp >.
+	<testx	bminusa NE >.
+	<?br	>.	 0 fwd
+	<test	bminusa LT popp >.
+	<alu	nopa popp return >.
+0 l:	<alu	nopa popp >.
+	<reg@	md nopb >.
+	<test	bminusa LO popp return >.
+
+\ ------------------------------------------------------------------------
+\	Block move primitives
+
+code cmove	\ ( src dest len -- )
+2 l:	<reg!	nopa pushr >.
+	<alu	bplusa popp >.
+	<alu	deca >.
+	<alu	nopb swapp >.
+	<reg@	rtop bplusa >.
+	<alu	deca >.
+	<alu	nopb swapp >.
+	<reg@	rtop nopb pushp >.
+	<br	>.	1 fwd
+0 l:	<alu	nopb pushp >.
+	<reg@	rtop aminusb >.
+	<@	mem8 >.
+	<alu	nopb pushp >.
+	<reg@	rtop aminusb >.
+	<!	mem8 popp >.
+	<reg@	rtop nopb >.
+1 l:	<testx	nopa Z >.
+	<reg!	deca rtop popp >.
+	<?br	>.	0 back
+	<reg@	popr nopb popp >.
+	<alu	nopb popp return >.
+
+code cmove>	\ ( src dest len -- )
+3 l:	<reg!	nopa pushr >.
+	<br	>.	1 fwd
+0 l:	<alu	nopb pushp >.
+	<reg@	rtop bplusa >.
+	<@	mem8 >.
+	<alu	nopb pushp >.
+	<reg@	rtop bplusa >.
+	<!	mem8 popp >.
+	<reg@	rtop nopb >.
+1 l:	<testx	nopa Z >.
+	<reg!	deca rtop popp >.
+	<?br	>.	0 back
+	<reg@	popr nopb popp >.
+	<alu	nopb popp return >.
+
+code move	\ ( src dest len -- )
+	<reg!	nopa pushr popp >.
+	<alu	aminusb pushp >.
+	<reg@	nopb rtop pushp >.
+	<testx	bminusa LO popp >.
+	<reg@	nopb popr >.
+	<?br	>.	2 back
+	<br	>.	3 back
+
+\ ------------------------------------------------------------------------
+\	Multiply and divide primitives
+
+: GENMULTIPLY	\ ( -- ) Generate multiply, 2 bits per step.
+   t-dbits 2/ 0 do <step mul >. loop ;
+: GENDIVIDE	\ ( -- ) Generate divide, 1 bit per step.
+   t-dbits 0 do <step div1 >. loop ;
+
+code m*		\ ( n1 n2 -- d )
+	<reg!	nopa md pushp >.	\ T -> MD
+	<alux	bminusa NE popp >.	\ tricky: 0 -> T; 0 -> flag
+	GENMULTIPLY			\ N has mcand, T has ms, MD has ls
+	<reg@	md nopb swapp >.	\ N has ms, T has ls
+	<alu	nopb swapp return >.
+
+code um*	\ ( u1 u2 -- ud )
+	<test	nopb N pushp >.		\ note: tricky code
+	<reg!	banda pushr popp >.
+	<alu	nopb swapp >.
+	<test	nopb N pushp >.
+	<reg!	banda pushr popp >.
+	' m* *call*
+	<reg@	popr bplusa >.
+	<reg@	popr bplusa >.
+	<exit>
+
+code um/mod	\ ( ud u -- urem uquot )
+\	in		during		after		out
+\ t:	divisor		ms dividend	remainder	quotient
+\ n:	ms dividend	divisor		divisor		remainder
+\ s2:	ls dividend
+\ md:			ls dividend	quotient
+	<reg!	nopa pushr popp >.	\ positioning is awkward
+	<reg!	nopb md swapp >.
+	<reg@	popr nopb >.
+	<alux	nopb Tru swapp >.	\ force subtract in first step
+	GENDIVIDE
+	<step	div2 popp >.		\ clean up step
+	<reg@	md nopb pushp return >.
+
+\ ------------------------------------------------------------------------
+\	Interrupt control
+
+code enable				\ enable interrupts
+	#pcr-ie *literal*
+	<reg@	pcr bora >.		\ start atomic operation
+	<reg!	nopa pcr popp return >.	\ end atomic operation
+
+code disable				\ disable interrupts
+	#pcr-ie invert *literal*
+	<reg@	pcr banda >.		\ start atomic operation
+	<reg!	nopa pcr popp return >.	\ end atomic operation
+
+\ ------------------------------------------------------------------------
+\	MD register access - for internal use only
+
+code md!
+	<reg!	nopa md popp >.
+	<exit> inline
+
+code md@
+	<reg@	md nopb pushp >.
+	<exit> inline

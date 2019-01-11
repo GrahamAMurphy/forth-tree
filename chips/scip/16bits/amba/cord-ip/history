@@ -1,0 +1,6 @@
+Mon Jul  2 13:23:17 EDT 2012
+Copied CORD; modified to have 2 interrupts, for now.
+
+Thu Aug 23 11:10:08 EDT 2012
+Increased number of interrupts from 2 to 8.  Most of these are spares, but
+can specified later without having to change code here.

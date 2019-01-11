@@ -1,0 +1,18 @@
+\ (c) 2004 Johns Hopkins University / Applied Physics Laboratory
+\ Cross assembler
+hex
+
+hostinterp			\ search host then forth, defintions in host
+
+\ ------------------------------------------------------------------------
+\ Dictionary entry
+
+: code		\ ( "name" -- ) Define code entry in dictionary.
+   header s" code" add-log-string ;
+
+: >. 		\ ( instr -- ) Compile instruction.
+   t-i, ;
+
+: <exit>	\ ( -- ) Compile return instruction.
+   <alu nopa return >.
+;

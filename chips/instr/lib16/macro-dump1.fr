@@ -1,0 +1,188 @@
+\ (c) 2002 Johns Hopkins University / Applied Physics Laboratory
+\ Dump macro contents or checksums
+hex
+
+mac extendmodule>
+
+\ ========================================================================
+\ Dump
+
+\ State
+variable block-mac			\ pointer to current block (none = 0)
+variable curr-mac-id			\ current macro id
+variable max-mac-id			\ last macro id
+variable group-mac			\ grouping: first, cont, last, or none
+variable index-mac			\ block index number
+
+\ ------------------------------------------------------------------------
+\ Macro block iterator
+
+: first-block	\ ( block -- ) The given block is the first block in the macro.
+		\ Setup grouping flags and index accordingly.
+		\ Precondition: remote macro memory selected.
+   far@ if #first-pkt else #none-pkt then
+      group-mac !
+   0 index-mac ! ;
+
+: next-block	\ ( block -- ) The given block is not the first block in the
+		\ macro.  Setup grouping flags and index accordingly.
+		\ Precondition: remote macro memory selected.
+   far@ if #cont-pkt else #last-pkt then
+      group-mac !
+   1 index-mac +! ;
+
+: find-macro	\ ( -- ) Find the next defined macro.  The result is "returned"
+		\ in global variables.
+		\ Precondition: curr-mac-id and max-mac-id delimit search.
+   get-mem macro-mem# set-mem		\ macros in remote memory
+   0 curr-mac-id @			\ s: block id
+   begin				\ search
+      dup max-mac-id @ u<= while	\   while macro id in range
+      dup cells macros + @ 0= while	\   and macro not defined
+      1+				\ step to next macro
+   repeat				\ if search successful s: block id
+      nip dup cells macros + @ swap	\ s: block' id
+      over first-block			\ set up for first block in macro
+   then
+   curr-mac-id !			\ save results
+   block-mac !
+   set-mem ;
+
+: find-block	\ ( -- ) Find the next block in current macro.
+		\ Precondition: there is a current macro and block.
+   get-mem macro-mem# set-mem		\ macros in remote memory
+   block-mac @ far@ ?dup if		\ step to next block; if there is one
+      dup next-block			\ set up for next block in macro
+      block-mac !			\ and remember block
+   else					\ if at end of macro
+      1 curr-mac-id +!  find-macro	\ try to find another macro
+   then
+   set-mem ;
+
+\ ------------------------------------------------------------------------
+\ * Dump packet
+
+\ Dump packet descriptor
+pkt-desc-size makestruct mac-dump-pkt
+
+\ Dump parameters
+variable mac-dump-sem			\ access control semaphore
+   1 mac-dump-sem !
+variable mac-dump-count			\ counter paces dump packet creation
+
+\ Dump subheader: macro id and index number
+create mac-dump-hdr
+   0 c, 0 c,
+
+: send-mac-dump	\ ( -- ) Send a macro dump packet.
+   curr-mac-id @ mac-dump-hdr c!	\ fill in dump header with macro id
+      index-mac @ mac-dump-hdr 1+ c!	\   and block index
+   block-mac @ .m-data macro-mem#	\ identify source of dump
+      #block-size mac-dump-pkt pkt-src-more!
+   group-mac @ mac-dump-pkt pkt-group!	\ set packet grouping flags
+   mac-dump-pkt tag-pkt			\ time tag dump
+   mac-dump-pkt send-pkt		\ send dump
+   if find-block then ;			\ if success, find next block
+
+: start-mac-dump \ ( first-id last-id -- ) Start a macro dump.
+		\ Precondition: legal macro ids.
+   mac-dump-sem wait			\ get exclusive access
+   max-mac-id !  curr-mac-id !		\ record range of ids to dump
+   find-macro				\ search for a defined macro
+   mac-dump-sem signal ;
+
+public:
+: try-mac-dump	\ ( -- ) Try to generate a macro dump packet.
+   mac-dump-sem wait			\ get exclusive access
+   block-mac @ if			\ if there is a macro block to send
+      dump-ok? if			\ if it is ok to send a packet
+	 send-mac-dump			\ send one
+      then
+   then
+   mac-dump-sem signal ;
+private:
+
+\ ========================================================================
+\ Checksum
+
+\ Checksum packet descriptor
+pkt-desc-size makestruct mac-check-pkt
+
+\ Checksum subheader: first and last macro ids
+create mac-check-hdr
+   0 c, 0 c,
+
+\ Checksums
+\ TBD: local? or in macro memory?
+create macro-checksums
+   #macros cells allot
+
+: check-macro	\ ( id -- sum ) Compute checksum of identified macro.
+		\ Precondition: remote macro memory selected.
+   #crc-seed  swap cells macros + @	\ s: crc block
+   far begin				\ iterate over macro (in remote memory)
+      ?dup while			\ while not at end
+      dup >r .m-data #block-size cell/	\ accumulate crc of entire block
+      for @+ >r crc r> next drop	\   (block is zero padded)
+      r> @				\ next block
+   repeat ;
+
+: check-macros	\ ( first-id last-id -- ) Compute and save checksums of
+		\ the given (inclusive) range of macros.
+   get-mem -rot macro-mem# set-mem	\ macros are in remote memory
+   1+ swap do				\ for each macro
+      i check-macro			\ compute its checksum
+      i cells macro-checksums + !	\ and record
+   loop
+   set-mem ;
+
+: send-mac-checks \ ( first-id last-id -- ) Send packet containing the
+		\ checksums of the given (inclusive) range of macros.
+   over mac-check-hdr c!		\ fill in subheader with macro ids
+      dup mac-check-hdr 1+ c!
+   1+ over - cells >r			\ compute length and
+   cells macro-checksums + get-code r>	\   and starting address of variable
+      mac-check-pkt pkt-src-more!	\   part of packet
+   mac-check-pkt tag-pkt		\ time tag packet
+   mac-check-pkt send-pkt drop ;	\   and send it
+
+: do-mac-check	\ ( first-id last-id -- ) Compute and send macro checksums.
+   2dup u<= if				\ make sure first <= last
+      2dup check-macros			\ compute checksums
+      send-mac-checks			\ send results
+   else 2drop
+   then ;
+
+\ ========================================================================
+\ Commands
+
+: c-mac-check	\ ( -- ) Checksum macros.
+   arg0 macro-id-ok? arg1 macro-id-ok?
+   and if				\ if both macro ids are legal
+      arg0 arg1 do-mac-check		\ compute and send macro checksums
+   else					\ otherwise
+      #badarg-cmd cmd-error		\ reject command
+   then ;
+
+: c-mac-read	\ ( -- ) Read macros.
+   arg0 macro-id-ok? arg1 macro-id-ok?
+   and if				\ if both macro ids are legal
+      arg0 arg1 start-mac-dump		\ start dump
+   else					\ otherwise
+      #badarg-cmd cmd-error		\ reject command
+   then ;
+
+\ ========================================================================
+\ * Initialization
+
+public:
+: init-mac-dump	\ ( -- ) Initialize macro dumper, blocks and checksums.
+   mac-check-hdr get-code 2
+      #mac-check-pkt mac-check-pkt init-pkt
+   mac-dump-hdr get-code 2
+      #mac-dump-pkt mac-dump-pkt init-pkt
+   ['] c-mac-check	#mac-check	2 register-cmd/args
+   ['] c-mac-read	#mac-read	2 register-cmd/args
+;
+
+endmodule>

@@ -1,0 +1,42 @@
+\ (c) 2002 Johns Hopkins University / Applied Physics Laboratory
+\ Inject command packets/frames
+hex
+
+create test-frame
+   fe c, fa c, 30 c, c8 c,		\ sync pattern (constant)
+   0 , 0 ,				\ checksum (not used)
+   0 ,					\ first header pointer (always 0)
+   0 ,					\ length (filled in)
+   0 ,					\ spare
+   0 ,					\ dst/src/seq (not used)
+   1000 6 6 lshift or ,			\ CCSDS #1 (constant)
+   c000 ,				\ CCSDS #2 (not used)
+   0 ,					\ CCSDS #3, length (filled in)
+   d# 32 d# 11 - cells allot		\ space for command ...
+
+: put-message	\ ( msg len -- ) Load given message into buffer.
+   dup ccsds-primary + iptf-head-struct + test-frame .iptf-length !
+   dup 1- test-frame iptf-head-struct + .ccsds-length !
+   test-frame iptf-head-struct + ccsds-primary + swap move
+   get-mem 1553-mem# set-mem
+   test-frame curr-cmd @ .telecmd 1553-buffer cell/ words-out
+   rcv-cmd-msg command-event signal
+   set-mem ;
+
+: cmd-len	\ ( addr -- len ) Return length of command.
+   cell+ @ h# 3fff and ;
+
+: checksum-cmd	\ ( addr -- ) Compute checksum for command and append.
+   >r 0 0				\ partial checksums, odd and even
+   r@ cmd-len 1- 2* cells		\ number of bytes to sum
+   r@ + r@ do i @ xor swap cell +loop	\ compute partial checksums
+   r@ cmd-len 1- 2* cells		\ offset to checksum
+   r> + 2! ;
+
+: send-instr-cmd \ ( cmd instr-id -- ) Send command to given instrument.
+   over c!				\ store instrument id
+   dup checksum-cmd			\ add checksum to command buffer
+   dup cmd-len 2* cells put-message ;
+
+: send-cmd	\ ( cmd -- ) Send command to this instrument.
+   #instr-id send-instr-cmd ;

@@ -1,0 +1,13 @@
+/project/pluto/instruments/flight/common/software/ccsds.fr
+/project/pluto/instruments/flight/common/software/extend-pluto.fr
+/project/pluto/instruments/flight/common/software/extend-pluto.mfr
+/project/pluto/instruments/flight/common/software/host-io.fr
+/project/pluto/instruments/flight/common/software/host.fr
+/project/pluto/instruments/flight/common/software/hw.fr
+/project/pluto/instruments/flight/common/software/i2c.fr
+/project/pluto/instruments/flight/common/software/init-pluto.fr
+/project/pluto/instruments/flight/common/software/pluto.fr
+/project/pluto/instruments/flight/common/software/safing.fr
+/project/pluto/instruments/flight/common/software/stat-proc.fr
+/project/pluto/instruments/flight/common/software/telecmd.fr
+/project/pluto/instruments/flight/common/software/time.fr

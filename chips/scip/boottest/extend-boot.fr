@@ -1,0 +1,28 @@
+\ (c) 2001 Johns Hopkins University / Applied Physics Laboratory
+\ Missing from kernel; copied from other parts of OS ...
+hex
+
+variable dp
+
+: here		\ ( -- addr ) Return free memory pointer.
+   dp @ ;
+: allot		\ ( n -- ) Adjust free memory pointer.
+   dp +! ;
+
+20 constant bl
+
+: space  bl emit ;
+
+: count		\ ( addr -- addr' c ) 
+   dup 1+ swap c@ ;
+
+: fill		\ ( addr len pat -- ) Fill memory array with given pattern.
+   -rot 0 do 2dup c! 1+ loop 2drop ;
+
+: pow2		\ ( n -- 2^n ) Return nth power of 2.
+   1 swap lshift ;
+
+: between	\ ( u1|n1 u2|n2 u3|n3 -- t/f ) Return true iff u1|n1 is
+		\ between u2|n2 and u3|n3 inclusive.
+   over - >r - r> u> not ;
+

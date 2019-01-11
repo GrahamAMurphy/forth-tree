@@ -1,0 +1,77 @@
+\ (c) 1993 Johns Hopkins University / Applied Physics Laboratory
+\ 8252 UART Control
+hex
+
+noheads
+
+\ status bits
+80 define RXRDYMASK
+40 define TXRDYMASK
+
+be98 ucode tbr!
+be18 ucode rbr@
+be99 ucode ucr!
+be19 ucode usr@
+be9a ucode mcr!
+be9b ucode brsr!
+be1c ucode txintrst@
+
+\ ------------------------------------------------------------------------
+\ Device configuration
+
+ttystruct makestruct tty
+
+\ ------------------------------------------------------------------------
+\ Low-level UART access routines
+
+: uart!		\ ( c -- ) Write a character to UART.
+   tbr! ;
+
+: uart-first!	\ ( c -- ) Write first character to UART.
+   tbr! ;
+
+: uart@		\ ( -- c ) Read a character from UART.
+   rbr@ ff and ;
+
+: stop-transints \ ( -- ) Disable further transmit interrupts.
+   ;
+
+\ ------------------------------------------------------------------------
+\ Interrupt routines
+
+UARTINT# int:	\ ( -- ) UART interrupt routine.
+\ NOTE: uart-status read is destructive; must handle all interrupts indicated.
+   usr@ dup RXRDYMASK and
+   if tty tty-rcvint then		\ receive interrupt
+   TXRDYMASK and
+   if txintrst@ drop			\ reset transmit interrupt FF
+      tty tty-transint			\ transmit interrupt
+   then
+;int
+
+\ ------------------------------------------------------------------------
+\ Initialization
+
+every-boot:	\ ( -- )
+   3c ucr!				\ UCR: 8 bits, no parity, 1 stop
+   a1 brsr!				\ BRSR: BRG, /32, /3 prescale
+\  86 brsr!				\ BRSR: BRG, /4, /4 prescale
+   23 mcr!				\ MCR: ints disabled, DTR, RTS
+
+   ['] uart!  ['] uart-first!  ['] uart@  ['] stop-transints
+      tty tty-init
+;boot
+
+\ ------------------------------------------------------------------------
+\ High level driver interface routines
+
+heads
+
+: emit		\ ( c -- )
+   tty tty-putc ;
+
+: key		\ ( -- c )
+   tty tty-getc ;
+
+: key?		\ ( -- t/f )
+   tty tty-incount 0= not ;

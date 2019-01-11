@@ -1,0 +1,4 @@
+Fri Jan 30 15:28:14 EST 1998
+Created HENA variant of DPU.  It has extra bank switching hardware and
+different G-bus registers.  Custom versions of nullproc.fr and brdparam.fr
+are needed because of this.

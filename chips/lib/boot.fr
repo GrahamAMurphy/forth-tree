@@ -1,0 +1,28 @@
+\ (c) 1992 Johns Hopkins University / Applied Physics Laboratory
+\ Extend reboot 'todo' list.
+\ Note: this is obsolete; do not use!
+
+\ Next-boot: and every-boot: append subsequent code to a pair
+\ of todo lists maintained by the system.  Code between next-boot:
+\ and ;boot is executed the next time the currently executing
+\ image is booted:
+\	next-boot:
+\		<some code>
+\	;boot
+\ Every-boot is used similarly but defines code that will be executed
+\ on every subsequent boot (or the current image or descedent).
+
+\ Next-boot: and every-boot: can be used any number of times; the 
+\ code defined is executed in the following order (with interrupts
+\ disabled): each every-boot: item is executed in the order in
+\ which they are defined then every next-boot: item is executed
+\ in order.
+
+hex
+
+: next-boot:	\ ( -- )
+   next-boot :noname next-boot @ compile, ;
+: every-boot:	\ ( -- )
+   every-boot :noname every-boot @ compile, ;
+: ;boot		\ ( -- )
+   postpone ; swap ! ; immediate

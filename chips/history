@@ -1,0 +1,125 @@
+Mon Feb 21 09:51:52 EST 1994
+Added ability to redirect cross-compiler log information to a file
+(modified meta1.fr and added sysparam.fr).  By default the log goes
+to stdout.  Improved format of log.  Defines have similar format
+to Forth word entries.  Report will summarize memory usage.
+
+Sun Feb 27 11:17:42 EST 1994
+Renamed dumpobj to dump in meta1.fr.
+
+Wed Mar  2 10:42:50 EST 1994
+Deleted primitives of dubious utility from FRISC3, FRISC4, and RTX
+kernels: 2+ 2- 4+ 4- 4* 4/ tuck
+
+Thu Mar  3 11:10:34 EST 1994
+Modified cross-compiling words loop and +loop in meta2.fr to break
+optimizer after unloop compiled.  This fixes some, but not all of
+the problems here.
+
+Sat Mar  5 11:09:59 EST 1994
+Changed nextprocess to no longer count on contiguity of process initializer
+and run-time descriptor.  Changed all user primitves in procprim.fr to
+expect process-descriptor initializer data structures as arguments.
+Modified process: in process.fr so that child returns initializer
+instead of run-time structure (note: this is inconsistent with @run
+and @head which return the run-time structure).  Added process.mfr
+to allow cross-compilation of processes.
+
+Mon May 16 17:03:02 EDT 1994
+Change acts-like in meta1.fr to use *callop* instead of just patching
+in an address and assuming it is a call instruction.
+
+Tue May 17 11:11:48 EDT 1994
+Added warning to acts-like if interactive version of defining
+word does not exist.
+
+Tue Aug  2 10:35:48 EDT 1994
+Added used to meta2.fr:  searches for files to load from a list
+of directories in the FTPATH environment variable.
+
+Thu Oct  6 09:16:00 EDT 1994
+Fixed immediate in meta2.fr to not set precedence bit in target memory
+unless 'immediate'd word has a head.
+
+Mon Dec 12 16:32:22 EST 1994
+Modified interpret and endinterp in os.fr so that unknown words
+do not cause rest of line to be discarded (when in compile state).
+This avoids a cascade of error messages.  Revised above:
+deleted endinterp and added "interpreting?".
+
+Fri Dec 16 09:52:13 EST 1994
+Added cross-compiling versions of h# and d# to meta2.fr.
+Also modified cross-compiler to not discard lines on error.
+
+Mon Apr 17 10:31:09 EDT 1995
+Reorganized os.fr so that ." was available to compiler.  This allows
+rtx/compiler.fr to issue a warning message (see rtx/history).
+
+Thu May 18 12:29:12 EDT 1995
+Change cr in forthio.fr to emit carriage return before linefeed instead
+of vice-versa.  This makes life easier for programs that control
+Forth over the serial line.
+
+Tue Jul 11 14:46:30 EDT 1995
+Modified meta2.fr and os.fr to allow cross-compilation of local variables.
+
+Fri Jul 21 10:51:08 EDT 1995
+Fixed limitation in meta1.fr that limited number of target wordlists to
+eight.
+
+Wed Jan 24 12:50:56 EST 1996
+Modified process.mfr to add "process:" to log.
+
+Thu Mar  7 13:03:02 EST 1996
+Modified next-boot: and every-boot: in boot.mfr to log anonymous routines
+in memory map file.
+
+Thu Mar  7 13:03:40 EST 1996
+Modified boot.mfr, bootdata.fr and startup.fr so that EVERY-BOOT is in
+ROM and next-boot: is only available in RAM-based systems.  (The latter
+is a problem for ROM-based systems that permit initialized RAM
+regions, e.g. the interpreter.)
+
+Tue May 19 09:18:30 EDT 1998
+Modified os.fr to align dictionary pointer before defining variable,
+2variable, or :noname objects.  Added word "align-here" to facilitate
+this.  Made equivalent changes in meta2.fr and struct.mfr for cross
+versions of variable, 2variables, and makestruct.
+
+Wed Jun  3 10:06:59 EDT 1998
+Modified os.fr and startup.fr to initialize vocabtag properly.  Originally
+vocabtag was initialized with the value the cross compiler was using
+when os.fr was compiled.  This is incorrect if more vocabs/wordlists are
+cross-compiled subsequently.  This initialization is now setup from
+startup.fr.
+
+Wed Jun  3 10:09:19 EDT 1998
+Modified meta1.fr's cross version of ' (tic) to search all wordlists in
+target search order, not just target forth wordlist.
+
+Tue Sep 15 14:43:48 EDT 1998
+Modified meta2.fr so that : and ; hide and reveal the host version of
+the word.  This is so that things like ": foo ... ;  : foo ... foo ... ;"
+work correctly.  Also added recurse cross-compiling word to meta2.fr
+and modified depth and .s in os.fr to use recurse instead of counting
+on named recursion bug.  Note: the fix to : and ; are non-portable.
+
+Thu Jan 21 15:08:03 EST 1999
+Added cross versions of 2@ and 2! to meta1.fr.
+
+Mon Jan 25 10:13:40 EST 1999
+Moved "stdregion allocatefrom" to doforth in os.fr; it should be executed
+every boot.  Modified startup.fr to initialize dp and vocabtag at cross-
+compile time.  There are already other places in the interpreter that
+depend on RAM locations initialized at compile time (e.g. the dictionary
+hash table) so there is no harm in adding more.
+
+Mon Jan 25 10:37:28 EST 1999
+Deleted next-boot and every-boot from os.fr.  While next-boot: and every-boot:
+are useful for partioning the components of the Forth system, they are not
+sufficiently general to expose to end users.
+
+Thu Feb  4 14:32:58 EST 1999
+In os.fr, moved initialization of interpreter variables from doforth
+to every-boot.  This allows interpreter features (e.g. allot) to be
+used before interpreter is actually started.

@@ -1,0 +1,27 @@
+\ (c) 1992 Johns Hopkins University / Applied Physics Laboratory
+\ Emulate only, also, previous, etc.
+
+: vocabulary
+   wordlist create , does> @ context ! ;
+
+: also		\ ( -- ) the wordlists are shifted right one
+		\ place in the search order table (context).  The right-
+		\ most one falls off the end.
+   context dup cell+ #vocs 1- cells cmove>  1 #order +! ;
+
+: previous      \ ( -- ) The wordlists are shifted left one place
+		\ in the search order table (context).  The left-
+		\ most one falls off the end.
+   -1 #order +!
+   context cell+ context #vocs 1- cells cmove
+   0 context #vocs 1- cells + ! ;
+
+wordlist constant root   root set-current
+
+: only		\ ( -- ) Replace search order with root.
+   root root 2 set-order ;
+
+: forth		\ ( -- ) Replace first wordlist with forth.
+   forth-wordlist context ! ;
+
+root forth-wordlist 2 set-order definitions

@@ -1,0 +1,14 @@
+\ (c) 1994 Johns Hopkins University / Applied Physics Laboratory
+\ RTX square root function
+hex
+
+a51a ucode s1'
+a55a ucode s'
+a558 ucode s''
+
+: sqrt		\ ( ud -- u ) Compute the square root of an 32-bit number.
+		\ The result is 16 bits.
+   sr@ >r
+   0 md!  8000 sr!
+   d2* s1' d times|| s' || s''
+   drop r> sr! ;

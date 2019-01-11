@@ -1,0 +1,68 @@
+\ (c) 1990 Johns Hopkins University / Applied Physics Laboratory
+hex
+
+variable checksum			\ checksum of a record
+
+\ ------------------------------------------------------------------------
+: tolower	\ ( char1 -- char2 ) Convert character to lower case.
+   dup [char] A [char] Z 1+ within if 20 + then ;
+
+: read-digit	\ ( --- digit ) Read and convert a hex digit.  Base is set
+		\ elsewhere.
+   key tolower digit not abort" Bad Character" ;
+
+: read-byte	\ ( --- byte ) Read two hex characters from the tty and convert
+		\ them to a byte.
+   read-digit 4 rotate read-digit or dup checksum +! ;
+
+: read-addr16	\ ( --- addr16 ) Read four hex characters from the tty and
+		\ convert them to 16 bit address.
+   read-byte 8 rotate read-byte or ;
+
+: read-addr24	\ ( --- addr24 ) Read six hex characters from the tty and
+		\ convert them to a 24 bit address.
+   read-addr16 8 rotate read-byte or ;
+
+\ ------------------------------------------------------------------------
+create rbuffer 100 allot		\ receive buffer
+
+: search-for-record \ ( --- ) Search for a : record.
+   begin key [char] : = until ;
+
+: read-record	\ ( --- addr count type checksum ) Read a record into a buffer
+		\ and return the record's destination address, length (in
+		\ bytes), record type, and checksum.  Zero is a good checksum.
+   0 checksum !				\ reset checksum
+   read-byte read-addr16		\ read length and address
+   read-byte >r >r			\ read record type
+   dup if				\ if non-zero length
+      rbuffer over + rbuffer
+      do				\ for each byte in record
+         read-byte i c!			\ read and record
+      loop
+   then
+   r> swap r>
+   read-byte drop checksum @ ff and ;	\ s: addr count checksum
+
+\ ------------------------------------------------------------------------
+: save-record	\ ( addr count --- ) Save the count bytes in the receive
+		\ buffer at addr + base.
+   rbuffer + rbuffer
+   do i c@ over c! 1+ loop drop ;
+
+: process-record \ ( addr count checksum --- ) Process record saved
+		\ in buffer.  If its checksum is valid (i.e. zero), the
+		\ record is saved permanently.
+   0= if save-record			\ if good checksum, save data
+   else 2drop ." Bad Checksum" cr
+   then ;
+
+: intel		\ ( --- ) Load an Intel hex file.
+   base @ >r hex			\ must treat all characters as hex
+   begin
+      search-for-record
+      read-record			\ read one record
+      swap 0= while			\ while not eof
+      process-record
+   repeat drop drop drop
+   r> base ! ;

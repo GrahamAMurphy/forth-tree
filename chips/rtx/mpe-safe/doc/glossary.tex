@@ -1,0 +1,88 @@
+\begin{cgloss}{;int}{ -- }{ -- }
+
+End compilation of interrupt routine.
+\end{cgloss}
+\begin{gloss}{blocks-in}{ src dst blocks -- src' dst'}
+
+Copy given number of 16-byte blocks from source in far memory to
+destination in near memory.  Returns addresses just past last byte copied.
+Each block is streamed onto the stack, then streamed into near memory.
+Consequently, interrupts will held off by up to 16 clocks.
+\end{gloss}
+\begin{gloss}{blocks-out}{ src dst blocks -- src' dst'}
+
+Copy given number of 16-byte blocks from source in near memory to
+destination in far memory.  Returns addresses just past last byte copied.
+Each block is streamed onto the stack, then streamed into far memory.
+Consequently, interrupts will held off by up to 16 clocks.
+\end{gloss}
+\begin{gloss}{bytes-in}{ src dst bytes -- }
+
+Copy given number of bytes from source in far memory to destination
+in near memory.
+\end{gloss}
+\begin{gloss}{bytes-out}{ src dst bytes -- }
+
+Copy given number of bytes from source in near memory to destination
+in far memory.
+\end{gloss}
+\begin{gloss}{far}{ -- }
+
+Switch to far memory access mode.  All data fetches or stores will be
+made with respect to the page most recently identified to \fw{set-page}
+\end{gloss}
+\begin{cgloss}{for}{ u -- }{ -- sys}
+
+Compiling word indicates beginning of for/next loop.  Usage:
+\begin{verbatim}
+	: foo
+	   ...
+	   for  ...   next
+	   ... ;
+\end{verbatim}
+The code between \fw{for} and \fw{next} is executed \type{u}
+times.  The loop index counts down from \type{u-1} to 0
+and may be read with \fw{r@}.
+\end{cgloss}
+\begin{gloss}{imr!}{ u -- }
+
+Set Interrupt Mask Register (IMR) to \type{u}.
+\end{gloss}
+\begin{gloss}{imr@}{ -- u }
+
+Return Interrupt Mask Register (IMR).
+\end{gloss}
+\begin{gloss}{int:}{ u -- }
+
+Start compilation of interrupt routine for interrupt \type{u}.
+When the interrupt routine executes, sufficient state will be saved
+that most Forth code can be used in the routine.  Interrupts are
+disabled.
+\end{gloss}
+\begin{gloss}{near}{ -- }
+
+Switch to near memory access mode.  All data fetches or stores will be
+made with respect to the default memory page (page 0).
+\end{gloss}
+\begin{cgloss}{next}{ -- }{ sys -- }
+
+Compiling word indicates end of for/next loop.  See \fw{for}.
+\end{cgloss}
+\begin{gloss}{save}{ -- }
+
+Save system state in EEPROM.
+\end{gloss}
+\begin{gloss}{set-page}{u -- }
+
+Set page to be used on subequent far memory accesses to be \type{u}.
+\end{gloss}
+\begin{gloss}{ucode}{ u \verb|"|name\verb|"| -- }
+
+Defining word associates RTX opcode \type{u} with dictionary entry
+\type{name}.  When \type{name} is used in a subsequent definition,
+the opcode \type{u} is compiled in-line.
+\end{gloss}
+\begin{gloss}{unsave}{ -- }
+
+Restore system state from EEPROM.
+\end{gloss}

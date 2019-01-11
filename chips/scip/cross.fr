@@ -1,0 +1,14 @@
+\ Load utilities
+" struct.fr" used
+" onlyalso.fr" used
+" condcomp.fr" used
+
+\ First, load the metacompiler
+" asm.fr" ftload			\ assembler
+" model.fr" ftload			\ processor target model
+" asm-ext.fr" ftload			\ assembler - model-specific extensions
+" opt.fr" ftload			\ peephole optimizer
+" opt-scip.fr" ftload			\ SCIP customization
+" meta1.fr" ftload			\ metacompiler part 1
+" metaasm.fr" ftload			\ metaassembler
+" rules.fr" ftload			\ rules for optimizer

@@ -1,0 +1,42 @@
+hex
+
+\ reset vector
+2 allot
+
+label send
+\ UART send	\ ( x -- )
+\ Precondition: far memory page set and far mode selected.
+	<lis	0 +# nopb pushp >.		\ I/O base address
+1 l:	<@	6 +# mem16 pushp >.		\ read parallel port
+	<lis	2 +# banda >.			\ test for UART transmit ready
+	<testx	nopa Zbar popp >.
+	<?br	>. 1 back
+	<!	0 +# mem16 popp >.		\ store UART data
+	<alu	nopb popp return >.
+
+label get
+\ UART get	\ ( -- x )
+\ Precondition: far memory page set and far mode selected.
+	<lis	0 +# nopb pushp >.		\ I/O base address
+1 l:	<@	6 +# mem16 pushp >.		\ read parallel port
+	<lis	1 +# banda >.			\ test for UART receive ready
+	<testx	nopa Zbar popp >.
+	<?br	>. 1 back
+	<@	0 +# mem16 return >.		\ read UART data
+
+label greet
+here *callop* w0 forth @ host t-w!		\ patch reset vector
+	<lis	10 +# nopb pushp >.		\ all accesses to page 16
+	<reg!	nopa dpr popp >.		\   everything is far
+	<spec	farmode >.
+	<lil	nopb pushp >.	char h >.	\ send greeting
+	send *call*
+	<lil	nopb pushp >.	char i >.
+	send *call*
+	<lil	nopb pushp >.	0d >.
+	send *call*
+	<lil	nopb pushp >.	0a >.
+	send *call*
+0 l:	get *call*				\ echo all received characters
+	send *call*
+	<br	>. 0 back

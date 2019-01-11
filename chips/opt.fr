@@ -1,0 +1,268 @@
+\ (c) 1988 Johns Hopkins University / Applied Physics Laboratory
+\ This is a peephole optimizer for FRISC3 )
+hex
+hostinterp also				\ search transient then host then forth
+					\ definitions in host
+
+\ General purpose utilities )
+: between	\ ( n low high --- t/f )  returns true if n is
+		\ between low and high inclusive.
+   1+ within ;
+
+\ Here is code for managing a table of wild card matches from the optimizer )
+create matchtable			\ table of wild card matches )
+	forth 10 2* cells allot		\ format: addr[len pos] fieldvalue )
+variable nextfreeslot			\ points to next free slot in table)
+
+: matchreset	\ ( --- ) empty table 
+   matchtable nextfreeslot [forth] ! [host] ;
+
+: savematch	\ ( value addr[len pos] --- )
+   [forth] nextfreeslot @ 2!		\ save in table 
+   cell 2* nextfreeslot +! [host] ;
+
+: ??		\ ( instr index --- instr' ) insert value from 
+		\ matchtable[index] into the instruction on the  
+		\ stack.					 
+   [forth] 2* cells matchtable + 2@ 2@ !field [host] ;
+
+: wildcard	\ ( instr patinstr addr[len pos] --- actual' pat' )
+   [forth] { a[len,pos] }
+     over a[len,pos] 2@ @field		\ extract value from matched field 
+     a[len,pos] savematch		\ and save it in match table 
+     swap 0 a[len,pos] 2@ !field	\ mask out field of actual instruction
+     swap 0 a[len,pos] 2@ !field	\    and pattern instruction 
+   [host] ;
+
+: makewildcard	\ ( --- )  Construct a wildcard.  This is a defining 
+		\ word that takes two names from input stream.  The   
+		\ first name should be for a field defining word that 
+		\ already exists.  A new word will be built with a    
+		\ pointer to the field definition.		      
+   [forth] -1 ' execute
+   does>	\ ( instr patinstr addr[ addr[len pos] -1] --- actual' pat' )
+      @ wildcard [host] ;
+
+\ Here the wildcards 
+makewildcard pstackop ?psop	makewildcard rstackop ?rsop
+makewildcard ALUcndop ?fl	makewildcard cinop ?cin
+makewildcard ALUop ?alu
+
+: ?reg		\ ( instr patinstr --- actual' pat' )
+   [forth] toreg? @
+   if r2op				\ R2? 
+      false toreg? !
+   else r1op				\ otherwise: R1 
+   then
+   wildcard [host] ;			\ save matched field 
+
+: ?lit   litop wildcard ;
+
+: ?dest   destop wildcard ;
+
+\ These are some words for checking constraints on optimizations that 
+\ cannot be expressed in rules.  This code uses explicit knowledge of 
+\ bit level encoding information.  Ick!				      
+
+: padjustup?	\ ( index --- t/f )   \ attempts to adjust a value   
+		\ matched by a wildcard.  Returns t if successful. 
+   [forth] 2* cells matchtable + cell+	\ address of matched value 
+   dup @ 0= if				\ if tos 
+      drop false			\ failure 
+   else
+      dup @ dup 1 3 between if 1- then	\ sos->tos, ros->sos, or fos->ros 
+      swap ! true			\ success 
+   then [host] ;
+
+: padjustdown?	\ ( index --- t/f ) attempts to adjust a value   
+		\ matched by a wildcard.  Returns t if successful. 
+   [forth] 2* cells matchtable + cell+	\ address of matched value 
+   dup @ 3 = if				\ if ros 
+      drop false			\ failure 
+   else
+      dup @ dup 0 2 between if 1+ then	\ tos->sos, sos->ros, or ros->fos 
+      swap ! true			\ success 
+   then [host] ;
+
+: notrstack?	\ ( index --- t/f )  returns true indexed value 
+		\ is not on the return stack.			 
+   [forth] 2* cells matchtable + cell+ @
+   4 7 between not [host] ;
+
+: foldaddition?	\ ( index1 index2 --- t/f) returns true if two 
+		\ constants can be folded together without ex-  
+		\ ceeding 0xffff.  the new constant is placed at
+		\ the first index.				
+   [forth] 2* cells matchtable + cell+ @
+   swap 2* cells matchtable + cell+ tuck @ \ address constant1 constant2 
+   + dup 10000 u< if
+      swap ! true			\ place new constant in table 
+   else
+      2drop false
+   then [host] ;
+
+: ',		\ ( -- ) Extract value of field named by next word in input
+		\ stream.
+   [forth] ' >body cell+ @ , [host] ;
+
+forth 
+create aluops				\ table of swappable ALU ops 
+   ', banda		', bora		', bxora	', bnanda
+   ', bnora		', bnxora	', bminusa	', aminusb
+   ', bplusa
+create aluswapops			\ table of swapped ALU ops 
+   ', banda		', bora		', bxora	', bnanda
+   ', bnora		', bnxora	', aminusb	', bminusa
+   ', bplusa
+host
+: swapaluop?	\ ( index --- t/f ) returns true if ALU operator 
+		\ can be modified to cancel an implicit swap of its
+		\ operands.					   
+   [forth] 2* cells matchtable + cell+ dup @ { matchvalue a[matchvalue] }
+      false				\ assume failure 
+      9 0 do				\ 9 possibilities 
+         i cells aluops + @ matchvalue = if \ if ALU operator in table 
+	    i cells aluswapops + @	\ get swapped version 
+	    a[matchvalue] !		\ and save in match table 
+	    drop true leave		\ return sucess flag 
+         then
+       loop
+   [host] ;
+
+forth
+create unaryops				\ table of ALU's unary operators 
+   ', notb		', incb		', negb		', decb
+host
+: unaryop?	\ ( index --- t/f ) returns true if indexed ALU 
+		\ operator is unary.				  
+   [forth] 2* cells matchtable + cell+ @ { matchvalue }
+      false				\ assume failure 
+      4 0 do
+	 i cells unaryops + @ matchvalue = if
+	    drop true leave		\ return success flag 
+	 then
+      loop
+   [host] ;
+
+\ These words define the structure of a rule 
+: #applic	1 [forth] cells + [host] ;
+: rulename	2 [forth] cells + [host] ;
+: patlength	3 [forth] cells + [host] ;	\ length is in cells
+: rulecode	4 [forth] cells + [host] ;
+
+\ First, the rule compiler:  these are the run-time words: 
+variable scan		\ Address of object to try to match against 
+
+: (start)	\ ( addr[rule] --- addr[rule] instr ) start matching process
+   matchreset				\ reset match table 
+   here over patlength [forth] @ [host]
+   cells -				\ find address of first instruction 
+   dup cell+ [forth] scan !		\ and initialize scan pointer 
+   [host] @ ;				\ and return first instruction 
+
+: (next)	\ ( --- instr ) last match was successful so begin 
+		\ another.					     
+   scan [forth] @ dup [host] cell+
+   [forth] scan ! [host] @ ;		\ return next instruction 
+
+: (success)	\ ( addr[rule] --- addr[rule] ) all matches succeed 
+\  5 spaces dup rulename [forth] @ count type cr \ DEBUG 
+   dup patlength [forth] @ negate [host] cells allot \ reclaim dictionary space 
+   1 over #applic [forth] +! [host] ;		\ rule application counter 
+
+\ Now, the actual rule compiler: 
+variable rulelist			\ linked list of rules 
+   0 rulelist forth ! host
+
+: rule		\ ( --- xt colon-sys &rule.code &rule.patlength )
+   [forth] here bl ,word align
+   here rulelist @ , rulelist !		\ add rule to rulelist 
+   0 , , here 0 ,			\ #applic, rulename, patlength 
+   here 0 , swap			\ rule code
+   2>r :noname postpone (start) 2r>	\ start compiling pattern code 
+   [host] ;
+
+\ : watch   ." matching:" over u. dup u. cr ;	\ DEBUG 
+
+: >,		\ ( <origs> &code &patlength --- <origs>' &code &patlength )
+		\ a new pattern has been compiled. compile run-  
+		\ time code to check the result and quit on fail.
+   [forth] 1 over +!			\ update pattern length 
+\  postpone watch			\ DEBUG 
+   postpone =
+   2>r postpone if 2r>
+   postpone (next) [host] ; immediate	\ prepare for next pattern 
+
+: -->		\ ( <origs> &code &patlength --- <origs>' &code &patlength )
+		\ compile code to check last pattern 
+   [forth] 1 over +!			\ update pattern length 
+\  postpone watch			\ DEBUG 
+   postpone =
+   2>r postpone if 2r>
+   postpone (success) [host] ; immediate
+
+: isconstraint	\ ( pattern t/f --- pattern' )  if the input result 
+		\ from the constraint test is false, the pattern is 
+		\ smashed so that the next match will fail.	    
+   not if drop -1 then ;		\ BUG: this works 99.99% of the time 
+
+: endrule	\ ( xt colon-sys <origs> &rule.code &rule.patlength --- )
+		\ end rule compilation. resolve failure branches.
+   [forth] postpone true postpone exit	\ execute on success 
+   swap >r @ 0 do postpone then loop	\ resolve forward branches
+   postpone false postpone ;		\ execute on failure 
+   r> ! [host] ; immediate		\ record execution vector
+
+\ Here is the optimizer 
+variable ?code		\ A variable that points to the beginning of the 
+			\ optimization queue.  here marks the end.	 
+			\ From cmforth on the Novix chip.		 
+
+\ : ||		\ ( --- ) flush optimization queue 
+\    here ?code [forth] ! [host] ;
+
+: ruleapplied?	\ ( addr[rule] --- addr[rule] t/f ) try to apply 
+		\ given rule.  return t/f on success/failure.	   
+\  ." attempting rule " dup rulename [forth] @ count type cr	\ DEBUG 
+   here over patlength [forth] @ [host]
+   cells - [forth]			\ see if rule of this length can 
+   ?code @ u< if			\  be applied 
+      false
+   else
+      dup rulecode perform
+   then ;
+
+: applyrules	\ ( --- t/f ) attempt to apply each rule in rule 
+			\ list until successful or list is empty.	   
+   [forth] rulelist @
+   begin
+      dup while				\ while not at end of list 
+         ruleapplied? if		\ if successful 
+            drop true exit		\ exit this word 
+         then
+      @					\ fetch next rule 
+   repeat drop false [host] ;
+
+: optimize	\ ( --- ) apply optimization rules until none are 
+		\ successful.					    
+   ?code [forth] @ [host] here u< if	\ if there is stuff in the queue 
+      begin applyrules not until
+   then ;
+
+: rulestats	\ ( --- ) print out rule application statistics 
+   [forth] rulelist @
+   begin
+      dup while				\ while not at end of list 
+      ." Rule " dup rulename @ count type
+      ."  was applied " dup #applic ?
+      ." times." cr
+      @
+   repeat drop [host] ;
+
+: clearstats	\ ( --- ) reset rule statistics 
+   [forth] rulelist @
+   begin
+      dup while				\ while not at end of list 
+      0 over #applic !
+      @
+   repeat drop [host] ;

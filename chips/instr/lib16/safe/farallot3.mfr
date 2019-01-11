@@ -1,0 +1,18 @@
+\ (c) 2008 Johns Hopkins University / Applied Physics Laboratory
+\ Memory allocator (cross-compiler extensions).
+hex
+
+forth : far-h	\ ( mem -- addr ) Return the address of the address of
+		\ the next free memory location.
+   [host] cells far-mem-set + ;
+
+forth : far-here \ ( mem -- addr ) Return address of next free location.
+   [host] far-h @ ;
+
+forth : far-allot \ ( size mem -- addr ) Allocate size bytes from given memory.
+   [host] far-h dup >r @ swap over + r> ! ;
+
+forth : far-report \ ( -- ) Report on far memory allocations
+   [host] >log total-mem# 0 do		\ for each memory page
+      ." page " i . ." here = " i far-here 4 u.lz cr
+   loop !>log ;

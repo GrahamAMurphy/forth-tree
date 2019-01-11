@@ -1,0 +1,18 @@
+\ (c) 2000 Johns Hopkins University / Applied Physics Laboratory
+\ Dynamic memory allocator for RTX (cross-compiler extensions).
+hex
+
+forth : far-h	\ ( page -- addr ) Return the address of the address of
+		\ the next free memory location.
+   [host] f and cells far-page-set + ;
+
+forth : far-here \ ( page -- addr ) Return address of next free location.
+   [host] far-h @ ;
+
+forth : far-allot \ ( size page -- addr ) Allocate size bytes from given page.
+   [host] far-h dup >r @ swap over + r> ! ;
+
+forth : far-report \ ( -- ) Report on far memory allocations
+   [host] >log 10 0 do			\ for each page
+      ." page " i . ." here = " i far-here 4 u.lz cr
+   loop !>log ;

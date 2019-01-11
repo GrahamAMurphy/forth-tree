@@ -1,0 +1,36 @@
+\ (c) 1994 Johns Hopkins University / Applied Physics Laboratory
+\		Generic Polled Character Device Driver
+\	This version of the driver supports the following features:
+\		polled I/O
+\		maps <cr> to <nl> on input
+\ Note: this version is identical to polltty.fr except that emit
+\ polls after sending character instead of before; this is useful
+\ on hardware that initializes the TXRDY signal to false.
+hex
+
+\ The following defines are required to use this program:
+\  TXRDYMASK - Active high mask identifying transmitter ready bit in UARTSTAT
+\  RXRDYMASK - Active high mask identifying receiver ready bit in UARTSTAT
+\ The following functions are also needed:
+\  uart-status - Returns UART status
+\  uart@ - Returns received character
+\  uart! - Transmits character
+
+: emit		\ ( char --- ) Transmit one character.
+   uart!				\ send character
+   TXRDYMASK				\ txrdy status mask
+   begin 
+      uart-status over and		\ get txrdy bit
+   until				\ loop until bit is one
+   drop ;
+
+: key		\ ( --- char ) Read one character.
+   RXRDYMASK				\ rxrdy status mask
+   begin
+      uart-status over and		\ get rxrdy bit
+   until				\ loop until bit is one
+   drop uart@
+   dup 0d = if drop 0a then ;
+
+: key?		\ ( -- t/f ) Return true if a character is ready.
+   uart-status RXRDYMASK and 0= not ;

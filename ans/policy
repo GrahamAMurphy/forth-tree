@@ -1,0 +1,30 @@
+There are several reasons that I am hesitant to release this Forth to the
+world:
+
+1.  Although I say that this system conforms to the ANS Forth, I really mean
+that it conforms to the draft standard as of January, 1993.  ANS Forth has
+not been approved yet as an official standard and it could change.  I would
+prefer to wait until the standard is "real".
+
+2.  Although I have no qualms about giving my work away for free, I would feel
+somewhat guilty competing with vendors whose livelyhood is selling Forth
+systems.  There are already more free Forth systems available than there
+are vendors selling them.  I believe that the viability and credibility
+of the language would be hurt if every Forth vendor went out of business
+because of the plethora of free systems available.
+
+3.  An alternative to 2 would be to sell or license the system.  I am not
+sure that APL is capable or willing to do that.  There are other complications:
+we would have to pay a royalty to the author of the DOS extender on
+each copy sold.  Also, since the system was compiled by the GNU C compiler
+some of Free Software Foundation's copyrights might apply.
+
+So, for now I have just been giving away the system to people I know.  This
+is not necessarily restricted to APL.  I have given the system to people
+I know at Goddard, for example.  By only distributing the system "1-deep" I
+can notify users of bugs found and/or fixed and I can limit the number of
+copies that are floating around.
+
+I am not adamant about this policy; new arguments could persuade me to change my
+mind.
+

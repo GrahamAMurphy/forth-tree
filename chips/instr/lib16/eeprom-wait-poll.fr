@@ -1,0 +1,12 @@
+\ (c) 2010 Johns Hopkins University / Applied Physics Laboratory
+\ EEPROM write wait - polled
+hex
+
+: wait-for-eeprom \ ( addr x -- ) Poll EEPROM until write cycle is finished.
+		\ Data bar method is used (*).  Assumes that far memory has
+		\ been set.  Warning! this routine busy waits.
+\  1 ms					\ must wait tLP before polling (*Seeq)
+   far begin over @ over = until 2drop ; \ poll until right value seen
+
+: init-eeprom-write \ ( -- ) Initialize EEPROM write wait.
+   ; inline

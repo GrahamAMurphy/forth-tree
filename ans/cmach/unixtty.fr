@@ -1,0 +1,48 @@
+\ (c) 1998 Johns Hopkins University / Applied Physics Laboratory
+\ Forth tty interface (for Unix).
+hex
+
+verbatim-prolog
+#include <errno.h>
+end
+
+lsconstant output-file OUTPUTFP		\ holds fp for interpreter output
+					\  allowing redirection by user
+
+code key	\ ( -- c )
+	*--psp = cmd_getc(); next;
+end
+
+code accept	\ ( c-addr u1 -- u2 ) Note: returns -1 for EOF.  Legal?
+	cell t;
+	errno = 0;
+	t = cmd_getline((char *)(*(psp+1)), (int)(*psp));
+					/* use custom line routine */
+					/* zero indicates end of file */
+	if(errno) {			/* if error, report and exit */
+		perror(forthmsg); exit(1);
+	}
+	*++psp = t-1; next;		/* return length less EOL char */
+end
+
+code emit	\ ( c -- )
+	cmd_putc((unsigned char)(*psp++)); next;
+end
+
+code type	\ ( addr u -- )
+	cell u = *psp++;
+	errno = 0;
+	cmd_putline((char *)(*psp), (int)u); /* use custom line routine */
+	if(errno) {			/* if error, report and exit */
+		perror(forthmsg); exit(1);
+	}
+	psp++; next;
+end
+
+: cr		\ ( -- ) send newline character.
+   0a emit ;
+
+\ Initialize any I/O subsystems that need it
+~ code ioinit	\ ( -- )
+	cmd_ioinit(); next;
+end

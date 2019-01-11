@@ -1,0 +1,185 @@
+\ (c) 1993 Johns Hopkins University / Applied Physics Laboratory
+\ target model for RTX20X0, a 16-bit byte-addressed Forth chip.
+hex
+ 
+\ Configuration parameters for cross compiler.
+      ff constant t-char-mask	\ parameters for target memory dumper
+       8 constant t-chars/dump
+
+       7 constant t-namesize	\ object system name string length
+       8 constant t-nf-size	\ size of name field
+       1 constant t-wid-step	\ wordlist ids are 0, 10000, 20000, etc.
+      40 constant t-prec-bit	\ position of precedence bit
+      20 constant t-smudge-bit	\ position of smudge bit
+      80 constant t-inline-bit	\ position of inline bit
+
+\ Target system memory pointers
+variable w0                     \ base of object dictionary space
+variable 'h                     \ object system dictionary pointer
+variable 'r                     \ object system ram pointer
+
+\ data and words used to describe the format of the object dictionary
+
+2 constant t-cell	\ ( --- size ) size of target cell
+: t-cells 2* ;		\ ( n --- n' ) scale by size of target cell
+: t-cell/ 2/ ;		\ ( n --- n' ) unscale by size of target cell
+: t-cell+ 2+ ;		\ ( n --- n' ) add in cell size
+: t-cell- 2- ;		\ ( n --- n' ) subtract out cell size
+
+: t-name>	\ ( nfa --- cfa ) convert object name field address
+		\ to object code field address
+ t-namesize + 1+ t-cell+ ;		\ skip name field and link field
+
+: t->name	\ ( cfa --- nfa) convert object code field address
+		\ to object name field address
+ t-namesize - 1- t-cell- ;		\ go back past link field and name field
+
+\ code for handling target memory
+
+create objectbuffer 10000 allot		\ 64k
+   objectbuffer 10000 0 fill
+
+: saveobj	\ ( addr count --- ) save object code in file
+		\ indicated by string.  on a prom based system, only
+		\ the object code (dictionary space) is saved.
+   w/o bin open-file
+   if drop ." can't open"
+   else
+      >r objectbuffer 'h @ 'r @ umax w0 @ -
+      r@ write-file drop r> close-file drop
+   then ;
+
+: t->r		\ ( addr --- addr' ) translates target address to address in
+		\ buffer.
+ w0 @ - objectbuffer + ;
+
+: t-@		\ ( addr --- word ) Target fetch: 16-bits, big-endian.
+ t->r dup >r c@ 8 lshift  r> 1+ c@ or ;
+
+: t-!		\ ( word addr --- ) Target store: 16-bits, big-endian.
+ t->r >r dup 8 rshift r@ c!  r> 1+ c! ;
+
+: t-c@		\ ( addr --- byte )
+ t->r c@ ;
+
+: t-c!		\ ( byte addr --- )
+ t->r c! ;
+
+: t-aligned	\ ( addr --- addr' ) align address
+ 1+ 2/ 2* ;
+
+\ ROM/dictionary memory
+: t-here	\ ( --- n ) return value of object dictionary pointer
+   'h @ ;
+: t-allot	\ ( n --- ) allot 'n' words of object dictionary space
+   'h +! ;
+: t-,		\ ( word --- )
+   t-here t-! t-cell t-allot ;
+: t-c,		\ ( byte --- )
+   t-here t-c! 1 t-allot ;
+: t-align	\ ( --- ) align dictionary pointer
+   'h @ t-aligned 'h ! ;
+
+\ Instruction opcode access.  Opcode fits in one cell.
+: t-i@ t-@ ;
+: t-i! t-! ;
+: t-i, t-, ;
+: t-inst t-cell ;
+: t-i+ t-cell+ ;
+: t-i- t-cell- ;
+
+\ Special operators for RTX cross compilation:
+: align-boundary \ ( u -- ) Align data space pointer to first address that
+		\ can be used to access a data structure u bytes big.
+   1- dup >r t-here + r> invert and t-here - t-allot ;
+
+: revisit	\ ( addr -- oldaddr ) Redirect compilation to given address.
+		\ Original address is returned so that it can be restored.
+   t-here >r 'h ! r> ;
+
+: restore	\ ( addr -- ) Redirect compilation to given address.
+   'h ! ;
+
+\ Compilers
+: *callop*	\ ( xt -- x ) Return instruction that calls xt.
+   1 rshift ;
+: *call*	\ ( xt -- )
+   1 rshift t-, ;
+
+bf40 constant <small-lit>		\ push embedded 5 bit negative literal
+be40 constant <small+lit>		\ push embedded 5 bit positive literal
+de00 constant <biglit>			\ push 16 bit literal
+b4c0 constant <small-offset>		\ add embedded 5 bit negative literal
+b8c0 constant <small+offset>		\ add embedded 5 bit positive literal
+d880 constant <bigoffset>		\ add 16 bit literal
+
+: *literal*	\ ( n -- ) Compile a literal instruction.
+   ffff and				\ limit to 16 bits
+   dup 20 u< if				\ if 0 - 31
+      <small+lit> or t-,		\ compile small positive literal
+   else dup ffe0 u> if			\ if 0xffe0 - 0xffff or -32 - -1
+      invert <small-lit> or t-,		\ compile small negative literal
+   else
+      <biglit> t-, t-,			\ compile a big literal
+   then then ;
+
+: *offset*	\ ( n -- ) Compile a literal offset instruction.
+   ffff and				\ limit to 16 bits
+   dup 20 u< if				\ if 0 - 31
+      <small+offset> or t-,		\ compile small positive literal offset
+   else dup ffe0 u> if			\ if 0xffe0 - 0xffff or -32 - -1
+      invert <small-offset> or t-,	\ compile small negative literal offset
+   else
+      <bigoffset> t-, t-,		\ compile a big literal offset
+   then then ;
+
+: *branch-dest-help*	\ ( src dst -- src dst-blkpatt/offset )
+   dup 3ff and 2/ >r			\ save destination offset
+   fc00 and				\ s: src dstblk
+   dup 0= if				\ if branch to page 0
+      drop 400 ( page0)			\ s: src blkpattern
+   else
+      over 2+ fc00 and			\ s: src dstblk srcblk
+      2dup <>				\ if block crossing
+      if				\ make sure not too far to branch
+	 - dup abs 400 u> if ." branch too far" then
+	 0< if 600 ( back) else 200 ( fwd) then \ select previous or next block
+      else 2drop 0			\ current block
+      then				\ s: src blkpattern
+   then
+   r> or ;				\ s: src dst-blkpatt/offset
+
+: *branch-dest*	\ ( src dst -- )
+   *branch-dest-help*
+   over t-@ f800 and or			\ assemble new instruction
+   swap t-! ;
+
+: *branch-unpack* \ ( src -- dst ) Extract branch destination address from
+		\ a branch instruction.
+   dup t-@ dup 1ff and 2* >r		\ record dst offset
+   600 and				\ src dsttype
+   dup 400 = if 2drop 0
+   else
+      swap 2+ fc00 and swap		\ s: srcblk dsttype
+      2* dup 800 and if fffff000 or then \ compute 
+      +
+   then
+   r> or ;
+
+\ create
+be27 constant <does-default>
+de20 constant <remote-does-default>
+
+\ user space
+be12 constant <@run>			\ mxr@ return current process
+
+variable user-space			\ size (in aus) of user space
+   0 user-space !
+
+: allocate-user-space \ ( u -- ) Allocate u address units of user space.
+   user-space +! ;
+
+: *user*	\ ( u -- ) Compile an instruction that returns the
+		\ address of the next free user space location.  Allocate u
+		\ more address units of user space.
+   <@run> t-,  user-space @ *offset*  allocate-user-space ;

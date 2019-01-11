@@ -1,0 +1,16 @@
+\ Johns Hopkins University / Applied Physics Laboratory
+\ Local variable pretty syntax:
+\   : foo ( x y z -- )	{ x y z }	\ declares three local variables
+\ Note that locals are declared in stack-argument order.
+\ Recursive version
+hex
+
+: local
+   bl word count (local) ;
+: {helper	\ ( -- final-offset )
+   >in @ bl word count 1 = swap c@ [char] } = and
+   if drop >in @ else recurse swap >in ! local then ;
+: {
+   {helper >in !  0 0 (local) ; immediate
+
+: test { x y z } .( hello) x . y . z . ;

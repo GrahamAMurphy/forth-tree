@@ -1,0 +1,553 @@
+\ (c) 1988 Johns Hopkins University / Applied Physics Laboratory
+\ metacompiler, part 1 -- allows metacompilation of primitives 
+\ This metacompiler runs on a 32 bit JH forth and targets
+\ FRISC, RTX, and SCIP Forth chips.
+hex
+
+: metacompiler  ;               \ mark beginning of metacompiler for 'forget'
+
+\ metacompiler database
+
+variable addrhashtable		\ target hash table address
+variable addrhashtablesize
+variable head?			\ indicates whether last definition has head
+variable metastate              \ true=metacompile, false=execute
+ 0 metastate !
+variable latest-target-data	\ hold pfa of most recent 'emplace' word
+
+\ the following variables are only used to compile the root vocabulary.
+\ this feature is only for classic/Frisc3 systems.
+variable roottag		\ vocabulary tag for root
+variable rootlast		\ last nfa of root vocabulary
+
+\ types of target words
+0 constant callable
+1 constant inline-from-target
+2 constant inline-from-host
+3 constant immediate-target
+
+: metamap  ; \ Obsolete
+: nometamap  ; \ Obsolete
+
+variable INJECT_HACK \ GAM 2015-03-19
+    0 INJECT_HACK !
+
+\ ------------------------------------------------------------------------
+\ Head stack.  Heads and noheads are nestable.  A default of
+\ heads or no heads is established with default=*heads.  A region
+\ of code can be headless by saying noheads; heads restores the
+\ 'heading' state to what existed before noheads was executed.
+\ A stack is used to keep track and noheads and heads must be
+\ paired up like control structures.
+
+create head-stack  8 cells allot	\ stack of Booleans; true=heads-on
+variable top-head-stack			\ address of top of head stack
+variable next-head			\ copy of top of head stack (usually)
+
+: update-next-head \ ( -- ) Copy top of head stack into a transient cache.
+		\ The copy will what is used to decide if a head should
+		\ be built.  Nohead (by replacing the copy with false)
+		\ can force the next head to be removed.  The copy
+		\ is restored after header processing.
+   top-head-stack @ @ next-head ! ;
+
+: default=heads	\ ( -- ) Initialize head-stack with one item: true=heads-on
+   true head-stack !  head-stack top-head-stack !
+   update-next-head ;
+
+: default=noheads \ ( -- ) Initialize head-stack with one item: false=heads-off
+   false head-stack !  head-stack top-head-stack !
+   update-next-head ;
+
+: noheads	\ ( -- ) Subsequently, all heads will be removed.
+   top-head-stack @ cell+ dup top-head-stack !
+   false swap !				\ push a false onto head stack
+   update-next-head
+;
+
+: heads		\ ( -- ) Start keeping heads (if we were keeping them
+		\ before noheads was executed).
+   top-head-stack @ cell- top-head-stack ! \ pop stack
+   update-next-head
+;
+
+: nohead	\ ( -- ) The next definition will be headless.
+   false next-head ! ;
+
+: make-head?	\ ( -- t/f ) Return true if next definition should have a
+		\ head.  Warning: as a side effect, the transient head
+		\ (next-head) is destroyed.
+   next-head @  update-next-head ;
+
+\ ------------------------------------------------------------------------
+\ ROM/RAM memory simulation
+
+variable ''r			\ pointer to ram pointer
+variable ''h/r			\ pointer to dictionary/rom or ram pointer
+variable ramobject		\ hack: flag for things that can't be 'ifdef'ed
+
+: set-ram	\ ( addr -- ) Setup a RAM-based target system.  The given
+		\ address is the beginning of target memory.
+   dup 'h !  w0 !		\ set ROM/dictionary pointer
+   'h ''r !			\ all allocations are in ROM/dictionary space
+   'h ''h/r !
+   true ramobject !		\ set flag for things that can't be 'ifdef'ed
+   s" def ramobject" evaluate ;	\ define ramobject
+
+: set-rom/ram	\ ( romaddr ramaddr -- ) Setup a ROM-based target system.
+		\ The given addresses are the beginning of target ROM and RAM.
+   'r !  dup 'h !  w0 !		\ set RAM then ROM/dictionary pointer
+   'r ''r !			\ RAM allocates have a sepate space
+   'r ''h/r !			\ modal allocates are RAM by default
+   false ramobject !		\ reset flag for things that can't be 'ifdef'ed
+;
+
+\ RAM memory allocation
+: ram-dp
+   ''r @ ;
+: ram-here	\ ( --- n ) return value of target RAM pointer
+   ram-dp @ ;
+: ram-allot	\ ( n --- ) allot 'n' words of RAM
+   ram-dp +! ;
+: ram-,		\ ( word --- )
+   ram-here t-! t-cell ram-allot ;
+: ram-c,	\ ( byte --- )
+   ram-here t-c! 1 ram-allot ;
+: ram-align	\ ( --- ) align dictionary pointer
+   ram-dp @ t-aligned ram-dp ! ;
+
+\ ------------------------------------------------------------------------
+\ User space
+
+variable user-space			\ size (in aus) of user space
+   0 user-space !
+
+: allocate-user-space \ ( u -- ) Allocate u address units of user space.
+   user-space +! ;
+
+\ ------------------------------------------------------------------------
+\ remember address of most recently parsed word
+
+variable pocket-ptr
+: pocket pocket-ptr @ ;
+
+: lookahead	\ ( -- ) look ahead in the input stream copying the next
+		\ space delimited word to here.
+   >in @ bl word pocket-ptr ! >in ! ;
+
+: cross-error	\ ( addr u -- ) Display current word at here followed
+		\ by given error message.
+   here count type space type ."  [meta]" cr ;
+ 
+\ ------------------------------------------------------------------------
+\ target body
+
+: t->body	\ ( cfa --- pfa ) convert object code field address
+		\ to object parameter field addres
+   ramobject @ if			\ if compiling for RAM
+      t-cell+				\ must be adjacent format
+   else					\ if ROM, only <default-does> is adj.
+      dup t-cell+ swap t-@ <does-default> <> if t-@ then
+   then ;
+
+: t-cfa		\ ( --- n ) produces the contents of the first word of
+		\ the parameter field of the most recent 'emplace' target
+		\ definition: this will be the target cfa of the emplace
+		\ word. this is useful for immediating.
+   latest-target-data @ @ ;
+
+\ ------------------------------------------------------------------------
+\ Wordlists for cross compiler and simulation of target wordlists
+
+vocabulary host			\ cross environment and meta defining words
+vocabulary meta			\ meta compiling words
+vocabulary target		\ target words 
+
+' target >body @ constant target-wid	\ Wordlists of above vocabularies.
+' meta   >body @ constant meta-wid	\ (PORT: uses knowledge of vocs.)
+
+: [forth]  forth ; immediate
+: [host]   host ; immediate
+: [meta]   meta ; immediate
+: [target] target ; immediate
+
+variable #target-order			\ length of target search order
+create target-order  #vocs cells allot	\ target search order
+
+variable target-widtag			\ next wordlist tag to allocate
+	0 target-widtag !
+variable target-current			\ current wordlist of target
+variable host-current			\ and corresponding wid in host
+
+100 constant #t-wids			\ number of target wids
+create t-wid->wid-map  #t-wids cells allot \ table mapping target wids into
+					\ associated host wids
+: wid/t-wid	\ ( wid t-wid -- ) Create mapping from the given t-wid
+		\ to given wid.
+   t-wid-step / cells t-wid->wid-map + ! ;
+
+: t-wid->wid	\ ( t-wid -- wid ) Map target wid into associated wid.
+   t-wid-step / cells t-wid->wid-map + @ ;
+
+: next-t-wid	\ ( --- t-wid ) Allocate w target wordlist.
+   target-widtag @ dup t-wid-step + target-widtag ! ; 
+
+: metasearch	\ ( --- ) Search target lists.
+   #target-order @ ?dup if
+      0 do #target-order @ i - 1- cells target-order + @ t-wid->wid loop
+   then
+   #target-order @ set-order ;
+
+: metacomp	\ ( --- ) For cross compiling.  Search meta then target lists.
+   metasearch also meta ;
+
+: metainterp	\ ( --- ) For cross interpreting.  Search host then forth.
+   only forth also host ;
+
+: metaextend	\ ( --- ) For extend cross-compiler.
+   only forth also host also meta definitions ;
+
+: hostinterp	\ ( --- ) For extending host.  Search host then forth.
+		\ definitions go into host.
+   only forth also host definitions ;
+
+\ ------------------------------------------------------------------------
+\ Obsolete: only for classic Frisc3 systems.
+: startroot		\ ( --- ) start compiling the root vocabulary
+   next-t-wid target-current ! ;
+
+: endroot		\ ( --- ) end root vocabulary
+   target-current @ roottag !
+   0 target-current !				\ assume 0 is forth's wordlist
+   t-cfa t->name rootlast ! ;
+
+\ ------------------------------------------------------------------------
+\ Log/map file routines
+
+variable log-fp				\ file pointer of log file
+   stdout log-fp !			\ standard output by default
+
+: >log		\ ( -- ) Redirect Forth output to log file.
+   log-fp @ output-file ! ;		\ PORT
+
+: !>log		\ ( -- ) Undirect Forth output to log file; resume standard out.
+   stdout output-file ! ;
+
+: is-logfile	\ ( c-addr u -- ) Save log in the file named by the
+		\ given text string.
+   2dup w/o open-file			\ attempt to open file
+   if drop open-error ( never returns)	\ if failure, terminate with message
+   then log-fp !
+   2drop ;
+
+: log-name-str	\ ( c-addr u -- ) Log given string. This routine begins a new
+		\ line in the log.
+   >log cr 7 spaces dup >r type
+   28 r> - 7 - spaces !>log ;
+
+: log-name	\ ( -- ) Log lookahead string. This routine begins a new
+		\ line in the log.
+   pocket count log-name-str ;
+
+: log-anon	\ ( u -- ) Log anonymous definition at given address.
+		\ This routine begins a new line in the log.
+   >log cr base @ swap hex 4 u.lz space base !
+   23 spaces !>log ;
+
+: log-dict-entry \ ( flag u -- ) Log dictionary entry at address u
+		\ with lookahead string.  Also record whether entry has
+		\ head; flag is true if there is a head. This
+		\ routine begins a new line in the log.
+   >log base @ hex >r
+   cr 4 u.lz space r> base !
+   if ." H " else 2 spaces then
+   pocket count dup >r type
+   28 r> - 7 - spaces !>log ;
+
+: add-log-string \ ( c-addr u -- ) Add given string to log.
+   >log type space !>log ;
+
+: add-log-number \ ( u -- ) Add hex representation of given number to log.
+   >log base @ hex swap 4 u.lz space base ! !>log ;
+
+: report	\ ( -- ) Display current ROM and RAM allocation pointers.
+   >log ramobject @ if			\ if RAM-based system
+      cr ." here = " t-here u.		\ just display dictionary pointer
+   else					\ if ROM/RAM system
+      cr ." rom here = " t-here u.	\ display dictionary
+      cr ." ram here = " ram-here u.	\  and RAM pointers
+   then cr !>log ;
+
+\ ------------------------------------------------------------------------
+\ Target dictionary
+
+: createhashtable	\ ( addr size --- ) allot and fill hash table with
+			\ null links.
+   dup 0 do 0 ram-, loop 
+   addrhashtablesize !  addrhashtable ! ;
+
+: create-target	\ ( --- ) create an entry in the target vocabulary.
+   get-current host-current @ set-current create set-current ;
+\   get-current also target definitions create
+\   previous set-current ;
+
+: t-does>	\ ( --- ) modify run-time action of most recent target
+		\ definition.  Note that this implementation assumes
+		\ that does> always modifies THE most recent definition
+		\ regardless of the current compilation wordlist.
+   postpone does> ; immediate
+
+: emplace       \ ( addr --- ) creates a word whose parameter field
+		\ contains the target address of the next code field in the
+		\ target space. when the word is executed, this value
+		\ [presumably the opcode of the 'emplaced' word] is
+		\ compiled into the object dictionary. defintion is placed
+		\ in target vocabulary.
+   create-target here latest-target-data !
+      , callable , 0 ,
+   t-does> @ *call* ;
+ 
+: targethash	\ ( addr[counted string] --- addr[hashtableentry] )
+   0 swap count over + swap do i c@ + loop
+   addrhashtablesize @ 1- and t-cells addrhashtable @ + ;
+
+: construct-header \ ( --- ) build a dictionary header in target space.
+		\ assumes that name to use is in pocket buffer.
+   t-here
+   pocket count t-namesize 1- umin dup >r + pocket
+   do i c@ t-c, loop				\ copy name into target space
+   t-namesize r> 1+ - 0 max ?dup if 0 do bl t-c, loop then
+[ifdef] frisc3   dup t-c@ 7f and target-current @ or over t-c!
+[else] 		 target-current @ t-c,		\ vocab#
+[then]
+   pocket targethash dup t-@ t-, t-! ;		\ install in hash table
+ 
+variable '*code*	\ forward reference: backpatched in meta2
+: inline-keepbody	\ ( --- ) make the previous word inline.
+   head? @ if					\ if compiling with heads
+      t-cfa t->name				\ set inline bit in head
+      dup t-c@ t-inline-bit or swap t-c!
+   then
+   inline-from-target latest-target-data @ cell+ !
+   t-does>					\ *code*
+      @ '*code* perform ;
+
+variable '*codehost*	\ forward reference: backpatched in meta2
+: inline		\ ( --- )  mark the previous  words as an inline.
+   head? @ if					\ if compiling with heads
+      inline-keepbody exit
+   then						\ compiling with no heads
+   t-here t-cfa
+   inline-from-host here latest-target-data @ 2!
+   dup 'h ! ( TBD 'h not def.ed in this file)	\ recover target space
+   do i t-i@ , t-inst +loop				\ move code into host
+   t-does>
+      @ '*codehost* perform ;
+
+\ ------------------------------------------------------------------------
+
+: createnotarget	\ ( --- ) creates object but compiles no target
+\ PORT
+   >in @ : >in !				\ host version
+   here cell+ cell+ name> , postpone ;		\ code to call meta version
+   create-target ;				\ meta version
+
+variable 'define	\ an improved version will be supplied in meta2
+   ' @ 'define !
+: define		\ ( n --- ) compile time constant
+   lookahead log-name
+   s" define" add-log-string dup add-log-number	\ log n with name
+   createnotarget
+      ,
+   t-does>		\ ( --- n )
+      'define perform ;
+
+: crossalias	\ ( -- ) Usage: crossalias x y.  X is headless word
+		\ that behaves like y.  Warning: this is a kludge
+		\ to support Frisc3/classic Forth.
+   false head? !
+   0 emplace					\ setup some defaults
+   bl word count target-wid search-wordlist
+   0= if					\ if nothing to alias
+      drop s" ?" cross-error exit		\ bail out
+   then
+   >body latest-target-data @ 3 cells move	\ copy parameters
+   latest-target-data @ cell + @		\ inline from target?
+   inline-from-target = if inline-keepbody exit then \ kludge
+   t-does>					\ inline from host
+      @ '*codehost* perform ;
+
+\ ------------------------------------------------------------------------
+\ cross defining word help
+
+: record-does	\ ( -- ) Record current target address in the host dictionary
+		\ entry for the current target definition.  If this is used
+		\ in the cross-version of does>, we can use the information
+		\ to make the cross defining word easier to write.
+   t-here latest-target-data @ 2 cells + ! ;
+
+: acts-like	\ ( "name" -- ) Looks up the next word from the input stream
+		\ in the target dictionary.  Extracts its 'does' vector
+		\ and patches the current target definition being compiled
+		\ with the vector.  Presumably, the first word is a compiling
+		\ word and the second is its child.
+   bl word count target-wid search-wordlist
+   if >body 2 cells + @				\ find does vector
+      *callop* postpone literal			\ convert address to call instr.
+      postpone t-cfa postpone t-!		\ patch each child
+   else s" ?" cross-error
+   then ; immediate
+
+\ ------------------------------------------------------------------------
+\ Forward references
+
+: forward:	\ ( "name" -- ) Define a forward reference.  All subsequent
+		\ uses of name will compile a place holder.  The place
+		\ holder will be filled in with a call once the forward
+		\ reference is resolved (see resolves).
+   create-target
+      0 ,
+   t-does>
+      dup >r @ t-here r> ! t-, ;
+
+metaextend
+: resolves	\ ( "name" -- ) Resolve given forward reference to
+		\ currently compiling definition.
+   bl word count target-wid search-wordlist
+   if
+      >body @
+      t-here *callop* swap		\ s: dst-call addr
+      begin dup while			\ while not at end of list
+	 dup t-@ >r over swap t-! r>	\ replace link with call
+      repeat 2drop
+   else
+      s" ?" cross-error
+   then ;
+hostinterp
+
+\ -----------------------------------------------------------------------
+\ Target environment simulators
+
+hostinterp
+
+next-t-wid constant t-forth-wordlist	\ 0 is forth's tag
+   target-wid t-forth-wordlist wid/t-wid \ associate with target wid of host
+
+: get-order	\ ( -- t-wid1 .. t-widn n ) Return the current search order
+		\ with first search list on top.
+   #target-order @ ?dup if
+      0 do #target-order @ i - 1- cells target-order + @ loop
+   then  #target-order @ ;
+
+: set-order	\ ( t-wid1 .. t-widn n -- ) Set the search order.  If n is -1
+		\ the default search order (forth) is set.
+   dup 0< if drop t-forth-wordlist 1 then
+   dup #target-order ! ?dup if 0 do i cells target-order + ! loop then ;
+
+: wordlist	\ ( -- t-wid ) Create an empty wordlist and return its id.
+   next-t-wid wordlist over wid/t-wid ;
+
+: get-current	\ ( -- t-wid ) Return the id of the compilation wordlist.
+   target-current @ ;
+
+: set-current	\ ( t-wid -- ) Set the compilation wordlist ot the given id.
+   dup target-current ! t-wid->wid host-current ! ;
+
+-1 set-order  t-forth-wordlist set-current \ default target search, compilation
+
+\ data and words used to describe the format of the object dictionary
+
+t-cell constant cell	\ ( --- size ) size of target cell
+: cells t-cells ;	\ ( n --- n' ) scale by size of target cell
+: cell/ t-cell/ ;	\ ( n --- n' ) unscale by size of target cell
+: cell+ t-cell+ ;	\ ( n --- n' ) add in cell size
+: cell- t-cell- ;	\ ( n --- n' ) subtract out cell size
+
+\ TBD: what are these for?
+: name>		\ ( nfa --- cfa ) convert object name field address
+		\ to object code field address
+   t-name> ;
+
+: >name		\ ( cfa --- nfa) convert object code field address
+		\ to object name field address
+   t->name ;
+
+: >body		\ ( cfa --- pfa ) convert object code field address
+		\ to object parameter field addres
+   t->body ;
+
+: header        \ ( --- ) creates an object dictionary entry and a
+		\ corresponding 'emplace' entry in the host vocabulary.
+   t-align
+   lookahead					\ look at next input word
+   make-head? dup head? !			\ remember head for inline
+   dup if construct-header			\ header
+   then
+   t-here log-dict-entry t-here emplace ;	\ log and create 'emplace' entry
+
+\ ROM/dictionary memory or RAM memory allocation
+: rom/ram-dp
+   ''h/r @ ;
+: here		\ ( --- n ) return value of current memory pointer
+   rom/ram-dp @ ;
+: allot		 \ ( n --- ) allot 'n' words in current memory region
+    cr here add-log-number s" ALLOT" add-log-string dup add-log-number
+   rom/ram-dp +! ;
+: ,		\ ( word --- )
+   here t-! t-cell allot ;
+: c,		\ ( byte --- )
+   here t-c! 1 allot ;
+: aligned	\ ( addr --- addr' )
+   t-aligned ;
+: align		\ ( --- ) align current memory pointer
+   rom/ram-dp @ t-aligned rom/ram-dp ! ;
+: align-stack	\ ( --- ) align current memory pointer for stack
+   rom/ram-dp @ t-stack-aligned rom/ram-dp ! ;
+
+: ram		\ ( -- ) Set RAM allocation mode.
+   ramobject @ if 'h else 'r then ''h/r ! ;
+: rom		\ ( -- ) Set ROM allocation mode.
+   'h ''h/r ! ;
+
+\ Target memory access.
+: @		t-@ ;
+: !		t-! ;
+: c@		t-c@ ;
+: c!		t-c! ;
+: 2@		dup t-cell+ t-@ swap t-@ ;
+: 2!		swap over t-! t-cell+ t-! ;
+
+: label			\ ( -- ) Declare label.  The label identifies
+			\ dictionary/ROM or RAM space, based on current mode.
+  here define ;
+
+: '		\ ( --- cfa <or> 0 ) returns cfa of target word that follows.
+   [forth] get-order metasearch bl word find
+   if						\ if found
+      >body dup cell+ @ inline-from-host =	\ cannot inline from host
+      if s" has no body!" cross-error then
+      @
+   else drop 0 s" ?" cross-error		\ can't be found
+   then >r set-order r>
+   [host] ;
+
+: [']			\ ( --- ) constructs a literal of the address of
+			\ the next word in the instruction stream.
+ ' postpone literal ; immediate
+
+\ Target memory dump
+: dump		\ ( addr n --- ) dumps n words of object space
+   cr
+   -1 0 <# #s #> nip -rot
+   t-char-mask 0 <# #s #> nip -rot
+   over + swap do
+      i 2pick u.lz ." :" space
+      i t-chars/dump + i do
+         i t-c@ over u.lz space
+      loop 4 spaces
+      i t-chars/dump + i do
+         i t-c@ dup bl < over 7e > or
+         if drop [char] . then
+         emit
+      loop
+   cr t-chars/dump +loop 2drop ;

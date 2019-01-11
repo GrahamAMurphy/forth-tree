@@ -1,0 +1,19 @@
+\ (c) 1999 Johns Hopkins University / Applied Physics Laboratory
+\ Install interrupt routines on the fly.
+decimal
+
+\ Example usage:
+\ : my-int	\ ( -- ) My interrupt routine.
+\    do-something ;
+\ : init	\ ( -- ) Initialize.
+\    do-this
+\    ['] my-int 8 install-int		\ patch in my interrupt routine
+\    do-that ;
+
+: install-int	\ ( addr u -- ) Install interrupt routine on the fly.
+		\ The entry point of the routine given by addr replaces
+		\ the interrupt routine for interrupt u.
+		\ Note: assumes interrupt vector table starts at 0.
+   swap 1 rshift			\ convert addr to RTX call instr.
+   swap 32 * 6 + ! ;			\ patch into interrupt table
+

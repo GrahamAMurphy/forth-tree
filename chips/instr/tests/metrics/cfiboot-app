@@ -1,0 +1,13 @@
+/project/contour/imagers/boot/software/extend.fr
+/project/contour/imagers/boot/software/extend.mfr
+/project/contour/imagers/boot/software/stubs.fr
+/project/contour/imagers/boot/software/cfi.fr
+/project/contour/imagers/boot/software/hw-ext.fr
+/project/contour/imagers/boot/software/stat-db.fr
+/project/contour/imagers/boot/software/host-ext-cfi.fr
+/project/contour/imagers/boot/software/telemetry.fr
+/project/contour/imagers/boot/software/host-int-cfi.fr
+/project/contour/imagers/boot/software/boot-cmd.fr
+/project/contour/imagers/boot/software/main-cfi.fr
+/project/contour/imagers/boot/software/main.fr
+/project/contour/imagers/boot/software/bootboot.fr

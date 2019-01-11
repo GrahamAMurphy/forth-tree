@@ -1,0 +1,23 @@
+\begin{gloss}{"}{ -- c-addr u}
+
+Used in the form:
+\begin{verbatim}
+   " ccc"
+\end{verbatim}
+Returns the address and length of the given string.  The string is stored
+in a transient area.
+\end{gloss}
+\begin{cgloss}{""}{ -- c-addr u}{"ccc$<$"$>$" -- }
+
+Compiling word used in the form:
+\begin{verbatim}
+   : foo ... "" ccc" ... ;
+\end{verbatim}
+Returns the address and length of the given string.  The string is compiled
+into the current definition and consequently should not be modified.
+\end{cgloss}
+\begin{gloss}{-rot}{x1 x2 x3 -- x3 x1 x2}
+
+The top three stack entries are rotated, moving the top entry to the
+bottom.  \fw{-rot} is the converse of \fw{rot}.
+\end{gloss}

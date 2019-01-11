@@ -1,0 +1,49 @@
+\ TBD: cross-compiling locals should work even if non-interactive system
+\ is being generated.
+forth variable #locals
+host
+
+forth : make-local \ ( c-addr u -- )
+   [host] 2dup log-name-str
+   s" (local)" add-log-string #locals [forth] @ [host] add-log-number
+   -1 push-stream			\ input string becomes input stream
+   locregion allocatefrom		\ compile into local region
+   create-target			\ local name is in target wordlist
+   #locals [forth] @ dup , 1+ [host] #locals [forth] ! [host]
+   stdregion allocatefrom  pop-stream
+   t-does>
+      #locals [forth] @ swap @ - 1-
+      to? @ if				\ if local is preceded by 'to'
+	 [host] *locstore* [forth]  0 to? ! \ compile store operation
+       else
+	 [host] *locload*		\ otherwise, compile fetch
+      then ;
+
+forth : (local)	\ ( c-addr u -- ) Create a local named by given string.
+		\ If string has zero length, the last local has been declared.
+   [host] ?dup
+   if ( last @ >r ) make-local ( r> last ! )
+   else drop #locals [forth] @ [host] ?dup if *locinit* then
+   then ;
+
+forth : free-locals \ ( -- ) Arrange for run time local variable data structure
+		\ to be freed.
+   [host] #locals [forth] @ ?dup if [host] *locfree* then ;
+
+forth : end-scope \ ( -- ) End the local variable scope.  Reclaim compile
+		\ time data structures and arrange for run time structures
+		\ to be freed.
+   [host] #locals [forth] @ if
+      locregion allocatefrom
+      locregion cell+ (forget)	( TBD)
+      stdregion allocatefrom
+      [host] free-locals
+      0 #locals [forth] !
+   then [host] ;
+
+\ TBD: does> also
+only forth  also host  also meta definitions
+forth : to	true to? ! ;
+forth : exit	free-locals [target] return [forth] ;
+forth : ;	end-scope [target] return [meta] [ [forth] ;
+hostinterp

@@ -1,0 +1,77 @@
+\ (c) 2005 Johns Hopkins University / Applied Physics Laboratory
+\ Serial device driver interface for intttyws.fr
+\ Assumes memory-mapped UART:
+\   io-mem# and uart-a# return page number and address of device
+\   extints-a# returns address of status/int clear register
+\   uart-int# returns appropriate interrupt number
+hex
+
+noheads
+
+\ ------------------------------------------------------------------------
+\ Device configuration
+
+ttystruct makestruct tty
+
+\ ------------------------------------------------------------------------
+\ Low-level UART access routines
+
+: uart!		\ ( c -- ) Write a character to UART.
+		\ Note: always called from an interrupt routine.
+   \ io-mem# set-mem			\ remote memory-mapped I/O already set
+   uart-a# far ! ;			\ load character into transmitter
+
+: uart-first!	\ ( c -- ) Write first character to UART.
+		\ Note: called both from interrupt and user level.
+   get-mem swap io-mem# set-mem		\ remote memory-mapped I/O
+   uart-a# far !			\ load character into transmitter
+   set-mem ;
+
+: uart@		\ ( -- c ) Read a character from UART.
+		\ Note: always called from an interrupt routine.
+   \ io-mem# set-mem			\ remote memory-mapped I/O already set
+   uart-a# far @ ;			\ read character from receiver
+
+: stop-transints \ ( -- ) Disable further transmit interrupts.
+   ;
+
+\ ------------------------------------------------------------------------
+\ Interrupt routines
+
+uart-int# int:	\ ( -- ) The transmit and receive interrupts share
+		\ an interrupt pin.  The transmitter ready signal goes
+		\ to an edge-detect flip-flop.
+   \ io-mem# set-mem			\ remote memory-mapped I/O already set
+   extints-a# far @ dup rx-int-msk# and	\ if receive flip-flop set
+   if
+      near drop tty tty-rcvint		\ receive character
+   else tx-int-msk# and			\ if transmit flip-flop set
+   if tx-int-msk# extints-a# !		\ reset event flip-flop
+	 0 extints-a# !
+      near tty tty-transint		\ send character
+   then then
+;int
+
+\ ------------------------------------------------------------------------
+\ Initialization
+
+every-boot:	\ ( -- )
+   ['] uart!  ['] uart-first!  ['] uart@  ['] stop-transints
+      tty tty-init
+   uart-int# get-mask unmask-int	\ enable UART interrupts
+;boot
+
+\ ------------------------------------------------------------------------
+\ High level driver interface routines
+
+heads
+
+: emit		\ ( c -- )
+   tty tty-putc ;
+
+: key		\ ( -- c )
+   tty tty-getc ;
+
+: key?		\ ( -- t/f )
+   tty tty-incount 0= not ;
+

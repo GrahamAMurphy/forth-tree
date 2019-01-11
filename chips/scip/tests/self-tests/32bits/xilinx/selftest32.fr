@@ -1,0 +1,232 @@
+\ (c) 2005 Johns Hopkins University / Applied Physics Laboratory
+\ 32-bit self test
+hex
+
+\ reset vector
+2 allot
+
+\ memory test area
+label memarea
+   8 cells allot
+
+label send
+\ UART send	\ ( x -- )
+	<lih	nopb pushp >. 10 >.		\ I/O base address
+1 l:	<@	6 +# mem16 pushp >.		\ read parallel port
+	<lis	2 +# banda >.			\ test for UART transmit ready
+	<testx	nopa Zbar popp >.
+	<?br	>. 1 back
+	<!	0 +# mem16 popp >.		\ store UART data
+	<alu	nopb popp return >.
+
+label get
+\ UART get	\ ( -- x )
+	<lih	nopb pushp >. 10 >.		\ I/O base address
+1 l:	<@	6 +# mem16 pushp >.		\ read parallel port
+	<lis	1 +# banda >.			\ test for UART receive ready
+	<testx	nopa Zbar popp >.
+	<?br	>. 1 back
+	<@	0 +# mem16 return >.		\ read UART data
+
+label loadstoretest
+here *callop* w0 forth @ host t-w!		\ patch reset vector
+\ First, store a counting pattern of bytes into memory.
+	memarea *literal*		\ initialize: address of memory buffer
+	<reg!	nopa udr popp >.
+	fc *literal*
+	<reg@	udr nopb pushp >.
+	<!	0 +# mem8 popp >.
+	<lis	1 +# bplusa >.
+	<reg@	udr nopb pushp >.
+	<!	1 +# mem8 popp >.
+	<lis	1 +# bplusa >.
+	<reg@	udr nopb pushp >.
+	<!	2 +# mem8 popp >.
+	<lis	1 +# bplusa >.
+	<reg@	udr nopb pushp >.
+	<!	3 +# mem8 popp >.
+	<lis	1 +# bplusa >.
+	<reg@	udr nopb pushp >.
+	<!	4 +# mem8 popp >.
+	<lis	1 +# bplusa >.
+	<reg@	udr nopb pushp >.
+	<!	5 +# mem8 popp >.
+	<lis	1 +# bplusa >.
+	<reg@	udr nopb pushp >.
+	<!	6 +# mem8 popp >.
+	<lis	1 +# bplusa >.
+	<reg@	udr nopb pushp >.
+	<!	7 +# mem8 popp >.
+	<reg@	udr nopb >.
+\ Now, read back sequence and verify
+	<@	0 +# mem8 pushp >.
+	<lil	aminusb >.	fc >.
+	<testx	nopa EQ popp >.
+0 l:	<?br	>.	0 back
+	<@	1 +# mem8 pushp >.
+	<lil	aminusb >.	fd >.
+	<testx	nopa EQ popp >.
+0 l:	<?br	>.	0 back
+	<@	2 +# mem8 pushp >.
+	<lil	aminusb >.	fe >.
+	<testx	nopa EQ popp >.
+0 l:	<?br	>.	0 back
+	<@	3 +# mem8 pushp >.
+	<lil	aminusb >.	ff >.
+	<testx	nopa EQ popp >.
+0 l:	<?br	>.	0 back
+	<@	4 +# mem8 pushp >.
+	<lil	aminusb >.	00 >.
+	<testx	nopa EQ popp >.
+0 l:	<?br	>.	0 back
+	<@	5 +# mem8 pushp >.
+	<lil	aminusb >.	01 >.
+	<testx	nopa EQ popp >.
+0 l:	<?br	>.	0 back
+	<@	6 +# mem8 pushp >.
+	<lil	aminusb >.	02 >.
+	<testx	nopa EQ popp >.
+0 l:	<?br	>.	0 back
+	<@	7 +# mem8 pushp >.
+	<lil	aminusb >.	03 >.
+	<testx	nopa EQ popp >.
+0 l:	<?br	>.	0 back
+	<alu	nopb popp >.		\ clean up
+
+\ Next, a sequence of 16-bit words.
+	fffc *literal*
+	<reg@	udr nopb pushp >.
+	<!	0 +# mem16 popp >.
+	<lis	1 +# bplusa >.
+	<reg@	udr nopb pushp >.
+	<!	2 +# mem16 popp >.
+	<lis	1 +# bplusa >.
+	<reg@	udr nopb pushp >.
+	<!	4 +# mem16 popp >.
+	<lis	1 +# bplusa >.
+	<reg@	udr nopb pushp >.
+	<!	6 +# mem16 popp >.
+	<lis	1 +# bplusa >.
+	<reg@	udr nopb pushp >.
+	<!	8 +# mem16 popp >.
+	<lis	1 +# bplusa >.
+	<reg@	udr nopb pushp >.
+	<!	a +# mem16 popp >.
+	<lis	1 +# bplusa >.
+	<reg@	udr nopb pushp >.
+	<!	c +# mem16 popp >.
+	<lis	1 +# bplusa >.
+	<reg@	udr nopb pushp >.
+	<!	e +# mem16 popp >.
+	<reg@	udr nopb >.
+\ Now, read back sequence and verify
+	<@	0 +# mem16 pushp >.
+	<lil	aminusb >.	fffc >.
+	<testx	nopa EQ popp >.
+0 l:	<?br	>.	0 back
+	<@	2 +# mem16 pushp >.
+	<lil	aminusb >.	fffd >.
+	<testx	nopa EQ popp >.
+0 l:	<?br	>.	0 back
+	<@	4 +# mem16 pushp >.
+	<lil	aminusb >.	fffe >.
+	<testx	nopa EQ popp >.
+0 l:	<?br	>.	0 back
+	<@	6 +# mem16 pushp >.
+	<lil	aminusb >.	ffff >.
+	<testx	nopa EQ popp >.
+0 l:	<?br	>.	0 back
+	<@	8 +# mem16 pushp >.
+	<lil	aminusb >.	0000 >.
+	<testx	nopa EQ popp >.
+0 l:	<?br	>.	0 back
+	<@	a +# mem16 pushp >.
+	<lil	aminusb >.	0001 >.
+	<testx	nopa EQ popp >.
+0 l:	<?br	>.	0 back
+	<@	c +# mem16 pushp >.
+	<lil	aminusb >.	0002 >.
+	<testx	nopa EQ popp >.
+0 l:	<?br	>.	0 back
+	<@	e +# mem16 pushp >.
+	<lil	aminusb >.	0003 >.
+	<testx	nopa EQ popp >.
+0 l:	<?br	>.	0 back
+	<alu	nopb popp >.		\ clean up
+
+\ Next, a sequence of 32-bit words.
+	fffffffc *literal*
+	<reg@	udr nopb pushp >.
+	<!	0 +# mem32 popp >.
+	<lis	1 +# bplusa >.
+	<reg@	udr nopb pushp >.
+	<!	4 +# mem32 popp >.
+	<lis	1 +# bplusa >.
+	<reg@	udr nopb pushp >.
+	<!	8 +# mem32 popp >.
+	<lis	1 +# bplusa >.
+	<reg@	udr nopb pushp >.
+	<!	c +# mem32 popp >.
+	<lis	1 +# bplusa >.
+	<reg@	udr nopb pushp >.
+	<!	10 +# mem32 popp >.
+	<lis	1 +# bplusa >.
+	<reg@	udr nopb pushp >.
+	<!	14 +# mem32 popp >.
+	<lis	1 +# bplusa >.
+	<reg@	udr nopb pushp >.
+	<!	18 +# mem32 popp >.
+	<lis	1 +# bplusa >.
+	<reg@	udr nopb pushp >.
+	<!	1c +# mem32 popp >.
+	<reg@	udr nopb >.
+\ Now, read back sequence and verify
+	<@	0 +# mem32 pushp >.
+	<lih	aminusb >.	ffff >.
+	<lil	aminusb >.	fffc >.
+	<testx	nopa EQ popp >.
+0 l:	<?br	>.	0 back
+	<@	4 +# mem32 pushp >.
+	<lih	aminusb >.	ffff >.
+	<lil	aminusb >.	fffd >.
+	<testx	nopa EQ popp >.
+0 l:	<?br	>.	0 back
+	<@	8 +# mem32 pushp >.
+	<lih	aminusb >.	ffff >.
+	<lil	aminusb >.	fffe >.
+	<testx	nopa EQ popp >.
+0 l:	<?br	>.	0 back
+	<@	c +# mem32 pushp >.
+	<lih	aminusb >.	ffff >.
+	<lil	aminusb >.	ffff >.
+	<testx	nopa EQ popp >.
+0 l:	<?br	>.	0 back
+	<@	10 +# mem32 pushp >.
+	<lih	aminusb >.	0000 >.
+	<lil	aminusb >.	0000 >.
+	<testx	nopa EQ popp >.
+0 l:	<?br	>.	0 back
+	<@	14 +# mem32 pushp >.
+	<lih	aminusb >.	0000 >.
+	<lil	aminusb >.	0001 >.
+	<testx	nopa EQ popp >.
+0 l:	<?br	>.	0 back
+	<@	18 +# mem32 pushp >.
+	<lih	aminusb >.	0000 >.
+	<lil	aminusb >.	0002 >.
+	<testx	nopa EQ popp >.
+0 l:	<?br	>.	0 back
+	<@	1c +# mem32 pushp >.
+	<lih	aminusb >.	0000 >.
+	<lil	aminusb >.	0003 >.
+	<testx	nopa EQ popp >.
+0 l:	<?br	>.	0 back
+	<alu	nopb popp >.		\ clean up
+
+label iotest
+	ab *literal*
+	send *call*				\ send test pattern: ab
+	get *call*				\ it should loop back to rcver
+	<lih	nopb pushp >. 10 >.		\ I/O base address
+	<!	2 +# mem16 popp >.		\ write test pattern: ab
+0 l:	<br	>.	0 back			\ done

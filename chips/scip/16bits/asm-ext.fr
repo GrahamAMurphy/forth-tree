@@ -1,0 +1,120 @@
+\ (c) 2004 Johns Hopkins University / Applied Physics Laboratory
+\ Microcode/instruction assembler - 16-bits
+hex
+
+\ ------------------------------------------------------------------------
+\ Instruction formats and encoding - 16 bits
+
+\ Register, opcodes, etc. only available to 16 bit processors.
+a register dpr
+0 specop nearmode
+1 specop farmode
+
+\ ------------------------------------------------------------------------
+\ Compilers - 16 bits
+
+: *callop*	\ ( xt -- x ) Return instruction that calls xt.
+   1 rshift ;
+: *call*	\ ( xt -- ) Compile call.
+   1 rshift t-, ;
+
+<lis notb pushp constant <small-lit>	\ push embedded 5 bit negative literal
+<lis nopb pushp constant <small+lit>	\ push embedded 5 bit positive literal
+<lil nopb pushp constant <lo-lit>	\ push low 16 bit literal
+
+\ TBD: there may be further optimizations here ...
+: *literal*	\ ( n -- ) Compile a literal instruction.
+   ffff and				\ limit to 16 bits
+   dup 20 u< if				\ if 0 - 31
+      <small+lit> swap +# t-,		\ compile small positive literal
+   else dup ffdf u> if			\ if 0xffe0 - 0xffff or -32 - -1
+      invert <small-lit> swap +# t-,	\ compile small negative literal
+   else					\ else, small literal
+      <lo-lit> t-, t-,			\ compile it
+   then then ;
+
+<lis aminusb constant <small-off>	\ subtract embedded 5 bit literal
+<lis bplusa constant <small+off>	\ add embedded 5 bit literal
+<lil bplusa constant <lo-off>		\ add low 16 bit literal
+
+: *offset*	\ ( n -- ) Compile a literal offset instruction.
+   ffff and				\ limit to 16 bits
+   dup 20 u< if				\ if 0 - 31
+      <small+off> swap +# t-,		\ compile small positive literal offset
+   else dup ffe0 u> if			\ if 0xffe1 - 0xffff or -31 - -1
+      negate <small-off> swap +# t-,	\ compile small negative literal offset
+   else					\ else, small literal
+      <lo-off> t-, t-,			\ compile it
+   then then ;
+
+\ TBD: this and others know too much about instruction encoding ...
+: *branch-dest-help*	\ ( src dst -- src dst-blkpatt/offset )
+   dup 3ff and 2/ >r			\ save destination offset
+   fc00 and				\ s: src dstblk
+   dup 0= if				\ if branch to page 0
+      drop 400 ( page0)			\ s: src blkpattern
+   else
+      over 2+ fc00 and			\ s: src dstblk srcblk
+      2dup <>				\ if block crossing
+      if				\ make sure not too far to branch
+	 - dup abs 400 u> if ." branch too far" then
+	 0< if 600 ( back) else 200 ( fwd) then \ select previous or next block
+      else 2drop 0			\ current block
+      then				\ s: src blkpattern
+   then
+   r> or ;				\ s: src dst-blkpatt/offset
+
+: *branch-dest*	\ ( src dst -- )
+   *branch-dest-help*
+   over t-@ f800 and or			\ assemble new instruction
+   swap t-! ;
+
+: *branch-unpack* \ ( addr -- dst ) Extract destination address from branch
+		\ branch instruction at given address.
+   dup t-@ dup 1ff and 2* >r		\ record dst offset
+   600 and				\ src dsttype
+   dup 400 = if 2drop 0
+   else
+      swap 2+ fc00 and swap		\ s: srcblk dsttype
+      2* dup 800 and if fffff000 or then \ compute 
+      +
+   then
+   r> or ;
+
+\ ------------------------------------------------------------------------
+\ Local labels for use in assembly language code
+
+\ Labels numbered 0 to 15.  First cell is address of label.  Second cell
+\ is address of branch-linked unresolved forward references.
+create labels  10 2* cells allot
+   labels 10 2* cells 0 fill
+
+: back		\ ( label# -- ) Patch previous instruction, presumably a
+		\ branch, to go to given label.
+   t-here 2-
+   swap 2* cells labels + @ *branch-dest* ;
+
+: fwd		\ ( label# -- ) Patch previous instruction, presumably a
+		\ branch, to go to previous unresolved forward branch for
+		\ given label.  Record address of the patched instruction.
+   2* cells labels + cell+ >r
+   t-here 2- dup r@ @ *branch-dest*	\ add to list
+   r> ! ;
+
+: l:		\ ( label# -- ) Resolver forward branches to this label.
+		\ Remember location for subsequent backward branches.
+   2* cells labels +
+   dup cell+ @
+   begin				\ for each unresolved forward branch
+      dup while
+      dup *branch-unpack* >r		\ extract next address
+      t-here *branch-dest* r>		\ patch branch
+   repeat
+   over cell+ !				\ empty list
+   t-here swap ! ;			\ record new label address
+
+\ ------------------------------------------------------------------------
+\ Create support
+
+<reg@	pc nopb pushp return	constant <does-default>
+<lil	nopb pushp return	constant <remote-does-default>

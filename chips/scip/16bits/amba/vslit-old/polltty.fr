@@ -1,0 +1,24 @@
+\ (c) 2005 Johns Hopkins University / Applied Physics Laboratory
+\ Polled tty interface
+hex
+
+: emit		\ ( char -- ) Send one character.  Note: sends character,
+		\ then polls until transmitter ready; this is needed because
+		\ transmitter ready is cleared on reset.
+   get-mem swap io-mem# set-mem far	\ remote memory-mapped I/O
+   uart-a# !				\ send character
+   extints-a# begin			\ poll parallel input port
+      dup @ tx-int-msk# and		\   until transmitter ready
+   until
+   drop tx-int-msk# extints-a# !	\ reset edge-detect FF
+      0 extints-a# !
+   set-mem ;
+
+: key		\ ( -- char ) Read one character.
+   get-mem io-mem# set-mem far		\ remote memory-mapped I/O
+   extints-a# begin			\ poll parallel input port
+      dup @ rx-int-msk# and		\   until receiver ready
+   until
+   drop uart-a# @			\ read character
+   dup 0d = if drop 0a then		\ map carriage return to linefeed
+   swap set-mem ;

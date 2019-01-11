@@ -1,0 +1,20 @@
+\ (c) 2002 Johns Hopkins University / Applied Physics Laboratory
+\ Monitoring table
+decimal
+
+mon extendmodule>
+
+\ Monitor table.  Monitor id indexes table with monitoring state,
+\ response macros, and monitor type or indexes table of limits.
+\ Note: knows layout of monitor-struct.
+monitors monitor-limits
+\                        macro                                  limits
+\                      low  high    type                       low  high
+\                       |    |        |                         |     |
+\                       v    v        v                         v     v
+(  0 )	swap #idle c|  0 c|  0 c| #s-mon-type c| 0 c|	swap    0 c| 255 c|
+(  1 )	swap #idle c|  0 c|  0 c| #n-mon-type c| 0 c|	swap    0 c| 255 c|
+(  2 )	swap #idle c|  0 c|  0 c| #r-mon-type c| 0 c|	swap    0 c| 255 c|
+drop							drop
+
+endmodule>

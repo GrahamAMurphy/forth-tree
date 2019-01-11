@@ -1,0 +1,64 @@
+\ (c) 2002 Johns Hopkins University / Applied Physics Laboratory
+\ Status and configuration data
+decimal
+
+module> status
+
+\ -------------------------------------------------------------------------
+\ Configuration and status databases
+
+20 constant #config/status		\ size of status
+
+\ Combined database
+create config/status
+   #config/status allot
+
+\ ------------------------------------------------------------------------
+\ * Configuration and status objects.  Each of these objects can be
+\ * modified via set; the current value is returned with get.
+
+public:
+
+\ * Software status
+config/status  0 +	mem-word:   status-int				\ *
+config/status  2 +	mem-word:   mac-free-blocks			\ *
+config/status  4 +	mem-word:   tlm-volume				\ *
+config/status  6 +	mem-word:   watch-addr				\ *
+config/status  8 +	mem-byte:   watch-mem				\ *
+config/status  9 +	mem-byte:   watch-byte1				\ *
+config/status 10 +	mem-byte:   watch-byte2				\ *
+config/status 11 +	mem-byte:   sw-version				\ *
+config/status 12 +	mem-byte:   alarm-id				\ *
+config/status 13 + 7	mem-bit:    alarm-type				\ *
+config/status 13 + 0 7	mem-field:  alarm-count				\ *
+config/status 14 +	mem-byte:   cmds-executed			\ *
+config/status 15 +	mem-byte:   cmds-rejected			\ *
+config/status 16 +	mem-byte:   macro-cmds-exec			\ *
+config/status 17 +	mem-byte:   macro-cmds-rej			\ *
+config/status 18 +	mem-byte:   macro-id				\ *
+config/status 19 + 7	mem-bit:    macro-learn				\ *
+config/status 19 + 6	mem-bit:    mon-response			\ *
+config/status 19 + 5	mem-bit:    mem-write-enb			\ *
+
+private:
+
+\ -------------------------------------------------------------------------
+\ Critical status
+
+\ TBD: stub ...
+public:
+create critical-instr			\ * instrument-specific critical status
+   0 c, 0 c, 0 c, 0 c,
+private:
+
+\ ------------------------------------------------------------------------
+\ Default values
+
+\ Most are zero; others can be set below
+config/status #config/status 0 fill
+
+\ Set individual values for non-zero defaults
+2 status-int set
+1 sw-version set
+
+endmodule>

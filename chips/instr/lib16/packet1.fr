@@ -1,0 +1,219 @@
+\ (c) 2002 Johns Hopkins University / Applied Physics Laboratory
+\ Packet interface
+hex
+
+module> packet
+
+\ ------------------------------------------------------------------------
+\ Telemetry data access control
+\ Synchronizes access to packet frame buffer and, implicitly, to
+\ preallocated frames in host module.
+
+\ Telemetry data access control semaphore
+variable tlm-sem
+	1 tlm-sem !			\ available
+
+: get-tlm	\ ( -- ) Get access to telemetry data.
+   tlm-sem wait ;
+
+: release-tlm	\ ( -- ) Release access to telemetry data.
+   tlm-sem signal ;
+
+\ ------------------------------------------------------------------------
+\ * Telemetry volume counter
+
+\ Telemetry volume in fractions of kbytes; remaining volume counter in kbytes
+\ is tlm-volume in status database.
+variable frac-volume
+
+public:
+: clear-tlm-volume \ ( -- ) Reset telemetry volume counter.
+   get-tlm
+   0 frac-volume !  0 tlm-volume set
+   release-tlm ;
+private:
+
+: cnt-tlm-volume \ ( u -- ) Add u bytes to telemetry volume counter.
+		\ Precondition: access to telemetry data
+   40 um*				\ scale to kbytes and accumulate
+   frac-volume @ tlm-volume get d+ tlm-volume set frac-volume ! ;
+
+\ ------------------------------------------------------------------------
+\ * Packet descriptor creation and manipulation
+
+\ * The user can create a packet descriptor.  The descriptor is a
+\ * repository for data about a packet, but not the packet itself.  The
+\ * descriptor is filled in, then passed to the telemetry subsystem via
+\ * send-pkt.  Since the values in the descriptor persist, it is possible
+\ * to only set those packet parameters that are different before each call
+\ * to send-pkt.
+
+structure pkt-struct			\ structure of packet descriptor
+   pkt-head-struct
+      struct: .pkt-header		\ packet's header
+	cell: .pkt-id			\ type id
+	cell: .pkt-group		\ grouping flags
+     2 cells: .pkt-src			\ first source
+	cell: .pkt-len			\  and length
+     2 cells: .pkt-src2			\ second source
+	cell: .pkt-len2			\  and length
+endstructure
+
+public:
+
+pkt-struct
+constant pkt-desc-size \ ( -- size ) Return size of a packet desciptor.  Useful
+		\ for creating a packet descriptor via makestruct.
+
+\ * These are the functions for filling in the packet's parameters.
+: time-tag-pkt	\ ( time-ls time-ms pkt -- ) Tag packet with given time.
+   .pkt-header tag-pkt-hdr ;
+
+: tag-pkt	\ ( pkt -- ) Tag packet with current time.
+   >r get-time r> time-tag-pkt ;
+
+: pkt-id!	\ ( id pkt -- ) Set id of given packet.
+   2dup .pkt-id !			\ save data id
+   .pkt-header prep-pkt-hdr ;		\ initialize packet header with data id
+
+: pkt-group!	\ ( grouping pkt -- ) Set grouping flags of this packet to
+		\ first, continuation, last, or only packet in a group.
+   .pkt-group ! ;
+
+1 d# 14 lshift constant #first-pkt	\ * Grouping flags for use with
+0 d# 14 lshift constant #cont-pkt	\ * pkt-group!.  Packets in a group
+2 d# 14 lshift constant #last-pkt	\ * may be first, continuation, or
+3 d# 14 lshift constant #none-pkt	\ * last.  Most packets are not grouped.
+
+: pkt-src!	\ ( addr page length pkt -- ) Set source and length of data
+		\ for given packet.
+   dup >r .pkt-len !
+   r> .pkt-src 2! ;
+
+: pkt-src-more!	\ ( addr page length pkt -- ) Set source and length of more
+		\ data for given packet. 
+   dup >r .pkt-len2 !
+   r> .pkt-src2 2! ;
+
+: init-pkt	\ ( addr page length id pkt -- ) Initialize packet descriptor
+		\ with given values.  The grouping flag defaults to none
+		\ and the secondary data source is empty.
+   dup >r pkt-id!			\ record id
+   r@ pkt-src!				\ record first source
+   0 0 0 r@ pkt-src-more!		\ default: no second source
+   #none-pkt r> pkt-group! ;		\ default: no grouping
+
+private:
+
+\ ------------------------------------------------------------------------
+\ * Function for sending a packet.
+
+\ An impossibe value for first header pointer.  Used to flag
+\ frames that have no packet starting within the frame.
+0 constant #nopkt
+
+\ Frame buffer for assembling packets.
+#n-out-frame makestruct frame-buffer
+variable frame-fhp			\ points to first header (or NULL)
+variable frame-scan			\ points to next free byte
+variable frame-free			\ number of free bytes remaining
+
+: empty-frame	\ ( -- ) Empty the frame buffer.
+   frame-buffer frame-scan !
+   #n-out-frame frame-free !
+   #nopkt frame-fhp ! ;
+
+: first-pkt	\ ( -- ) Check to see if this is the first packet in frame.
+   frame-fhp @ #nopkt = if		\ if this is first packet in frame
+      frame-scan @ frame-fhp !		\ then record pointer to its header
+   then ;
+
+: send-frame-buf \ ( -- ) Send locally buffered frame.
+		\ Precondition: sufficient frames preallocated.
+   frame-buffer frame-scan @ over - frame-fhp @ send-frame
+   empty-frame ;
+
+: fill-pkt	\ ( src memid len -- ) Copy data from source into packet
+		\ area of frame.
+		\ Precondition: sufficient frames preallocated.
+   get-mem >r  swap set-mem
+   begin dup while			\ while not at end of source
+      dup frame-free @ umin >r		\ copy rest of source or fill rest
+      over frame-scan @ r@ bytes-in	\  of packet, whichever is smallest
+      swap r@ + swap r@ -		\ adjust source pointer and count
+      r@ frame-scan +!			\ adjust packet pointer and count
+	 r> negate frame-free +!
+      frame-free @ 0= if		\ if frame buffer is full
+	 send-frame-buf			\ send it
+      then
+   repeat drop drop
+   r> set-mem ;
+
+: build-pkt-hdr	\ ( pkt -- ) Build packet header.
+   dup >r .pkt-len @ r@ .pkt-len2 @ +	\ payload length,
+   r@ .pkt-group @			\  grouping flags, and
+   r@ .pkt-id @				\  data id
+   r> .pkt-header init-pkt-hdr ;
+
+: start-pkt	\ ( u pkt -- ) Start a packet.  If this is the first packet
+		\ in the frame, then the first-header pointer points
+		\ to this packet.  Build packet header and update telemetry
+		\ volume counter.
+   first-pkt				\ first packet in frame?
+   build-pkt-hdr			\ build packet header
+   cnt-tlm-volume ;			\ record telemetry volume
+
+: process-pkt	\ ( pkt -- t/f ) Attempt to copy given packet into
+		\ requisite number of frames and queue for downlink.
+		\ Return false if this cannot be completed.
+   dup .pkt-len @			\ computer number of frames needed
+      over .pkt-len2 @ +		\  to hold packet data and header
+      pkt-head-struct +
+      dup #n-out-frame u/^ 1+		\ allow for worst case
+   reserve-frames if			\ if there are enough available
+      over start-pkt			\ record first header, etc.
+      dup >r				\ send header and data
+         .pkt-header get-code pkt-head-struct fill-pkt
+      r@ .pkt-src 2@ r@ .pkt-len @ fill-pkt
+      r@ .pkt-src2 2@ r> .pkt-len2 @ fill-pkt
+      true				\ return success flag
+   else					\ if no frames
+      drop drop false			\ return failure flag
+   then ;
+
+public:
+
+: send-pkt	\ ( pkt -- t/f ) Copy data described by given packet
+		\ descriptor into telemetry subsystem.  This call
+		\ never blocks.  If the call cannot be completed, e.g.
+		\ because of insufficient memory, a false flag is returned.
+   get-tlm				\ get exclusive access
+   process-pkt
+   release-tlm ;
+
+private:
+
+: flush-frame	\ ( -- ) Flush any buffered data to downlink.
+   get-tlm				\ get exclusive access
+   frame-free @ #n-out-frame <> if	\ if buffer is not empty
+      send-frame-buf			\ send it
+   then
+   release-tlm ;
+
+\ ------------------------------------------------------------------------
+\ * Back-end support
+
+public:
+: try-partial-frame \ ( -- ) Try send a partially filled frame.
+   flush-frame ;
+private:
+
+\ ------------------------------------------------------------------------
+\ * Initialization
+
+public:
+: init-packet	\ ( -- ) Initialize packet interface.
+   empty-frame ;
+private:
+
+endmodule>

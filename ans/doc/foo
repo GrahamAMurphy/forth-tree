@@ -1,0 +1,2 @@
+to momentarily override the current \fw{base} and force the interpretation
+of the following number of be in hexadecimal or decimal respectively.

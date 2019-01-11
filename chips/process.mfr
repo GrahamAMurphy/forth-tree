@@ -1,0 +1,23 @@
+\ (c) 2004 Johns Hopkins University / Applied Physics Laboratory
+\			Process Management
+hex
+
+forth : process: \ ( lsize psize rsize --- )  create process by allocating
+		\ process descriptor, return stack, parameter stack, and
+		\ local variable stack in that order.
+		\ When a process is executed, the address of its initializer
+		\ is returned.  The given sizes are in cells.
+   [host]				\ stacks and run-time pd in RAM
+   align-stack cells allot here		\ allocate stacks
+   align-stack swap cells allot here
+   rot cells allot here cell-		\ s: rsp psp lsp
+   here user-size allot			\ process return run-time descriptor
+   rom create				\ initializer in ROM
+   , , , , [meta] || [host] ] ram	\ code
+   s" process:" add-log-string ;
+
+metaextend
+forth : ;process
+   [meta] [ [host] ;
+hostinterp
+

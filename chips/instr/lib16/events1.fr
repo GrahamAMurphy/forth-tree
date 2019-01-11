@@ -1,0 +1,93 @@
+\ (c) 2011 Johns Hopkins University / Applied Physics Laboratory
+\ Events, progress and alarms
+decimal
+
+module> events
+
+\ Access semaphore, controls progress and alarm buffers
+variable event-access
+	1 event-access !		\ initially available
+
+\ ------------------------------------------------------------------------
+\ * Progress events
+
+\ Process code is saved here before being sent
+variable progress-code
+
+\ Program packet descriptor
+pkt-desc-size makestruct progress-pkt
+
+public:
+: gen-progress	\ ( id -- ) Generate a progress event packet.
+   event-access wait			\ get access to buffer
+   progress-code !			\ record code
+   progress-pkt tag-pkt			\ tag packet
+   progress-pkt send-pkt drop		\  and send it
+   event-access signal ;		\ release buffer
+private:
+
+\ ------------------------------------------------------------------------
+\ * Alarm events
+
+\ * Note: 16-bit event ID is computed from 8-bit alarm ID plus a base
+\ * value: #id-alarm-base.
+
+structure alarm-struct			\ Alarm
+	cell: .alarm-event-id		\ identifier
+	char: .alarm-flag		\ alarm flag (0=non-transient, 1=trans)
+	char: .alarm-value		\ alarm value
+	char: .alarm-limit		\ alarm limit
+   1 reserved
+endstructure
+
+\ Alarm data is assembled here before being sent
+alarm-struct makestruct alarm-buffer
+   alarm-buffer alarm-struct erase
+
+\ Alarm packet descriptor
+pkt-desc-size makestruct alarm-pkt
+
+: record-alarm	\ ( id flag -- ) Record alarm data in status.
+   alarm-type set  alarm-id set
+   alarm-count get 1+ alarm-count set ;
+
+: gen-alarm	\ ( value limit id flag -- ) Report an alarm.
+   event-access wait			\ get access to buffer
+   2dup record-alarm			\ record data in status
+   alarm-buffer .alarm-flag c!		\ record transient/persistent flag,
+   #eid-alarm-base +			\  id,
+      alarm-buffer .alarm-event-id !
+   alarm-buffer .alarm-limit c!		\  limit,
+   alarm-buffer .alarm-value c!		\  and value
+   alarm-pkt tag-pkt			\ tag packet
+   alarm-pkt send-pkt drop		\  and send it
+   event-access signal ;		\ release buffer
+
+public:
+
+\ * Report alarms:
+
+: trans-alarm	\ ( value limit id -- ) Report transient alarm given id, value,
+		\ and limit.
+   1 gen-alarm ;
+
+: persist-alarm	\ ( value limit id -- ) Report persistent alarm given id, value,
+		\ and limit
+   0 gen-alarm ;
+
+: sw-alarm	\ ( value id -- ) Report software alarm given id and value.
+   0 swap trans-alarm ;
+
+private:
+
+\ * Initialization
+
+public:
+: init-events	\ ( -- ) Initialize event packet interface.
+   progress-code get-code cell		\ data is in variable
+      #progress-pkt progress-pkt init-pkt
+   alarm-buffer get-code alarm-struct	\ data is in alarm buffer
+      #alarm-pkt alarm-pkt init-pkt ;
+private:
+
+endmodule>

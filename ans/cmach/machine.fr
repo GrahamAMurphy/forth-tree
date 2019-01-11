@@ -1,0 +1,9 @@
+\ (c) 1992 Johns Hopkins University / Applied Physics Laboratory
+\ machine specific
+hex
+
+~ : compileprim	\ ( -- ) copies a code field.
+     r> dup @ @ , cell+ >r ;
+
+~ : does
+   r> latest name> cell+ ! ;

@@ -1,0 +1,19 @@
+\ (c) 2003 Johns Hopkins University / Applied Physics Laboratory
+\ NH/Pluto LORRI and PEPSSI EPU boot ROM startup
+hex
+
+\ ------------------------------------------------------------------------
+\ Main
+
+: init-common	\ ( -- ) Initialize common/shared modules.
+   enable				\ enable interrupts
+;
+
+: go		\ ( -- )
+   init-common				\ initialize common code
+   key drop				\ wait for login
+   begin				\ run keyboard monitor
+      eeprom-prog-addr eeprom-prog-mem#	\ find a program to run
+	 interboot
+      disable set-code execute enable	\ run program; resume if program returns
+   again ;

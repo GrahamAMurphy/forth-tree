@@ -1,0 +1,5 @@
+
+       setbit                           define 0002 
+       iotest                           define 000c 
+       done                             define 0048 
+here = 4c 

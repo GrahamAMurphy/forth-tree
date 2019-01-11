@@ -1,0 +1,20 @@
+\ (c) 1992 Johns Hopkins University / Applied Physics Laboratory
+\ TBD: this implementation uses one return stack entry per
+\ item in list; this uses precious RTX stack.  But the code is
+\ smaller than call at end on RTX; it is a wash on FRISC.
+hex
+
+\ [ifdef] ramobject	\ next-boot unavailable in ROM-based systems
+\ Assume initialized RAM, even for ROM system.
+forth : next-boot:
+   [meta] || [host] t-here dup log-anon NEXT-BOOT @ *call* NEXT-BOOT ! ]
+   s" next-boot:" add-log-string ;
+\ [then]
+forth : every-boot:
+   [meta] || [host] t-here dup log-anon EVERY-BOOT @ *call* EVERY-BOOT ! ]
+   s" every-boot:" add-log-string ;
+
+metaextend
+forth : ;boot
+   [target] return [meta] [ [forth] ;
+hostinterp

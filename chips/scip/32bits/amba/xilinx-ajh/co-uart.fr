@@ -1,0 +1,66 @@
+\ (c) 2007 Johns Hopkins University / Applied Physics Laboratory
+\ Serial device driver interface for intttyws.fr
+\ Assumes AMBA APB UART:
+\   co-uart-a# returns address of device
+\   co-uart-tx-int# and co-uart-rx-int# return appropriate interrupt numbers
+hex
+
+noheads
+
+\ ------------------------------------------------------------------------
+\ Device configuration
+
+ttystruct makestruct co-tty
+
+\ ------------------------------------------------------------------------
+\ Low-level UART access routines
+
+: co-uart!	\ ( c -- ) Write a character to UART.
+		\ Note: always called from an interrupt routine.
+   co-uart-a# w! ;			\ load character into transmitter
+
+: co-uart-first! \ ( c -- ) Write first character to UART.
+		\ Note: called both from interrupt and user level.
+   co-uart-a# w! ;			\ load character into transmitter
+
+: co-uart@	\ ( -- c ) Read a character from UART.
+		\ Note: always called from an interrupt routine.
+   co-uart-a# w@ ;			\ read character from receiver
+
+: stop-co-trans	\ ( -- ) Disable further transmit interrupts.
+   ;
+
+\ ------------------------------------------------------------------------
+\ Interrupt routines
+
+co-uart-tx-int# int: \ ( -- ) Transmit interrupt.  Hardware is configured as
+		\ edge-triggered interrupt.  Reading the vector clears
+		\ the FF automatically and prevents further interrupts if
+		\ there is no more data to transmit.
+   co-tty tty-transint ;int
+
+co-uart-rx-int# int: \ ( -- ) Receive interrupt.  Hardware is configured as
+		\ level-triggered interrupt.  Reading the character from
+		\ the UART clears the interrupt automatically.
+   co-tty tty-rcvrawint ;int		\ use raw interface
+
+\ ------------------------------------------------------------------------
+\ Initialization
+
+every-boot:	\ ( -- )
+   ['] co-uart!  ['] co-uart-first!  ['] co-uart@  ['] stop-co-trans
+      co-tty tty-init
+   co-uart-tx-int# get-mask		\ enable UART interrupts
+   co-uart-rx-int# get-mask or unmask-int
+;boot
+
+\ ------------------------------------------------------------------------
+\ High level driver interface routines
+
+heads
+
+: >co		\ ( c -- )
+   co-tty tty-putc ;
+
+: co>		\ ( -- c )
+   co-tty tty-getc ;

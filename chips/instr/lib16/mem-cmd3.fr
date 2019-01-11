@@ -1,0 +1,185 @@
+\ (c) 2010 Johns Hopkins University / Applied Physics Laboratory
+\ Memory commands
+decimal
+
+module> memory
+
+\ ------------------------------------------------------------------------
+\ Helpers
+
+: address&length \ ( -- addr mem len ) Return the 32-bit address and
+		\ 16-bit length in the current command.  Assumes a common
+		\ argument layout.
+   arg5 arg4 join arg3 arg2 join
+   9 th-arg 8 th-arg join ;
+
+\ -------------------------------------------------------------------------
+\ Command - checksum
+
+\ Structure of checksum packet
+structure checksum-pkt-struct
+        cell reserved
+     2 cells: .sum-src			\ source of data checked
+        cell reserved
+	cell: .sum-len			\  and its length
+	cell: .sum-checksum		\ checksum of indicated memory
+endstructure
+
+\ Checksum packet buffer
+checksum-pkt-struct makestruct checksum-buffer
+   checksum-buffer checksum-pkt-struct erase
+
+\ Checksum packet descriptor
+pkt-desc-size makestruct checksum-pkt
+
+: c-mem-check	\ ( -- ) Compute checksum of identified memory region,
+		\ package results, and send them.
+   address&length			\ source and length of region to check
+   >r 2dup checksum-buffer .sum-src 2!	\ record source and length in buffer
+   r@ checksum-buffer .sum-len !
+   r> cell u/^ checksum			\ compute checksum, round length
+      checksum-buffer .sum-checksum !	\   up to number of cells
+   checksum-pkt tag-pkt			\ tag packet
+   checksum-pkt send-pkt drop ;		\  and send it
+
+\ -------------------------------------------------------------------------
+\ Command - copy
+
+: c-mem-copy	\ ( -- ) Copy memory.
+   mem-write-enb get if			\ if write enable
+      arg3 arg2 join arg1 arg0 join	\ source
+      arg7 arg6 join arg5 arg4 join	\ destination
+      9 th-arg 8 th-arg join copy	\ length; copy data
+   else					\ otherwise,
+      #mem-write-cmd cmd-error		\ reject command
+   then ;
+
+\ -------------------------------------------------------------------------
+\ Command - load
+
+: load-mem	\ ( src dst mem len -- ) Copy memory from source to remote
+		\ destination.
+   get-mem >r swap set-mem
+   bytes-out
+   r> set-mem ;
+
+: c-mem-load	\ ( -- ) Load memory.
+   mem-write-enb get if			\ if write enable
+      args drop 10 +			\ load memory
+	 address&length load-mem
+   else					\ otherwise,
+      #mem-write-cmd cmd-error		\ reject command
+   then ;
+
+\ -------------------------------------------------------------------------
+\ Command - read
+
+: c-mem-read	\ ( -- ) Start a memory dump
+   address&length start-dump ;
+
+\ -------------------------------------------------------------------------
+\ Command - read abort
+\ Read abort
+
+: c-mem-read-abrt \ ( -- ) Abort current memory dump.
+   abort-dump ;
+
+\ -------------------------------------------------------------------------
+\ Command - run
+
+: c-mem-run	\ ( -- ) Run a program.  The program is run in the context
+		\ of the command handler; therefore, it must either be very
+		\ brief or completely take over.
+   disable				\ disable interrupts
+   arg3 arg2 join arg1 arg0 join	\ call the given page, address
+      far-execute
+   enable ;				\ re-enable interrupts if return
+
+\ ------------------------------------------------------------------------
+\ Commands - data structure load and dump
+
+\ Structure of structure load and dump vector table
+structure struct-load-struct
+     2 cells: .str-src			\ data structure source
+	cell: .str-len			\  and length
+	cell: .str-id			\ data id to use in structure dump
+endstructure
+
+\ Table of parameters for loading and dumping data structures
+struct-load-struct #struct * makestruct data-structures
+
+\ Data structure packet buffer
+pkt-desc-size makestruct structure-pkt
+
+: c-mem-str-load \ ( -- ) Modify selected data element in a data structure.
+   arg0 #struct u< if			\ if legal data structure id
+      arg0 struct-load-struct *		\ locate data structure parameters
+	 data-structures + >r
+      arg3 arg2 join			\ offset
+      dup r@ .str-len @ u<		\ if load is within data structure
+      over arg1 + r@ .str-len @ u<= and if
+	 args drop 4 +			\ load data from command into memory
+	    swap 0 r> .str-src 2@ d+ arg1 load-mem
+      else
+	 rdrop drop #badarg-cmd cmd-error
+      then
+   else
+      #badarg-cmd cmd-error
+   then ;
+
+: c-mem-str-read \ ( -- ) Downlink selected data structure.
+   arg0 #struct u< if			\ if legal data structure id
+      arg0 struct-load-struct *		\ locate data structure parameters
+	 data-structures +		\  and fill in packet descriptor
+      dup >r .str-src 2@		\ fill in packet descriptor
+	 r@  .str-len @
+	 r>  .str-id @ structure-pkt init-pkt
+      structure-pkt tag-pkt		\ tag and telemeter packet
+      structure-pkt send-pkt drop
+   else
+      #badarg-cmd cmd-error
+   then ;
+
+public:
+
+: register-struct \ ( addr mem len dataid id -- ) Record parameters of
+		\ data structures, its location, size, dump data id, and load
+		\ width, for use by load and dump functions.
+   struct-load-struct * data-structures + >r
+   r@ .str-id !
+   r@ .str-len !
+   r> .str-src 2! ;
+
+private:
+
+\ -------------------------------------------------------------------------
+\ Command - write enable/disable
+
+: c-mem-write	\ ( -- ) Enable/disable memory write.  Affects copy and load
+		\ commands.
+   arg0 mem-write-enb set ;
+
+\ ------------------------------------------------------------------------
+\ Initialization
+
+public:
+
+: init-memory	\ ( -- ) Initialize memory module.
+	\ initialize checksum packet
+   checksum-buffer get-code checksum-pkt-struct
+      #checksum-pkt checksum-pkt init-pkt
+	\ register commands
+   ['] c-mem-check	#mem-check	 10 register-cmd/args
+   ['] c-mem-copy	#mem-copy	 10 register-cmd/args
+   ['] c-mem-load	#mem-load	    register-cmd
+   ['] c-mem-read	#mem-read	 10 register-cmd/args
+   ['] c-mem-read-abrt	#mem-read-abrt	  0 register-cmd/args
+   ['] c-mem-run	#mem-run	  4 register-cmd/args
+   ['] c-mem-str-load	#mem-str-load	    register-cmd
+   ['] c-mem-str-read	#mem-str-read	  1 register-cmd/args
+   ['] c-mem-write	#mem-write	  1 register-cmd/args
+;
+
+private:
+
+endmodule>

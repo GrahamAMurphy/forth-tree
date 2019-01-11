@@ -1,0 +1,16 @@
+\ (c) 1994 Johns Hopkins University / Applied Physics Laboratory
+\ Promote useful constants to defines so cross-compiled code can use them.
+hex
+
+t-namesize	define namesize
+t-nf-size	define nf-size
+t-wid-step	define wid-step
+t-prec-bit	define prec-bit
+t-smudge-bit	define smudge-bit
+t-inline-bit	define inline-bit
+t-char-mask	define char-mask
+t-chars/dump	define chars/dump
+
+<does-default>		define <does-default>
+<remote-does-default>	define <remote-does-default>
+

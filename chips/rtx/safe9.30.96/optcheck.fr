@@ -1,0 +1,146 @@
+\ (c) 1993 Johns Hopkins University / Applied Physics Laboratory
+\ kludges: should be improved, added to opt.fr
+hex
+
+: non-tnop?	\ ( wildindex -- t/f ) Return true if indicated wildcard
+		\ match is ALU op 0 or 1 (T-nop or T-inverse).
+   wildcard-match 8 rshift 2 0 within ;	\ kludge
+
+: non-nop?	\ ( wildindex -- t/f ) Return true if indicated wildcard
+		\ match is not ALU op 0 or 1 (T-nop or T-inverse) or op e or f
+		\ ( Y-nop or Y-inverse).
+   wildcard-match 8 rshift 2 e within ;		\ kludge
+
+create swappable
+   e , f , 2 , 3 , c , d , 6 , 7 , 8 , 9 , a , b , 4 , 5 , 0 , 1 ,
+: swappable?	\ ( wildindex -- t/f ) Return true if indicated wildcard
+		\ match is swappable ALU instruction.  As a side effect,
+		\ it swaps the match.
+   cells wildcard-matches + dup @
+   8 rshift cells swappable + @ 8 lshift
+   swap ! true ;
+
+: foldable?	\ ( wildindex1 wildindex2 -- t/f ) Returns true if
+		\ indicated wildcards are the same ALU operation and
+		\ can be folded together.
+   wildcard-match swap wildcard-match over =
+   if					\ if operations match
+      8 rshift sel
+         << 2 ==> true exit >>		\ and,
+         << 4 ==> true exit >>		\ -,
+         << 6 ==> true exit >>		\ or,
+         << 8 ==> true exit >>		\ +,
+         << a ==> true exit >>		\ xor are foldable
+      endsel false
+   else drop false
+   then ;
+
+: lit-op-folds?	\ ( dstindex srcindex opindex -- t/f ) Returns true.
+		\ opindex indicates the ALU operation to done;
+		\ it is assumed to be suitable for folding.
+		\ The folded data is placed in the wildcard indexed
+		\ by dstindex.
+   wildcard-match 8 rshift		\ opcode
+   sel
+      << 2 ==> wildcard-match >r	\ and
+		cells wildcard-matches + dup @ r> and >>
+      << 4 ==> wildcard-match >r	\ -
+		cells wildcard-matches + dup @ r> + >>
+      << 6 ==> wildcard-match >r	\ or
+		cells wildcard-matches + dup @ r> or >>
+      << 8 ==> wildcard-match >r	\ +
+		cells wildcard-matches + dup @ r> + >>
+      << a ==> wildcard-match >r	\ xor
+		cells wildcard-matches + dup @ r> xor >>
+   endsel
+   ffff and swap !  true ;
+
+: lit-op-melds?	\ ( dstindex srcindex opindex -- t/f ) Returns true if
+		\ the ALU operation indicated by opindex can be
+		\ done at compile time.  If so, the resultant data
+		\ is in the wildcard indexed by dstindex.
+   wildcard-match 8 rshift		\ opcode
+   sel
+      << 2 ==> wildcard-match >r	\ and
+		cells wildcard-matches + dup @ r> and >>
+      << 4 ==> wildcard-match >r	\ -
+		cells wildcard-matches + dup @ r> - >>
+      << 6 ==> wildcard-match >r	\ or
+		cells wildcard-matches + dup @ r> or >>
+      << 8 ==> wildcard-match >r	\ +
+		cells wildcard-matches + dup @ r> + >>
+      << a ==> wildcard-match >r	\ xor
+		cells wildcard-matches + dup @ r> xor >>
+      drop 2drop false exit		\ inappropriate ALU op
+   endsel
+   ffff and swap !  true ;
+
+: 2*?		\ ( wildindex -- true ) Do '2*' at compile-time.  Return true.
+   cells wildcard-matches + dup @ 2* swap !
+   true ;
+
+: is-short?	\ ( wildindex -- t/f ) Return true if indicated wildcard
+		\ is 5-bit positive number.
+   wildcard-match 20 u< ;
+
+: is-short-i?	\ ( wildindex -- t/f ) Return true if indicated wildcard
+		\ is 5-bit negative number.
+   wildcard-match invert ffff and 20 u< ;
+
+: inverts?	\ ( wildindex -- t ) Invert 'inversion' bit.  Return true.
+   cells wildcard-matches + dup @ if 0 else 0100 then swap !
+   true ;
+
+: lit-inverts?	\ ( wildindex -- t ) Invert short or long literal.  Return true.
+   cells wildcard-matches + dup @ invert swap !
+   true ;
+
+: invert-fold?	\ ( srcindex shortindex -- t ) If inversion bit of instruction
+		\ is set, do inversion at compile time. Return true.
+   swap wildcard-match if		\ if inversion bit of instruction set
+      lit-inverts?			\ invert data
+   else drop true
+   then ;
+
+: non-flow?	\ ( wildindex -- t/f ) Return true if indicated wildcard
+		\ is neither a call nor a branch.
+   wildcard-match c rshift 9 u> ;
+
+: not-longlit?	\ ( wildindex -- t/f ) Return true if indicated wildcard
+		\ is not a long literal instruction.
+   wildcard-match d000 <> ;
+
+: g-form?	\ ( wildindex1 wildindex2 -- t/f ) Return true if wildcard1
+		\ (class) and wildcard2 (subclass) indicate that the
+		\ instruction is G-bus access.
+   >r wildcard-match b000 =		\ G-bus or literal
+   r> wildcard-match 40 and 0= and ;	\ subclass is 0 or 2
+
+: dup-g!-ok?	\ ( wildindex -- t/f ) Return true if wildcard indicates
+		\ that G-register store can be combined with dup.  Avoids
+		\ special "Predefined ASIC Bus Instructions"
+   wildcard-match dup 16 =		\ the illegal registers are mlr (16)
+   over 17 = or				\  mhr (17)
+   over 12 = or				\  mxr (12)
+   over 0d = or				\  dpr (0d)
+   swap 10 = or not ;			\  ibc (10)
+   
+: non-raccess?	\ ( wildindex -- t/f ) Return true if wildcard indicates that
+		\ register other than on return stack is being accessed.
+   wildcard-match 2 u> ;
+
+: nearby?	\ ( wildindex -- t/f )
+   cells wildcard-matches + >r
+   t-here t-cell-			\ hack: branch address will replace call
+   r@ @ 2*				\ s: src call's-dest
+   fc00 and swap fc00 and		\ s: dstblk srcblk
+   over if				\ if destination not block zero
+      - -400 401 within			\ check for prev, curr, or next block
+   else					\ block zero is always reachable
+      2drop true
+   then
+   dup if 
+      t-here t-cell- t-cell-		\ hack: branch address will replace call
+      r@ @ 2* *branch-dest-help*	\ compute dest in branch format
+      r@ ! drop
+   then rdrop ;

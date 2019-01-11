@@ -1,0 +1,135 @@
+\ (c) 2004 Johns Hopkins University / Applied Physics Laboratory
+hex
+
+\ Promote instruction templates for use by compiler
+	<small-lit>	define <small-lit>
+	<small+lit>	define <small+lit>
+	<hi-lit>	define <hi-lit>
+	<lo-lit>	define <lo-lit>
+	<lo-off>	define <lo-off>
+	<small-off>	define <small-off>
+	<small+off>	define <small+off>
+	<hi-off>	define <hi-off>
+
+: w,	here w! 2 allot ;		\ ( w --- ) add to dictionary
+
+nohead
+: *inline*	\ ( cfa --- ) copy the routine indicated by cfa inline.
+ ['] return				\ cfa return-cfa
+ 2dup =
+ if drop w@ w,				\ if return, compile return opcode
+ else w@ swap				\ return-code cfa
+    begin
+      2dup w@ <> while			\ while not return instruction
+      dup w@ w, 2 +
+ repeat 2drop
+ then ;
+
+nohead
+: *callop*	\ ( xt -- x ) Return instruction that calls xt.  Return
+		\ long form.
+   1 rshift 80000000 or ;
+: compile,	\ ( xt -- ) Compile call.  Use shortest form possible.
+   dup ffff0000 and			\ if page of destination
+   [ w0 forth @ host ffff0000 and ]	\   is base page
+   literal = if
+      ffff and 1 rshift w,		\ use short call
+   else					\ otherwise, must
+      *callop* ,			\   use long call
+   then ;
+
+nohead
+: *code*	\ ( cfa --- ) if code pointed to by cfa is to be brought
+		\ in line, copy it into the dictionary.  Otherwise, compile
+		\ the cfa.
+ dup >name c@ 80 and			\ inline?
+ if *inline*
+ else compile,				\ otherwise, call it
+ then ;
+
+metaextend
+forth : postpone
+ [forth] bl word count ['] target >body @ search-wordlist
+ if >body dup @ swap cell+ @
+    sel 
+      << callable	    ==> [meta] literal [target] compile, [forth] >>
+      << inline-from-target ==> [meta] literal [target] *inline* [forth] >>
+      << inline-from-host   ==> drop
+				s" can't postpone" cross-error >>
+      << immediate-target   ==> [host] *call* >>
+    endsel
+ else [forth] s" ?" cross-error
+ then ;
+hostinterp
+
+nohead
+: *literal*	\ ( n -- ) Compile a literal instruction.
+   dup 20 u< if				\ if 0 - 31
+      4 lshift <small+lit> or w,	\ compile small positive literal
+   else dup ffffffdf u> if		\ if 0xffffffe0 - 0xffffffff or -32 - -1
+      invert 4 lshift <small-lit> or w,	\ compile small negative literal
+   else dup ffff u> if			\ if big literal
+      dup -10 rotate ffff and		\ get bit part of literal
+      <hi-lit> or ,			\ get lah instruction
+      ffff and ?dup if			\ if low part is non-zero
+         <lo-off> or ,			\ add it in
+      then
+   else					\ else, small literal
+      <lo-lit> or ,			\ compile it
+   then then then ;
+
+nohead
+: *offset*	\ ( n -- ) Compile a literal offset instruction.
+   dup 20 u< if				\ if 0 - 31
+      4 lshift <small+off> or w,	\ compile small positive literal offset
+   else dup ffffffe0 u> if		\ if 0xffffffe1 - 0xffffffff or -31 - -1
+      negate 4 lshift <small-off> or w,	\ compile small negative literal offset
+   else dup ffff u> if			\ if big offset
+      dup -10 rotate ffff and		\ get bit part of literal
+      <hi-off> or ,			\ add it in
+      ffff and ?dup if			\ if low part is non-zero
+         <lo-off> or ,			\ add it in
+      then
+   else					\ else, small literal
+      <lo-off> or ,			\ compile it
+   then then then ;
+
+noheads	\ this stuff is only used by the compiler
+: *branch-dest*	\ ( src dst -- )
+   dup 3ff and 2/ >r			\ save destination offset
+   fffffc00 and				\ s: src dstblk
+   dup 0= if				\ if branch to page 0
+      drop 400 ( page0)			\ s: src blkpattern
+   else
+      over 2 + fffffc00 and		\ s: src dstblk srcblk
+      2dup <>				\ if block crossing
+      if				\ make sure not too far to branch
+	 - dup abs 400 u> if ." branch too far" then
+	 0< if 600 ( back) else 200 ( fwd) then \ select previous or next block
+      else 2drop 0			\ current block
+      then				\ s: src blkpattern
+   then
+   r> or				\ s: src dst-blkpatt/offset
+   over w@ f800 and or			\ assemble new instruction
+   swap w! ;
+
+: *branch-unpack* \ ( src -- dst ) Extract branch destination address from
+		\ a branch instruction.
+   dup w@ dup 1ff and 2* >r		\ record dst offset
+   600 and				\ src dsttype
+   dup 400 = if 2drop 0
+   else
+      swap 2 + fffffc00 and swap	\ s: srcblk dsttype
+      2* dup 800 and if fffff000 or then \ compute 
+      +
+   then
+   r> or ;
+
+\ does> support
+: does-parent
+   r> *callop* latest name> ! ;
+
+: does-child
+   r> || ; inline-keepbody
+
+heads

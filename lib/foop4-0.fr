@@ -1,0 +1,149 @@
+\ (c) 1991 Johns Hopkins University / Applied Physics Laboratory
+\ Object Oriented Programming System, Version 4
+\ Bugs and limitations:
+\	1. Class variables may not be changed at run time.
+\	2. Something is wrong with super (when used before --methods--).
+\	3. Use of current-class is a kludge.
+\	4. Setting a class variable at class construction time
+\	   requires different syntax than at run-time.
+\	5. Applying method: or set-slot: to a slot name that doesn't
+\	   exist causes Sun-Forth to crash.
+hex
+
+\ Structure of class object
+structure class-structure
+   cell: .parent			\ pointer to parent class
+   cell: .vocab				\ cfa of local vocabulary
+   cell: .size				\ size (in aus) of instance region
+   cell: .slots				\ number of slots in remainder of class
+\ from this point on, are slots containing class variables and method vectors
+endstructure
+
+\ Useful tool: fill memory with zeros.
+: erase ( addr len -- ) 0 fill ;
+
+\ Storage Allocator, first pass
+: new		\ ( class -- object ) Allocate an object of type class.
+   here >r dup .size @ cell+ allot	\ allot object + class pointer
+   r@ ! r> ;				\ init class pointer
+
+\ Run-time Object Management
+variable current-object
+
+: self		\ ( -- object ) Copy top of object stack to parameter stack.
+   current-object @ ;
+: self+		\ ( offset -- object+offset ) Index instance variable.
+   current-object @ + ;
+
+\ Define messages accepted by a particular class hierarchy.
+create scratch-class  class-structure allot
+variable global-wid			\ wordlist id for global scope
+
+: slot:		\ ( -- ) 
+   scratch-class .slots @		\ number of slots allocated so far
+   dup 1+ scratch-class .slots !	\ increment number of slots
+   create cells class-structure + ,	\ name offset into class structure
+   does> @ self @ + @ ;			\ return value of slot
+
+: does-msg	\ ( object addr[n] -- ) Call method n for given object.
+   does>
+      current-object @ >r		\ save current object
+      @ >r  dup current-object !	\ set new current object
+      @ r> + @ execute			\ fetch vector from class and execute
+      r> current-object ! ;		\ restore original 'current' object
+
+: msg:		\ ( -- ) Define a method slot for current class.
+   get-current global-wid @ set-current	\ messages names are global
+   slot: does-msg set-current ;
+
+\ Define class hierarchy constructors.
+variable current-class			\ class being defined
+
+: fetches
+   create does> @ ;
+
+: push-vocabs	\ ( <order> class -- <order>' ) Add any parent
+		\ wordlists to the search order on the stack then add
+		\ the wordlist belonging to the given class.
+   ?dup if dup >r .parent @ recurse r> .vocab @ swap 1+ then ;
+
+: class:	\ ( -- ) Define a class; the class data structure is not
+		\ actually allocated. Instead, a scratch data structure
+		\ is filled in.  The actual data structure is allocated
+		\ by --methods--.
+   get-current global-wid !		\ remember global definitions word list
+   wordlist scratch-class .vocab !	\ create wordlist for this class
+   fetches here current-class !		\ create class object (forward refer)
+      0 ,				\ filled in by --methods--
+   get-order scratch-class push-vocabs
+      over set-current set-order	\ defs in new wordlist
+   ;
+
+: class>	\ ( -- ) Create a new class hiearchy.
+   scratch-class class-structure erase	\ initialize scratch class structure
+   class: ;
+
+: sub-class>	\ ( class -- ) Create a subclass of the given class.
+		\ The subclass inherits the parents' methods and instance
+		\ variables.
+   dup scratch-class class-structure move \ initialize scratch from parent
+   scratch-class .parent !		\ remember parent
+   class: ;
+
+: default-method \ ( -- ) This is executed if an object receives a
+		\ message for which there is no defined method.
+   ." method undefined" abort ;
+
+: --methods--	\ ( -- ) Allocate actual class structure inheriting
+		\ (copying) slots from parent class.
+   here dup current-class @ !		\ resolve forward reference
+   class-structure allot		\ allocate class data structure
+   scratch-class swap class-structure move \ and fill in header
+   here scratch-class .slots @
+      0 do ['] default-method , loop	\ and fill in method vectors w/ default
+   scratch-class .parent @
+   ?dup if
+      dup >r class-structure + swap
+      r> .slots @ cells move		\ inherit any method vectors from parent
+   else drop
+   then ;
+
+: end>		\ ( -- ) Complete class definition by restoring search order.
+   get-order current-class @ @ begin >r nip 1- r> .parent @ dup 0= until
+   drop over set-current set-order ;
+
+\ Local variables
+variable to?
+: to       1 to? ! ; immediate
+: addr-of  2 to? ! ; immediate
+: local:	\ ( -- ) Create an instance variable for current class.
+   create scratch-class .size @ dup , cell+ scratch-class .size ! immediate
+   does>	\ ( addr[offset] -- ) Compile fetch of store of instance.
+      @ cell+ postpone literal postpone self+
+      to? @ sel
+	 << 0 ==> postpone @ >>
+	 << 1 ==> postpone !  0 to? ! >>
+	 << 2 ==> 0 to? ! >>
+      endsel ;
+
+\ Methods
+: get-body	\ ( -- x ) Look up the next word in the input stream,
+		\ and extract its body.  It must have been 'create'd.
+   bl word find 0= abort" unknown message"
+   >body @ ;
+
+: super		\ ( -- ) Convert the next message to the self object
+		\ into a subroutine call.
+   current-class @ @ @ ' >body @ + @ compile, ; immediate
+
+: method:	\ ( -- addr[slot] xt colon-sys ) Define a method to
+		\ correspond with message indicated in input stream.
+   get-body current-class @ @ + :noname ;
+
+: ;method	\ ( addr[slot] xt colon-sys -- ) Complete compilation
+		\ of method.
+   postpone ; swap ! ; immediate
+
+: set-slot:	\ ( value -- ) Assign a value to a class variable
+		\ at class construction time.
+   get-body current-class @ @ + ! ;

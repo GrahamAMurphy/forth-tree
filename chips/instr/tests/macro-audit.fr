@@ -1,0 +1,23 @@
+\ (c) 2003 Johns Hopkins University / Applied Physics Laboratory
+\ Audit macro block usage
+decimal
+
+: mac-count-blocks \ ( addr -- u ) Counter number of blocks in given list.
+   get-mem >r macro-mem# set-mem	\ blocks in remote memory
+   0 swap begin				\ loop over list s: count addr
+      ?dup while			\ while not at end of list
+      swap 1+ swap far@			\ count; step to next block
+   repeat 
+   r> set-mem ;
+
+: mac-blocks-used \ ( -- u ) Counter number of blocks in use.
+   0 #macros 0 do			\ for each possible macro
+      i cells macros + @		\ get macro's block list
+      mac-count-blocks +		\ count blocks and accumulate
+   loop ;
+
+: mac-audit	\ ( -- ) Print report of macro block usage.
+   cr mac-blocks-used dup u. ." blocks used"
+   cr mac-free-list .head @ mac-count-blocks dup u. ." blocks actually free ("
+      mac-free-blocks get u. ." blocks reported free)"
+   cr + u. ." blocks out of " #macro-blocks u. ." accounted for" ;

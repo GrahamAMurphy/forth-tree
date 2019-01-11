@@ -1,0 +1,12 @@
+\ Load utilities
+" struct.fr" used
+" onlyalso.fr" used
+" condcomp.fr" used
+
+\ First, load the metacompiler
+" model.fr" ftload			\ Rtx target model
+" opt.fr" ftload			\ peephole optimizer
+" optcheck.fr" ftload			\ constraints for rules
+" meta1.fr" ftload			\ metacompiler part 1
+" metaasm.fr" ftload			\ metaassembler
+" rules.fr" ftload			\ rules for optimizer

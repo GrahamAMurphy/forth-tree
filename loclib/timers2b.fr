@@ -1,0 +1,17 @@
+\ (c) 1997 Johns Hopkins University / Applied Physics Laboratory
+\	Timer management utilities
+hex
+
+: timer		\ ( -- )   create a timer.  when the timer is executed it
+		\ returns it's semaphore address, NOT the waiter address
+   create waiter allot
+   does> .value ;
+
+: do:		\ ( -- addr xt syscolon )   create a doer with a
+		\ built-in piece of code
+   create
+   here waiter allot
+   :noname ;				\ start a colon definition
+
+: ;do		\ ( addr xt syscolon -- ) finish doer.
+   postpone ; swap .value ! ; immediate

@@ -1,0 +1,52 @@
+\ Compile RTX Forth
+
+\ "~john/forth/chips/compile.sh msi" executes this script and creates
+\ dpumsi.int, which can be directly loaded from GSEOS to the msi over
+\ the 1553 bus.
+
+" target.fr" used			\ cross compiler support words
+" rtx/dpu/msi" is-target		\ cross compile for NEAR MSI DPU
+
+\ Configure crosscompiler
+hex
+0000 set-ram				\ ram-based system
+def interactive
+def multitasking			\ include multitasker
+" msimap" is-logfile
+
+\ RTX/DPU specific configuration
+def rtx2010				\ expoit 2010 specific features
+20 define substack-size			\ stack size: see ../chpparam.fr
+
+\ Load the kernel
+" kernel1.fr" ftload			\ primitives and extend crosscompiler
+
+\ Load low-level tty code
+" brdparam.fr" ftload			\ useful addresses and defines
+" devices/intttyws.fr" ftload		\ tty interface
+" wart.fr" ftload			\ DPU wart specfic pieces of tty driver
+
+\ Load rest of kernel and multitasker and interpreter if desired
+" kernel2.fr" ftload			\ interpreter?, multitasker?
+
+\ DPU specific
+\ " lib/far.fr" ftload			\ far memory utilities
+\ " eeproms.fr" ftload			\ EEPROM save and restore
+" null.fr" ftload			\ multitasking extension
+" dpuinit.fr" ftload			\ initialize registers, etc.
+
+\ Load initialization stuff
+" startup.fr" ftload			\ start up
+' doforth is-startup			\ run Forth interpreter
+
+\ Note: this program is started from the boot ROM; the boot ROM initializes
+\ some things, which the new program can inherit.
+
+report
+" dpumsi" saveobj
+
+cr .( stack depth = ) depth . cr
+   .( REBOOT = ) ' REBOOT u.  cr
+
+decimal >log rulestats !>log
+

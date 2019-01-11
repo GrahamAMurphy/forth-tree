@@ -1,0 +1,24 @@
+\ (c) 1995 Johns Hopkins University / Applied Physics Laboratory
+\ Cross-compilation of bit fields in memory (see bits.fr).
+hex
+
+forth : bit:	\ ( bit# -- ) ( -- mask ) Define a single bit position.
+   [host] 1 swap lshift constant
+   s" bit:" add-log-string ;
+
+forth : field:	\ ( bit# width -- ) ( -- mask bit# ) Define a bit field.
+   [host] 1 swap lshift 1- over lshift swap 2constant
+   s" field:" add-log-string ;
+
+forth : bit@	\ ( addr mask -- 0/1 ) Return value of a bit field, 0 or 1.
+   [host] swap @ and if 1 else 0 then ;
+
+forth : bit!	\ ( 0/1 addr mask -- ) Set a bit field to 0 or 1.
+   [host] rot if over @ or else invert over @ and then swap ! ;
+
+forth : field@	\ ( addr mask bit# -- x ) Return the contents of a field.
+   [host] >r swap @ and r> rshift ;
+
+forth : field!	\ ( x addr mask bit# -- ) Set the value of a field.
+   [host] over >r >r invert over @ and
+   rot r> lshift r> and or swap ! ;

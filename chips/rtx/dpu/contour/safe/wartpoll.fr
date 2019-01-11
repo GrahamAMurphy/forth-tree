@@ -1,0 +1,13 @@
+\ (c) 1993 Johns Hopkins University / Applied Physics Laboratory
+\ NEAR DPU UART Wart Control
+hex
+
+\ TBD: hack for buggy Actel ...
+
+: uart@		\ ( -- c ) Read character from UART
+   02 dpu-icr!  00 dpu-icr!		\ reset event flip-flop
+   testport@ ff and ;			\ read character
+
+: uart!		\ ( c -- ) Write character to UART
+   01 dpu-icr!  00 dpu-icr!		\ reset event flip-flop
+   testport! ;				\ write character

@@ -1,0 +1,89 @@
+\ (c) 1990 Johns Hopkins University / Applied Physics Laboratory
+hex
+
+variable checksum			\ checksum of a record
+
+\ ------------------------------------------------------------------------
+: get-key	\ ( -- c ) Read a character and convert to lower case.
+   key dup [char] A [char] Z 1+ within if 20 + then ;
+
+: read-digit	\ ( --- digit ) Read and convert a hex digit.  Base is set
+		\ elsewhere.
+   get-key digit not abort" Bad Character" ;
+
+: read-byte	\ ( --- byte ) Read two hex characters from the tty and convert
+		\ them to a byte.
+   read-digit 4 rotate read-digit or dup checksum +! ;
+
+: read-addr16	\ ( --- addr16 ) Read four hex characters from the tty and
+		\ convert them to 16 bit address.
+   read-byte 8 rotate read-byte or ;
+
+: read-addr24	\ ( --- addr24 ) Read six hex characters from the tty and
+		\ convert them to a 24 bit address.
+   read-addr16 8 rotate read-byte or ;
+
+\ ------------------------------------------------------------------------
+create rbuffer 100 allot		\ receive buffer
+
+: search-for-record \ ( --- n ) Search for an S record.  Return record type.
+   begin
+      get-key [char] s = if get-key digit if exit then then
+   again ;
+
+: read-s1	\ ( --- addr count checksum ) Read an S1 record into a buffer
+		\ and return the record's destination address, length (in
+		\ bytes), and the received checksum.  Zero is a good checksum.
+   0 checksum !				\ reset checksum
+   read-byte 3 - read-addr16 >r		\ read length and address
+   rbuffer over + rbuffer
+   do					\ for each byte in record
+      read-byte i c!			\ read and record
+   loop
+   r> swap
+   read-byte drop checksum @ 1+ ff and ; \ s: addr count checksum
+
+: read-s2	\ ( --- addr count checksum ) Read an S2 record into a buffer
+		\ and return the record's destination address, length (in
+		\ bytes), and the received checksum.  Zero is a good checksum.
+   0 checksum !				\ reset checksum
+   read-byte 4 - read-addr24 >r		\ read length and address
+   rbuffer over + rbuffer
+   do					\ for each byte in record
+      read-byte i c!			\ read and record
+   loop
+   r> swap
+   read-byte drop checksum @ 1+ ff and ; \ s: addr count checksum
+
+: read-s8	\ ( --- ) Read an S8 record.  The data is not checked.
+   read-byte drop read-addr16 drop read-byte drop ;
+
+\ ------------------------------------------------------------------------
+: save-record	\ ( addr count --- ) Save the count bytes in the receive
+		\ buffer at addr + base.
+   rbuffer + rbuffer
+   do i c@ over c! 1+ loop drop ;
+
+: process-record \ ( addr count checksum --- ) Process S record saved
+		\ in buffer.  If its checksum is valid (i.e. zero), the
+		\ record is saved permanently.
+   0= if save-record			\ if good checksum, save data
+   else 2drop ." Bad Checksum" cr
+   then ;
+
+: read-record	\ ( n --- ) Read and process an S record of type n.
+   sel
+      << 1 ==> read-s1 process-record >>
+      << 2 ==> read-s2 process-record >>
+      << 8 ==> read-s8 >>
+      << 9 ==> read-s8 >>
+   endsel ;
+
+: motor		\ ( --- ) Load a Motorola S record file.
+   base @ >r hex			\ must treat all characters as hex
+   begin
+      search-for-record
+      dup read-record			\ read and process an S record
+      dup 8 = swap 9 = or		\ quit if S8 or S9 encountered.
+   until
+   r> base ! ;

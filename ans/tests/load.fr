@@ -1,0 +1,4 @@
+" tester.fr" fload
+true verbose !
+" coretest.fr" fload
+" postponetest.fs" fload

@@ -1,0 +1,6 @@
+hex
+10 t-allot
+t-here ?code !
+	2 *literal*
+	3 *literal*
+	<alu	bplusa popp >.

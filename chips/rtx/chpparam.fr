@@ -1,0 +1,34 @@
+\ (c) 1993 Johns Hopkins University / Applied Physics Laboratory
+\ Define some metacompile-time constants describing the format
+\ and values of various RTX registers.
+hex
+
+def rtx					\ RTX2000 or 2010
+def locals				\ enable local variables
+\ Note: not defining this does not eliminate all local infrastructure
+
+\ The following desribes how to break the RTX2010 stack into
+\ substacks (it is only used when compiling '2010 systems.
+\ Only substack-size needs to be set; everything else is automatic.
+\ The choices for substack-size are 20, 40, 80 and 100 (i.e. no substacks).
+\ e.g.   20 define substack-size
+\ The actual defines are per system.
+
+substack-size 1- 	  define psp-stack-mask
+substack-size 1- 8 lshift define sp-stack-mask
+sp-stack-mask psp-stack-mask or invert
+			  define default-sp
+
+: ->SUR		\ ( size -- sur ) Given a substack-size, compute the
+		\ appropriate initial value for sur.  The possibilities for
+		\ sur are 0101, 0303, 0505, and 0707 correspnding to
+		\ sizes 20, 40, 80, and 100.
+   sel
+   <<  20 ==> 0101 >>
+   <<  40 ==> 0303 >>
+   <<  80 ==> 0505 >>
+   << 100 ==> 0707 >>
+      . ." is illegal stack size." cr  0 0
+   endsel ;
+
+substack-size ->SUR define init-sur

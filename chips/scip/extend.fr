@@ -1,0 +1,9 @@
+\ (c) 2004 Johns Hopkins University / Applied Physics Laboratory
+\ Extensions
+hex
+
+: for		\ ( u -- ) (C: -- orig dest ) Loop u times; the loop count,
+		\ available via r@, counts from u-1 through 0.
+   postpone >r postpone branch >mark <mark ; immediate
+: next		\ ( -- ) (C: orig dest -- )
+   swap >resolve postpone (next) <resolve postpone unnext ; immediate

@@ -1,0 +1,17 @@
+reset
+dump <num> <num>
+phase
+cycle
+startat <num>
+sim <num> [<num> times]
+sim <num> cycles
+clear
+trace [on|off]
+visual [on|off]
+wait
+inton [<num>]
+intoff [<num>]
+dmastart
+dmaend
+save
+<num>

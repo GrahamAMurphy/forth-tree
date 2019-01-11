@@ -1,0 +1,11 @@
+\ (c) 1997 Johns Hopkins University / Applied Physics Laboratory
+\ DPU specific initializations, etc.
+hex
+
+every-boot:	\ ( -- ) Initialize DPU hardware.
+		\ Note: this sets up interrupt forwarding for applications
+		\ including the boot program (after it is in RAM).  It knows
+		\ the address of the forwarding table in the ROM.
+   0018 cr!				\ disable ints, boot pin on
+   0400 ibc!				\ use ROM table to forward interrupts
+;boot

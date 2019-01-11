@@ -1,0 +1,20 @@
+hex
+a00a ucode d2*
+e942 ucode @+
+
+8005 constant poly			\ CRC-16 polynomial (X^16 not shown)
+
+: crc		\ ( crc x -- crc' ) TBD
+   swap 10 0 do dup 0< if d2* poly xor else d2* then loop nip ;
+
+create test-data 6865 , 6c6c , 6f0a , 0 ,	\ CRC=45af
+
+: gen		\ ( addr len -- crc ) Calculate CRC of len words of data
+		\ starting at given address.  The last word is assumed to be
+		\ zero; replacing the zero with the CRC will make this same
+		\ calculation return zero.
+   0 -rot 0 do @+ >r crc r> loop drop ;
+
+: ok?		\ ( addr len -- t/f ) Return true if the len words of data
+		\ starting at the given address has a good CRC (i.e. zero).
+   gen 0= ;

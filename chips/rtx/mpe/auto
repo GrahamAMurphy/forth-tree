@@ -1,0 +1,47 @@
+#!/usr/local/bin/forth
+\ Compile RTX Forth
+
+" target.fr" used
+" rtx/mpe" is-target			\ cross compile for MPE's RTX board
+
+\ Configure crosscompiler
+hex
+0000 set-ram				\ ram-based system
+def interactive
+def multitasking			\ include multitasker
+" mpemap" is-logfile
+
+\ RTX/MPE specific configuration
+def rtx2010				\ expoit 2010 specific features
+20 define substack-size			\ stack size: see ../chpparam.fr
+
+\ Load the kernel
+" kernel1.fr" ftload			\ primitives and extend crosscompiler
+
+\ Load low-level tty code
+" brdparam.fr" ftload			\ useful addresses and defines
+   noheads
+" devices/intttyws.fr" ftload		\ tty interface
+   heads
+" 8254.fr" ftload			\ 8254 specific pieces of tty driver
+" 8530.fr" ftload			\ 8530 specific pieces of tty driver
+
+\ Load rest of kernel and multitasker and interpreter if desired
+" kernel2.fr" ftload			\ interpreter?, multitasker?
+
+\ MPE specific
+" lib/far.fr" ftload			\ far memory utilities
+" eeproms.fr" ftload			\ EEPROM save and restore
+" mpeinit.fr" ftload			\ initialize registers
+
+\ Load initialization stuff
+" startup.fr" ftload			\ start up
+' doforth is-startup			\ run Forth interpreter
+
+report
+" romboot.fr" ftload
+" mpeforth" saveobj
+
+cr .( stack depth = ) depth . cr
+
+decimal >log rulestats !>log

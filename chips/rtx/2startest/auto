@@ -1,0 +1,53 @@
+#!/usr/local/bin/forth
+\ Compile RTX Forth
+
+" target.fr" used
+" rtx/2startest" is-target		\ cross compile for neutron DPU
+
+\ Configure crosscompiler
+hex
+0000 set-ram				\ ram-based system
+def interactive
+def multitasking			\ include multitasker
+" forneut.map" is-logfile
+
+\ RTX/DPU specific configuration
+def rtx2010				\ exploit RTX 2010 specific features
+20 define substack-size			\ stack size: see ../chpparam.fr
+
+\ Load the kernel
+" kernel1.fr" ftload			\ primitives and extend crosscompiler
+
+\ Load low-level tty code
+" brdparam.fr" ftload			\ useful addresses and defines
+\ " 2681poll.fr" ftload			\ polled tty interface
+\ " devices/polltty3.fr" ftload		\ tty interface with polling
+" devices/intttyws.fr" ftload		\ tty interface with multitasker
+" 2681int.fr" ftload			\ interrupt-driven tty interface
+
+\ Load rest of kernel and multitasker and interpreter if desired
+" kernel2.fr" ftload			\ interpreter?, multitasker?
+
+\ DPU specific
+" dpuinit.fr" ftload			\ initialize registers, etc.
+
+\ ------------------------------------------------------------------------
+\ Load application
+
+\ Forth is the application ...
+" foo.fr" fload
+
+\ Load initialization stuff
+" startup.fr" ftload			\ start up
+' doforth is-startup			\ run Forth interpreter
+
+\ Note: this program is started from the boot ROM; the boot ROM initializes
+\ some things, which the new program can inherit.
+
+report
+
+" forneut" saveobj
+
+cr .( stack depth = ) depth . cr
+
+decimal >log rulestats !>log

@@ -1,0 +1,38 @@
+\ (c) 1988 Johns Hopkins University / Applied Physics Laboratory
+\ Forth line I/O
+hex
+
+nohead 0a constant eol			\ end of line marker; relies
+					\ on key to map '\r' to '\n'
+
+\ Output
+: cr		\ ( --- )
+   0d emit 0a emit ;
+
+: type		\ ( addr count --- )
+ dup if 0 do dup c@ emit 1+ loop else drop then
+ drop ;
+
+nohead  8 constant ^h			\ delete character
+nohead 15 constant ^u			\ kill character
+
+\ Input
+: accept	\ ( c-addr u1 -- u2 ) Read up to u1 characters into
+		\ buffer.  Only an eol will cause return.
+   0 begin
+      key dup eol <> while		\ only eol breaks out of loop
+      2pick 2pick <> if			\ if room in buffer
+	 sel
+	 << ^h ==> dup 0>
+	    if 1- ^h emit 20 emit ^h emit \ erase previous character
+            then >>
+	 << ^u ==> [char] ^ emit [char] U emit cr
+	    drop 0 >>			\ discard line so far
+         dup emit			\ otherwise, echo character
+	 3pick 2pick + c!		\ save character
+	 1+ 0				\ increment offset; junk for endsel
+	 endsel
+      else drop
+      then
+   repeat
+   20 emit drop nip nip ;

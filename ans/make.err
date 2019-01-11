@@ -1,0 +1,3 @@
+mips-elf-ld -o forth -c elf32ebmip.x -Ttext 0x80020000 -defsym __stacktop=0x801c0000 /homes/john/mips/romboot.o /homes/john/mips/crt0.o jhforthc.o mips-79s381-tty.o mips/79s381/main.o /homes/john/mips/79s381.a		
+mips-elf-ld: unrecognised keyword in MRI style script 'OUTPUT_FORMAT'
+make: *** [forth] Error 1

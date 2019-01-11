@@ -1,0 +1,145 @@
+\ (c) 1992 Johns Hopkins University / Applied Physics Laboratory
+\		character device driver
+\	This version of the driver supports the following features:
+\		Int. driven, single port, polled interface to driver (emit/key)
+\		output buffer and type ahead buffer on input channel
+\		XON/XOFF flow control on the output channel
+\		KILL character causes warm reset (jump through reset vector)
+\		maps input '\r' to '\n'
+hex
+
+\ Assumes the following are defined:
+\  FIFOSIZE - input and output FIFO sizes
+\ Assumes the following functions are available
+\  uart! and uart-first! - send character or send character/enable trans. ints
+\  uart@ - get character from UART
+\  stop-transints - stop transmit interrupts
+
+noheads
+
+03 define KILL				\ ASCII ^C
+13 define XOFF				\ ASCII ^S
+11 define XON				\ ASCII ^R
+
+structure fifo				\ a character FIFO structure
+             cell: .chars		\ number of characters in FIFO
+             cell: .inptr		\ index into FIFO of next slot
+             cell: .outptr		\ index into FIFO of next character
+   FIFOSIZE chars: .buffer		\ a buffer
+endstructure
+
+0 define QUIET				\ nothing being transmitted
+1 define OUTPUT				\ transmitting
+2 define THROTTLED			\ XOFF received
+
+structure ttystruct			\ a bidirectional character channel
+          cell: .state			\ QUIET, OUTPUT, or THROTTLED
+   fifo struct: .outfifo		\ output FIFO
+   fifo struct: .infifo			\ input FIFO
+endstructure
+
+ttystruct makestruct tty		\ allocate a character channel
+
+: @fifo		\ ( addr[fifo] --- x )   return the item from the FIFO.
+		\ Assumes that there is something there.  Synchronization is
+		\ the responsibility of the caller.
+   >r -1 r@ .chars +!			\ one fewer items in FIFO
+   r@ .outptr @				\ index into FIFO
+   dup 1+ dup FIFOSIZE = if drop 0 then
+      r@ .outptr !			\ step index wrapping if necessary
+   r> .buffer + c@ ;			\ fetch value from FIFO
+
+: !fifo		\ ( x addr[fifo] --- )   store the item in the FIFO.
+		\ Assumes that there is space for the item.  Synchronization
+		\ is the responsibility of the caller.
+   >r 1 r@ .chars +!			\ one more item in FIFO
+   r@ .inptr @				\ index into FIFO
+   dup 1+ dup FIFOSIZE = if drop 0 then
+      r@ .inptr !			\ step index wrapping if necessary
+   r> .buffer + c! ;			\ store value in FIFO
+
+heads
+
+: emit		\ ( c --- )   Emit the given character.
+   begin
+      tty .outfifo .chars @ FIFOSIZE u<	\ wait for slot in output FIFO
+   until
+   disable				\ sync with interrupt routines
+   tty .state @ QUIET = if		\ if first character
+      uart-first!			\ place directly in UART
+      OUTPUT tty .state !
+   else
+      tty .outfifo !fifo		\ place in output FIFO
+   then
+   enable ;
+
+nohead : transint \ ( -- )   Transmit interrupt.
+		\ If we are in OUTPUT state, the next character in the FIFO is
+		\ given to the UART unless the FIFO is empty.  If this is the
+		\ case, the state is set to QUIET and the UART is prevented
+		\ from issuing any further transmit interrupts.  If we
+		\ are not in OUTPUT state, we also prevent further ints.
+   tty .state @ OUTPUT = if		\ if OUTPUTting
+      tty .outfifo .chars @		\ if FIFO is not empty
+      if
+         tty .outfifo @fifo uart!	\ send next one to UART
+      else				\ there are no characters in FIFO
+         stop-transints			\ stop generating transmit interrupts
+         QUIET tty .state !
+      then
+   else
+      stop-transints			\ stop generating transmit interrupts
+   then ;
+
+: key?		\ ( -- t/f ) Return true if there is a character ready
+		\ for key to read; in other words true indicates that
+		\ can be called without it blocking.
+   tty .infifo .chars @ 0= not ;
+
+: key		\ ( --- c )   Read next character from type ahead buffer.  If
+		\ the buffer is empty, wait for a character to arrive.  NOTE:
+		\ this code is not re-entrant.
+   begin tty .infifo .chars @ until	\ wait for a character
+   disable				\ sync to interrupt routines
+   tty .infifo @fifo			\ get character
+   enable ;
+
+nohead : rcvint	\ ( --- )   Receive interrupt.  If an XOFF is received, the
+		\ the channel state is set to THROTTLED.  If an XON is received,
+		\ the state is THROTTLED, and there are characters in the
+		\ output FIFO, the output is started up and the state is set
+		\ to OUTPUT.  Otherwise, the character is placed in the type
+		\ ahead buffer.  If the buffer is full, the character is thrown
+		\ away without a second thought.
+   uart@ sel				\ select action based on character
+   << KILL ==> reboot >>		\ reboot - doesn't return
+   << XOFF ==> THROTTLED tty .state ! >>
+   << XON ==>
+      tty .state @ THROTTLED =		\ if XOFF'ed
+      if
+         tty .outfifo .chars @		\ if FIFO is not empty
+         if
+            tty .outfifo @fifo uart-first! \ send next one to UART
+            OUTPUT tty .state !
+	 else
+	    QUIET tty .state !
+	 then
+      then >>
+   \ default
+      tty .infifo .chars @ FIFOSIZE u<
+      if				\ if there are free slots in input FIFO
+	 dup 0d = if drop 0a then	\ map carriage return to linefeed
+         tty .infifo !fifo		\ put character in FIFO
+	 0				\ dummy value (for endsel)
+      then
+   endsel ;
+
+every-boot:	\ ( --- )   Initialize the I/O system data structures.
+   QUIET tty .state !
+   0 tty .outfifo .chars !
+   0 tty .outfifo .inptr !
+   0 tty .outfifo .outptr !
+   0 tty .infifo .chars !
+   0 tty .infifo .inptr !
+   0 tty .infifo .outptr !
+;boot

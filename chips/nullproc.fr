@@ -1,0 +1,78 @@
+\ (c) 1988 Johns Hopkins University / Applied Physics Laboratory
+\ Initialize process data structures
+hex
+
+noheads
+
+\ The process descriptor is divided into a ROMable initialization structure
+\ and a run-time structure in RAM.
+\ NOTE: The code in this file and in process.fr exploits the representation
+\ of the structure.
+structure pd-init			\ process descriptor - initializer
+   cell: .pd-run			\ run-time process descriptor
+   cell: .lsp-init			\ initial local stack pointer
+   cell: .psp-init			\ initial parameter stack pointer
+   cell: .rsp-init			\ initial return stack pointer
+\ process code must be compiled here
+endstructure
+
+\ define size of user space; all user variable must be declared by now
+user-space forth @ host define user-size
+
+\ the null process
+10 cells allot label nullrstack		\ stacks in RAM
+10 cells allot label nullpstack
+label nullprocess
+   user-size allot
+
+rom label nullprocess-init		\ nullprocess initializer and code
+  nullprocess , 0 , nullpstack , nullrstack , ram
+]
+  begin again				\ do nothing
+[
+
+\ default process
+label defprocess
+   user-size allot
+
+code init-cproc \ ( -- ) Load current process descriptor register.
+	<lal	zero defprocess +# -> cproc >.
+	<exit> inline
+
+\ A fake context must be created for a process before it is run.  This
+\ context consists of seven words each on the parameter and return stacks.
+\			+-----------+----------+---------------+
+\ return stack:		| int. mask | start pc | 5 dummy words |
+\			+-----------+----------+---------------+
+\ parameter stack:	|   dummy   |    lsp   | 5 dummy words |
+\			+-----------+----------+---------------+
+\ int. mask is or'ed with psw and can be used to enable interrupts
+\ start pc is the starting address of the process' code
+\ lsp is the local variable stack pointer
+\ null process
+
+: initprocess	\ ( addr[pd-init] --- ) Initialize run-time
+		\ data structures of a process:  the run-time process
+		\ descriptor, user variables, and the stacks.
+   dup @ >r				\ the address of run-time pd
+   0 r@ .next !				\ no link
+   0 r@ .pstate !			\ runnable
+   dup .rsp-init @ 7 cells - r@ .rsp !	\ return stack
+   dup .psp-init @ 7 cells - r@ .psp !	\ parameter stack
+   dup .lsp-init @ r@ .psp @ cell+ !	\ local variable stack
+   defprocess pd-run + r@ pd-run +	\ initialize user variables
+      [ user-size pd-run - ] literal cmove \  from default process
+   pd-init + r> .rsp @ dup >r cell+ !	\ put init. pc on return stack
+      PSW-IE-MASK r> ! ;		\ and enable interrupts on startup
+
+every-boot:	\ ( --- ) init current process desc. and reset
+		\ null process' stacks and descriptor.  Also initialize
+		\ the process list so that the default process is at
+		\ the head and the null process is at the end.
+   nullprocess-init initprocess		\ initialize the null process
+   0 defprocess .pstate !		\ make running process 'runnable'
+   defprocess !head			\ default process at head
+   nullprocess defprocess !		\ followed by null process
+;boot
+
+heads

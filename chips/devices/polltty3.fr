@@ -1,0 +1,44 @@
+\ (c) 1996 Johns Hopkins University / Applied Physics Laboratory
+\		Generic Polled Character Device Driver
+\	This version of the driver supports the following features:
+\		polled I/O
+\		maps <cr> to <nl> on input
+\ Note: this version is identical to polltty.fr except that UART can
+\ be on a remote memory page (e.g. for RTX).
+hex
+
+\ The following defines are required to use this program:
+\  UART-pg#  - Page number of UART
+\  TXRDYMASK - Active high mask identifying transmitter ready bit in UARTSTAT
+\  RXRDYMASK - Active high mask identifying receiver ready bit in UARTSTAT
+\ The following functions are also needed:
+\  uart-status - Returns UART status
+\  uart@ - Returns received character
+\  uart! - Transmits character
+
+: emit		\ ( char --- ) Transmit one character.
+   get-page >r				\ save page
+   UART-pg# set-page far		\ access functions will use remote page
+   TXRDYMASK				\ txrdy status mask
+   begin 
+      uart-status over and		\ get txrdy bit
+   until				\ loop until bit is one
+   drop uart!
+   r> set-page ;			\ restore page
+
+: key		\ ( --- char ) Read one character.
+   get-page >r				\ save page
+   UART-pg# set-page far		\ access functions will use remote page
+   RXRDYMASK				\ rxrdy status mask
+   begin
+      uart-status over and		\ get rxrdy bit
+   until				\ loop until bit is one
+   drop uart@
+   dup 0d = if drop 0a then
+   r> set-page ;			\ restore page
+
+: key?		\ ( -- t/f ) Return true if a character is ready.
+   get-page >r				\ save page
+   UART-pg# set-page far		\ access functions will use remote page
+   uart-status RXRDYMASK and 0= not
+   r> set-page ;			\ restore page

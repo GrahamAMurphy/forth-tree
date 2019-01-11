@@ -1,0 +1,1351 @@
+
+       #pcr-se                          define 0001 
+       #pcr-ie                          define 0002 
+       namesize                         define 0007 
+       nf-size                          define 0008 
+       wid-step                         define 0001 
+       prec-bit                         define 0040 
+       smudge-bit                       define 0020 
+       inline-bit                       define 0080 
+       char-mask                        define 00ff 
+       chars/dump                       define 0008 
+       <does-default>                   define da40 
+       <remote-does-default>            define ba00 
+       reset-vector                     define 0000 
+       int-vector                       define 0004 
+       HASHTABLESIZE                    define 0100 
+       HASHTABLE                        define 0006 
+0210 H reboot                           code 
+0212   branch                           code 
+0216   ?branch                          code 
+021c   return                           code 
+0228 H execute                          code 
+022c   does-default                     code 
+0230   remote-does-default              code 
+0230   (do)                             code 
+0244   (loop)                           code 
+024e   (+loop)                          code 
+0262 H unloop                           code 
+0274 H i                                code 
+0284 H j                                code 
+029a   (next)                           code 
+02a4   unnext                           code 
+02b2 H !                                code 
+02c2 H +                                code 
+02d0 H +!                               code 
+02e6 H -                                code 
+02f4 H -rot                             code 
+0306 H 0<                               code 
+0314 H 0=                               code 
+0322 H 0>                               code 
+0330 H 1+                               code 
+033e H 1-                               code 
+034c H 2*                               code 
+035a H 2/                               code 
+0368 H 2over                            code 
+0384 H 2swap                            code 
+03a0 H 2pick                            code 
+03b2 H 3pick                            code 
+03ca H <                                code 
+03d8 H >                                code 
+03e6 H u<                               code 
+03f4 H u>                               code 
+0402 H =                                code 
+0410 H <>                               code 
+041e H >r                               code 
+042c H @                                code 
+043a H aligned                          code 
+044a H and                              code 
+0458 H c!                               code 
+0468 H c@                               code 
+0476 H char+                            code 
+0484 H chars                            code 
+0490 H drop                             code 
+049e H dup                              code 
+04ac H invert                           code 
+04ba H lshift                           code 
+04ca H negate                           code 
+04d8 H nip                              code 
+04e6 H nop                              code 
+04f2 H not                              code 
+0500 H or                               code 
+050e H over                             code 
+051c H r>                               code 
+052a H r@                               code 
+0538 H rdrop                            code 
+0546 H rot                              code 
+0558 H rotate                           code 
+0568 H rshift                           code 
+0578 H swap                             code 
+0586 H touch                            code 
+0596 H w!                               code 
+05a6 H w@                               code 
+05b4 H within                           code 
+05c8 H xor                              code 
+05d6 H cell                             code 
+05e4 H cell+                            code 
+05f2 H cell-                            code 
+0600 H cells                            code 
+060e H cell/                            code 
+061c H d+                               code 
+0632 H dnegate                          code 
+0646 H d<                               code 
+0662 H cmove                            code 
+0696 H cmove>                           code 
+06bc H move                             code 
+06d4 H m*                               code 
+06f6 H um*                              code 
+0712 H um/mod                           code 
+0748 H enable                           code 
+0758 H disable                          code 
+075e   md!                              code 
+075e   md@                              code 
+0768 H set-code                         code 
+0776 H get-code                         code 
+0784 H set-mem                          code 
+0792 H get-mem                          code 
+07a0 H near                             code 
+07ae H far                              code 
+       nop-boot                         define 07b2 
+       NEXT-BOOT                        define 07b4 
+       EVERY-BOOT                       define 07b6 
+07c2 H true                             : 
+07d0 H false                            : 
+07de H ?dup                             : 
+07f0 H 2dup                             : 
+0800 H s>d                              : 
+0804   +-                               : 
+080c   d+-                              : 
+081e H abs                              : 
+082c H dabs                             : 
+083a H *                                : 
+0848 H 2drop                            : 
+0858 H max                              : 
+086a H min                              : 
+087c H umax                             : 
+088e H umin                             : 
+08a0 H 2!                               : 
+08b6 H 2@                               : 
+08c6 H um*m                             : 
+08e2 H m/mmod                           : 
+0900 H sm/rem                           : 
+0924 H fm/mod                           : 
+095e H /mod                             : 
+0970 H /                                : 
+097e H mod                              : 
+098c H */mod                            : 
+099e H */                               : 
+       pstack                           define 0a22 
+       rstack                           define 0aa2 
+0aa2   safe                             code 
+0aa2   cacheenable                      code 
+0ab2 H pspreset                         code 
+0ac4   spreset                          code 
+0ace H depth                            code 
+0aea   under?                           code 
+       head                             define 0aee 
+       cproc                            define 0af0 
+0af2   .next                            offset: 0000 
+0af2   .pstate                          offset: 0002 
+0af2   .psp                             offset: 0004 
+0af2   .rsp                             offset: 0006 
+0af2   .udr                             offset: 0008 
+0af2   .dpr                             offset: 000a 
+0af2   pd-run                           constant 000c structure 
+0afc H @head                            : 
+0b0c H !head                            : 
+0b1e H @run                             : 
+0b2e H !run                             : 
+0b40 H resched                          code 
+0bbe H wait                             code 
+0bf0 H signal                           code 
+0c5e   int-prologue                     code 
+0c6c   int-epilogue                     code 
+       trap-base                        define f000 
+0c82 H emit                             code 
+0c9a H key                              code 
+0ca0   eol                              constant 000a 
+0caa H cr                               : 
+0cbc H type                             : 
+0cde   ^h                               constant 0008 
+0cde   ^u                               constant 0015 
+0ce8 H accept                           : 
+       CURREGION                        define 0d52 
+       IN                               define 0d54 
+       NTIB                             define 0d56 
+       TIBPTR                           define 0d58 
+0d5a   match?                           : 
+0d92   (find)                           : 
+0dec   push-stream                      : 
+0e1e   pop-stream                       : 
+0e3e   skip-non-white                   : 
+0e50   skip-white                       : 
+0e64   skipdel                          : 
+0e72   scan-non-white                   : 
+0e84   scan-white                       : 
+0e98   scandel                          : 
+0eb0 H parse                            : 
+0ef6   parse-word                       : 
+0f40   regionptr                        constant 0d52 
+0f40   hashtablesize                    constant 0100 
+0f40   hashtable                        constant 0006 
+0f40   kib                              create(adjacent) 0f42 
+0fc2   sourceptr                        constant 0d58 
+0fc2   #source                          constant 0d56 
+0fcc H >in                              constant 0d54 
+0fdc H forth-wordlist                   constant 0000 
+0fe0   loc-wordlist                     constant 0001 
+0fe2   vocabtag                         constant 0fe0 variable 
+0fe4   clue                             constant 0fe2 variable 
+0fe6   last-colon                       constant 0fe4 variable 
+0fe8   last                             constant 0fe6 variable 
+0fea   to?                              constant 0fe8 variable 
+0ff6 H stdregion                        constant 0fea variable 
+1008 H state                            constant 0ffc variable 
+101a H #order                           constant 100e variable 
+102a H #vocs                            constant 0008 
+103a H current                          constant 102e variable 
+104a H context                          create(adjacent) 104c 
+105e   #locals                          constant 105c variable 
+1068 H bl                               constant 0020 
+106e   name>                            : 
+106e   link>                            : 
+106e   body>                            : 
+106e   >name                            : 
+1070   >link                            : 
+107a H >body                            : 
+1088 H fill                             : 
+10b2 H environment?                     : 
+10be H [                                : 
+10d2 H ]                                : 
+10dc   dp                               : 
+10e6 H allocatefrom                     : 
+10fa H here                             : 
+110c H pad                              : 
+111c H latest                           : 
+112c H align                            : 
+113a   align-here                       : 
+1148 H allot                            : 
+115a H ,                                : 
+116c H w,                               : 
+117e H c,                               : 
+1190 H count                            : 
+11a0 H string,                          : 
+11b2   "s-buffer                        create(adjacent) 11b4 
+120e H "                                : 
+1222   (")                              : 
+122e   (.")                             : 
+       <small-lit>                      define a208 
+       <small+lit>                      define a200 
+       <lo-lit>                         define b200 
+       <lo-off>                         define b002 
+       <small-off>                      define a006 
+       <small+off>                      define a002 
+123a   *inline*                         : 
+1268   *callop*                         : 
+1274 H compile,                         : 
+1278   *code*                           : 
+128e   *literal*                        : 
+12be   *offset*                         : 
+12f0   *branch-dest*                    : 
+1358   *branch-unpack*                  : 
+1390   does-parent                      : 
+139a   does-child                       : 
+139e   <mark                            : 
+13a0   <resolve                         : 
+13a8   >mark                            : 
+13ac   >resolve                         : 
+13b0   >>mark                           : 
+13b6   >>resolve                        : 
+13d4 H if                               : 
+13e6 H else                             : 
+13fc H then                             : 
+1408 H begin                            : 
+1414 H while                            : 
+1428 H until                            : 
+143a H repeat                           : 
+144e H again                            : 
+1460 H sel                              : 
+146c H <<                               : 
+147c H =>                               : 
+1494 H ==>                              : 
+14a6 H >>                               : 
+14be H otherwise                        : 
+14ce H endsel                           : 
+14e0 H do                               : 
+1502 H loop                             : 
+1528 H +loop                            : 
+154e H leave                            : 
+1564   chuckbuf                         : 
+1572   reset-stream                     : 
+158c H source                           : 
+15a2 H word                             : 
+15d8 H ,word                            : 
+15ea H ""                               : 
+1602 H ."                               : 
+161a H s"                               : 
+1636 H (                                : 
+164a H .(                               : 
+165e H \                                : 
+166a H get-current                      : 
+167a H set-current                      : 
+168c H definitions                      : 
+169c H get-order                        : 
+16e0 H set-order                        : 
+1722 H wordlist                         : 
+1732   hash                             : 
+1764 H find                             : 
+17c2 H search-wordlist                  : 
+17da   (forget)                         : 
+181e   notunique?                       : 
+1836 H header                           : 
+187a   setbits                          : 
+1888   clearbits                        : 
+18a2 H immediate                        : 
+18b4 H hide                             : 
+18c6 H reveal                           : 
+18d8 H inline                           : 
+18ea H constant                         : 
+1900 H variable                         : 
+1912 H 2variable                        : 
+1928 H create                           : 
+193c H region                           : 
+1952 H does>                            : 
+196a H :noname                          : 
+1984 H :                                : 
+1996 H recurse                          : 
+19aa H exit                             : 
+19bc H ;                                : 
+19d4 H base                             constant 19c8 variable 
+19dc   hld                              constant 19da variable 
+19dc   pno-buffer                       : 
+19e6 H hex                              : 
+19fa H decimal                          : 
+1a0e H space                            : 
+1a20 H spaces                           : 
+1a4a H hold                             : 
+1a66 H <#                               : 
+1a7a H #>                               : 
+1a8e H sign                             : 
+1aa4 H #                                : 
+1ac8 H #s                               : 
+1ada H d.r                              : 
+1af4   zeroes                           : 
+1b22 H d.lz                             : 
+1b46 H d.                               : 
+1b56 H .r                               : 
+1b68 H .                                : 
+1b76 H u.r                              : 
+1b86 H u.lz                             : 
+1b96 H u.                               : 
+1ba4 H ?                                : 
+1bb2 H u?                               : 
+1bc0 H postpone                         : 
+1be4 H '                                : 
+1bfe H [']                              : 
+1c0e H literal                          : 
+1c1c H char                             : 
+1c2e H [char]                           : 
+1c3e H forget                           : 
+1c6e H dump                             : 
+1d26 H .s                               : 
+1d42 H digit                            : 
+1d88 H convert                          : 
+1db8 H >number                          : 
+1df2 H number                           : 
+1e20   interpreting?                    : 
+1e32 H interpret                        : 
+1eb4 H evaluate                         : 
+1ec8 H h#                               : 
+1eee H d#                               : 
+1f14 H quit                             : 
+1f58 H abort                            : 
+1f66 H abort"                           : 
+1f74   version                          : 
+1f82                                    every-boot: 
+1fb0   doforth                          : 
+1fee H int:                             : 
+200c H ;int                             : 
+2016   silent-accept                    : 
+205a H silent                           : 
+2074 H offset:                          : 
+208c H for                              : 
+20a8 H next                             : 
+20bc   .pd-run                          offset: 0000 
+20bc   .lsp-init                        offset: 0002 
+20bc   .psp-init                        offset: 0004 
+20bc   .rsp-init                        offset: 0006 
+20bc   pd-init                          constant 0008 structure 
+       user-size                        define 000c 
+       nullrstack                       define 20dc 
+       nullpstack                       define 20fc 
+       nullprocess                      define 20fc 
+       nullprocess-init                 define 2108 
+       defprocess                       define 2112 
+211e   init-cproc                       : 
+2126   initprocess                      : 
+216a                                    every-boot: 
+218c   insertprocess                    : 
+21b6 H nextprocess                      : 
+21e2 H run                              : 
+21e6   removeprocess                    : 
+2226 H kill                             : 
+2234 H terminate                        : 
+223c   align-stack                      : 
+225a H process:                         : 
+2294 H ;process                         : 
+22a2 H arg                              : 
+22b6 H trap                             : 
+22c8 H r/o                              create(adjacent) 22ca 
+22d6 H open-file                        : 
+2300 H close-file                       : 
+2310 H fexpect                          : 
+232c H chdir                            : 
+234a H fload                            : 
+238c H md                               constant 2380 variable 
+239c H md@                              : 
+23ac H sq!                              : 
+23c0 H ucode                            : 
+23d4 H dpu-cfg                          constant 23c8 variable 
+23e4 H dpu-cfg@                         : 
+23f4 H dpu-cfg!                         : 
+2408 H dpu-mask                         constant 23fc variable 
+2418 H dpu-mask!                        : 
+242a H i2c-data!                        : 
+2436 H i2c-data@                        : 
+2442 H i2c-cntl!                        : 
+244e H i2c-status@                      : 
+245a H i2c-timer!                       : 
+2466 H get-mask                         : 
+2472 H unmask-int                       : 
+247e H reset-watchdog                   : 
+248a H check-stack                      : 
+2496 H @+                               : 
+24a8 H cpr!                             : 
+24b6 H #boot/app                        constant 0001 
+24c4 H #tlm-msgs                        constant 00b8 
+24d4 H #struct                          constant 0001 
+24e2 H #status-pkt                      constant 0005 
+24f0 H #n-data-id                       constant 0010 
+24fe H #too-low-alm                     constant 0080 
+250e H #too-high-alm                    constant 00c0 
+251e H #max-macro-addr                  constant 0000 
+252c H #max-tlm-addr                    constant 0000 
+253a H #monitors                        constant 0003 
+2548 H #i2c-clocks                      constant 2ee0 
+2558 H #i2c-slots                       constant 0003 
+2566 H structure                        : 
+257c H aus:                             : 
+258c H chars:                           : 
+2598 H char:                            : 
+25a6 H cells:                           : 
+25ba H cell:                            : 
+25c8 H struct:                          : 
+25da H struct[]:                        : 
+25e8 H endstructure                     : 
+25f8 H makestruct                       : 
+2608 H .next                            offset: 0000 
+2616 H .value                           offset: 0002 
+2624 H .init                            offset: 0004 
+2632 H .counter                         offset: 0006 
+2640 H waiter                           constant 0008 structure 
+264e H every                            constant 0000 
+265c H in                               constant 0001 
+266a H tailtimer                        create(adjacent) 266c 
+267e H deltainsert                      : 
+26cc H deltadelete                      : 
+270a H countdown                        : 
+2736 H processwaiter                    : 
+276c H timeraccess                      constant 2760 variable 
+277e H timerlist                        constant 2772 variable 
+278e H starttimer                       : 
+27ac H signaltimers                     : 
+27ec H wake                             : 
+2822 H canceltimer                      : 
+2842 H timer                            : 
+285a H doeraccess                       constant 284e variable 
+286c H doerlist                         constant 2860 variable 
+287c H startdoer                        : 
+289a H executedoers                     : 
+28da H doit                             : 
+2904 H canceldoer                       : 
+2922 H do:                              : 
+2938 H ;do                              : 
+294a H far@                             : 
+2958 H far!                             : 
+2968 H farc@                            : 
+2976 H farc!                            : 
+2986 H far2!                            : 
+299c H far2@                            : 
+29b0 H bytes-out                        : 
+29e0 H bytes-in                         : 
+2a10 H words-out                        : 
+2a40 H words-in                         : 
+2a70 H far-page-set                     create(adjacent) 2a72 
+2a9c H far-h                            : 
+2aae H far-here                         : 
+2abc H far-allot                        : 
+2ad6 H .tail                            offset: 0000 
+2ae4 H .head                            offset: 0002 
+2af2 H farq-struct                      constant 0004 structure 
+2b00 H farq-get-i                       : 
+2b20 H farq-put-i                       : 
+2b52 H farq-append-i                    : 
+2b7a H farq-empty                       : 
+2b8c H farq-get                         : 
+2b9e H farq-put                         : 
+2bb0 H farq-append                      : 
+2bc2 H farq-peek                        : 
+2bce H far-dump                         : 
+2c8e H erase                            : 
+2c9e H |                                : 
+2cb0 H c|                               : 
+2cc2 H 2|                               : 
+2cda H here-allot                       : 
+2cec H reserved                         : 
+2cf8 H between                          : 
+2d0a H u<=                              : 
+2d16 H u>=                              : 
+2d22 H du<                              : 
+2d48 H u/                               : 
+2d5a H u/^                              : 
+2d74 H 8<<                              : 
+2d84 H split                            : 
+2d96 H join                             : 
+2da6 H una!                             : 
+2dbe H pow2                             : 
+2dcc H mask                             : 
+2ddc H */-                              : 
+2df0 H bits                             constant 0000 
+2dfe H get                              : 
+2e0e H set-i                            : 
+2e1e H set                              : 
+2e30 H refresh                          : 
+2e48 H insert-bit                       : 
+2e68 H extract-bit                      : 
+2e84 H insert-field                     : 
+2ea2 H extract-field                    : 
+2eba H port-w!                          : 
+2ed6 H port-w@                          : 
+2ee8 H port-word-access                 constant 2eda 
+2ef8 H port-word:                       : 
+2f0e H port-b!                          : 
+2f2a H port-b@                          : 
+2f3c H port-byte-access                 constant 2f2e 
+2f4c H port-byte:                       : 
+2f62 H port-bit!                        : 
+2f7a H port-bit@                        : 
+2f90 H port-bit-access                  constant 2f82 
+2fa0 H port-bit:                        : 
+2fbc H port-field!                      : 
+2fd4 H port-field@                      : 
+2fea H port-field-access                constant 2fdc 
+2ffa H port-field:                      : 
+301a H mem-w!                           : 
+302a H mem-w@                           : 
+303c H mem-word-access                  constant 302e 
+304c H mem-word:                        : 
+3062 H mem-b!                           : 
+3072 H mem-b@                           : 
+3084 H mem-byte-access                  constant 3076 
+3094 H mem-byte:                        : 
+30aa H mem-bit!                         : 
+30c4 H mem-bit@                         : 
+30da H mem-bit-access                   constant 30cc 
+30ea H mem-bit:                         : 
+3106 H mem-field!                       : 
+3120 H mem-field@                       : 
+3136 H mem-field-access                 constant 3128 
+3146 H mem-field:                       : 
+3166 H #limits-str                      constant 0000 
+3174 H #echo-pkt                        constant 0001 
+3182 H #alarm-pkt                       constant 0002 
+3190 H #checksum-pkt                    constant 0003 
+319e H #dump-pkt                        constant 0004 
+31ac H #limits-pkt                      constant 0006 
+31ba H #mac-dump-pkt                    constant 0008 
+31c8 H #mac-check-pkt                   constant 0009 
+31d6 H #cmd-null                        constant 0002 
+31e4 H #cmd-wrap                        constant 0003 
+31f2 H #cnt-clr                         constant 0001 
+3200 H #mac-check                       constant 001a 
+320e H #mac-def                         constant 0010 
+321c H #mac-delay                       constant 0011 
+322a H #mac-end                         constant 0012 
+3238 H #mac-enddef                      constant 0013 
+3246 H #mac-halt                        constant 0014 
+3254 H #mac-loop-begin                  constant 0018 
+3262 H #mac-loop-end                    constant 0019 
+3270 H #mac-nest                        constant 0015 
+327e H #mac-pause                       constant 0016 
+328c H #mac-read                        constant 0025 
+329c H #mac-restore                     constant 001c 
+32aa H #mac-run                         constant 0017 
+32b8 H #mac-run-silent                  constant 001f 
+32c6 H #mac-save                        constant 001b 
+32d4 H #mem-check                       constant 0004 
+32e2 H #mem-copy                        constant 0005 
+32f0 H #mem-load                        constant 0006 
+32fe H #mem-read                        constant 0007 
+330c H #mem-read-abrt                   constant 0008 
+331a H #mem-read-int                    constant 0024 
+332a H #mem-run                         constant 0009 
+3338 H #mem-str-load                    constant 000a 
+3346 H #mem-str-read                    constant 000b 
+3354 H #mem-write                       constant 0023 
+3364 H #mon-cntrl                       constant 000c 
+3372 H #pwr-off                         constant 0020 
+3382 H #saf-safe                        constant 001d 
+3390 H #saf-shut                        constant 001e 
+339e H #soft-reset                      constant 0022 
+33ae H #stat-int                        constant 000d 
+33bc H #stat-mem                        constant 0021 
+33cc H #ok-cmd                          constant 0000 
+33da H #ok-macro-cmd                    constant 0001 
+33e8 H #unknown-cmd                     constant 0002 
+33f6 H #badarg-cmd                      constant 0003 
+3404 H #macro-run-cmd                   constant 0004 
+3412 H #need-macro-cmd                  constant 0005 
+3420 H #macro-comp-cmd                  constant 0006 
+342e H #macro-kill-cmd                  constant 0007 
+343c H #macro-check-cmd                 constant 0009 
+344a H #mem-write-cmd                   constant 000a 
+3458 H #bad-msg-alm                     constant 0001 
+3466 H #no-contexts-alm                 constant 0002 
+3474 H #bad-dst-alm                     constant 0003 
+3482 H #max-args                        constant 0108 
+3492 H #dump-words                      constant 0040 
+34a2 H #crc-poly                        constant 1021 
+34b2 H #crc-seed                        constant ffff 
+34c0 H macro-mem#                       constant 0001 
+34ce H macro-arch-mem#                  constant 0009 
+34dc H m-size                           constant 0100 
+34ec H dog-enb-mask#                    constant 0002 
+34fa H dpu-config                       : 
+350a H set-dpu-cfg                      : 
+3520 H clr-dpu-cfg                      : 
+3538 H refresh-regs                     : 
+3552 H i2c-int#                         constant 0006 
+3560 H seconds                          : 
+356c H seconds-d                        : 
+3578 H tlm-mem#                         constant 0002 
+3586 H host-int#                        constant 0004 
+3594 H init-gen-hw                      : 
+35a4 H status                           constant 0000 
+35b2 H #config/status                   constant 0014 
+35c0 H config/status                    create(adjacent) 35c2 
+35e0 H status-int                       create(adjacent) 35e2 mem-word: 
+35f0 H mac-free-blocks                  create(adjacent) 35f2 mem-word: 
+3600 H tlm-volume                       create(adjacent) 3602 mem-word: 
+3610 H watch-addr                       create(adjacent) 3612 mem-word: 
+3620 H watch-mem                        create(adjacent) 3622 mem-byte: 
+3630 H watch-byte1                      create(adjacent) 3632 mem-byte: 
+3640 H watch-byte2                      create(adjacent) 3642 mem-byte: 
+3650 H sw-version                       create(adjacent) 3652 mem-byte: 
+3660 H alarm-id                         create(adjacent) 3662 mem-byte: 
+3670 H alarm-type                       create(adjacent) 3672 mem-bit: 
+3682 H alarm-count                      create(adjacent) 3684 mem-field: 
+3696 H cmds-executed                    create(adjacent) 3698 mem-byte: 
+36a6 H cmds-rejected                    create(adjacent) 36a8 mem-byte: 
+36b6 H macro-cmds-exec                  create(adjacent) 36b8 mem-byte: 
+36c6 H macro-cmds-rej                   create(adjacent) 36c8 mem-byte: 
+36d6 H macro-id                         create(adjacent) 36d8 mem-byte: 
+36e6 H macro-learn                      create(adjacent) 36e8 mem-bit: 
+36f8 H mon-response                     create(adjacent) 36fa mem-bit: 
+370a H mem-write-enb                    create(adjacent) 370c mem-bit: 
+371c H critical-instr                   create(adjacent) 371e 
+372c H m-lo-mask                        constant 00ff 
+373c H m-hi-mask                        constant ffffff00 
+374e H m-memid                          constant 3742 variable 
+3760 H m-addr                           constant 3754 variable 
+3772 H m-buf-memid                      constant 3766 variable 
+3784 H m-buf-addr                       constant 3778 variable 
+3796 H m-state                          constant 378a variable 
+37a6 H m-empty                          constant 0000 
+37b4 H m-clean                          constant 0001 
+37c2 H m-dirty                          constant 0002 
+37d0 H m-buffer                         create(adjacent) 37d2 
+38dc H block-out                        : 
+38f0 H block-in                         : 
+3904 H m-read                           : 
+3944 H wait-for-eeprom                  : 
+395c H m-write                          : 
+39a4 H m-flush                          : 
+39be H m-addr-in-buffer                 : 
+3a0c H open-mem                         : 
+3a30 H seek-memid                       : 
+3a42 H seek-memaddr                     : 
+3a54 H step-mem                         : 
+3a64 H mem-pos                          : 
+3a7a H mem-peek                         : 
+3a88 H >mem                             : 
+3aa2 H close-mem                        : 
+3ab8 H copy                             : 
+3afa H time                             constant 0000 
+3b0c H future-time                      constant 3afe 2variable 
+3b20 H curr-time                        constant 3b12 2variable 
+3b32 H delta-time                       constant 3b26 variable 
+3b42 H set-time                         : 
+3b58 H sync-time                        : 
+3b88 H get-time                         : 
+3b9e H step-delta                       : 
+3bb0 H get-time+delta                   : 
+3bcc H i2c                              constant 0000 
+3bda H i2c-vectors                      create(adjacent) 3bdc 
+3bee H i2c-free                         constant 3be2 variable 
+3c00 H i2c-slot                         constant 3bf4 variable 
+3c06                                    int: 
+3c4a H i2c-active                       : 
+3c68 H i2c!s                            : 
+3c7a H i2c@s                            : 
+3c8a H i2c@r                            : 
+3c98 H init-i2c                         : 
+3cd2 H i2c-user                         constant 0000 
+3ce2 H i2c-v-device                     constant 3cd6 variable 
+3cf4 H i2c-v-value16                    constant 3ce8 variable 
+3d06 H i2c-v-cmd                        constant 3cfa variable 
+3d16 H #i2c-nop                         constant 0000 
+3d24 H #i2c-read                        constant 0001 
+3d32 H #i2c-write                       constant 0002 
+3d42 H i2c-pending                      constant 3d36 variable 
+3d54 H i2c-done                         constant 3d48 variable 
+3d64 H i2c-start-trans                  : 
+3d82 H i2c-trans                        : 
+3dc4 H i2c-errors                       constant 3db8 variable 
+3dd4 H i2c-complete                     : 
+3e06 H i2c@                             : 
+3e28 H i2c!                             : 
+3e4e H init-i2c-user                    : 
+3e64 H i2c!24                           : 
+3e78 H power                            constant 0000 
+3e86 H set-read-src                     : 
+3e94 H select-a/d                       : 
+3ea2 H read-analog                      : 
+3ec0 H read-sel-analogs                 : 
+3efa H read-device-analogs              : 
+3f08 H set-power                        : 
+3f1c H host                             constant 0000 
+3f2c H epu-id                           constant 3f20 variable 
+3f3c H #instr-id                        : 
+3f4c H #instance-id                     constant 0000 
+3f5c H 1hz-sem                          constant 3f50 variable 
+3f6e H dt-sem                           constant 3f62 variable 
+3f7e H sync-1hz                         : 
+3fa0 H sync-dead-time                   : 
+3fb2 H single-step                      : 
+3fcc H trace-itf                        : 
+3ffa H rcv-buffer                       create(adjacent) 3ffc 
+4132 H rcv-buffer-end                   constant 4128 
+4144 H rcv-scan-get                     constant 4138 variable 
+4156 H rcv-scan-put                     constant 414a variable 
+4168 H rcv-count                        constant 415c variable 
+417a H rcv-event                        constant 416e variable 
+418a H rcv-empty?                       : 
+419c H rcv-byte                         : 
+41d4 H rcv-wait                         : 
+41e6 H timeout-event                    create(adjacent) 41e8 do: 
+4202 H init-host-input                  : 
+422a H xmit-prep                        : 
+4236 H xmit-data                        : 
+4282 H xmit-start                       : 
+428e H rcv-put                          : 
+42ca H p                                : 
+42d6 H xor-block                        : 
+4302 H put-message                      : 
+4360 H cmd-len                          : 
+4370 H checksum-cmd                     : 
+43ba H send-instr-cmd                   : 
+43d8 H send-cmd                         : 
+43e6 H time-msg-buf                     create(adjacent) 43e8 
+43f6 H send-time                        : 
+440c H reinit-host-io                   : 
+4418 H init-host-io                     : 
+4424 H ccsds                            constant 0000 
+4432 H .ccsds-format                    offset: 0000 
+4440 H #ccsds-pkt-ver                   constant 0800 
+4450 H #ccsds-cmd-ver                   constant 1000 
+4460 H .ccsds-sequence                  offset: 0002 
+446e H .ccsds-length                    offset: 0004 
+447c H ccsds-primary                    constant 0006 structure 
+448a H .ccsds-time                      offset: 0000 
+4498 H ccsds-secondary                  constant 0004 structure 
+44a6 H .pkt-primary                     offset: 0000 
+44b4 H .pkt-2ndary                      offset: 0006 
+44c2 H pkt-head-struct                  constant 000a structure 
+44d0 H packet-counters                  create(adjacent) 44d2 
+44fc H reset-packet-counters            : 
+4512 H next-packet-count                : 
+4534 H prep-pkt-hdr                     : 
+4554 H init-pkt-hdr                     : 
+4574 H tag-pkt-hdr                      : 
+4584 H ccsds-pkt-len                    : 
+4594 H ccsds-telecmd?                   : 
+45b0 H ccsds-telemetry?                 : 
+45ca H init-ccsds                       : 
+45d6 H #sync1-msg                       constant 00fe 
+45e6 H #sync2-msg                       constant 00fa 
+45f6 H #sync3-msg                       constant 0030 
+4606 H #tim-msg                         constant 0001 
+4614 H #cmd-msg                         constant 0002 
+4622 H #tlm-msg                         constant 0004 
+4630 H .state-flags                     offset: 0000 
+463e H .state-cri-common                offset: 0001 
+464c H .state-cri-instr                 offset: 0006 
+465a H state-struct                     constant 000a structure 
+4672 H state-vector                     constant 465e makestruct 
+4682 H beat-heart                       : 
+46a4 H req-power-off                    : 
+46c6 H send-crit-com                    : 
+46ea H send-crit-inst                   : 
+4700 H msg-checksum                     constant 46f4 variable 
+4712 H 'mac-rdy                         constant 4706 variable 
+4724 H 'mac-run                         constant 4718 variable 
+4734 H get-msg-byte                     : 
+4760 H get-sync-header                  : 
+4790 H get-check-byte                   : 
+47a4 H get-next-byte                    : 
+47c2 H check-msg-sum                    : 
+47d4 H get-msg-body                     : 
+4810 H get-message                      : 
+4822 H macro-callbacks                  : 
+483a H #n-out-frame                     constant 04cf 
+484a H .next                            offset: 0000 
+4858 H .frm-length                      offset: 0002 
+4866 H .frm-offset                      offset: 0004 
+4874 H #no-data                         constant fffe 
+4882 H #no-first                        constant ffff 
+4890 H .frm-data                        offset: 0006 
+489e H frame-struct                     constant 04d6 structure 
+48ae H #frames                          constant 0034 
+48be H telemetry-frames                 constant 0002 
+48d0 H free-frame-q                     constant 48c2 makestruct 
+48e4 H down-frame-q                     constant 48d6 makestruct 
+48f8 H allo-frame-q                     constant 48ea makestruct 
+490a H alloc-count                      constant 48fe variable 
+491a H reserve-frames                   : 
+4964 H send-frame                       : 
+49c6 H .frm-head-sync                   offset: 0000 
+49d4 H .frm-head-type                   offset: 0003 
+49e2 H .frm-head-sum                    offset: 0004 
+49f0 H .frm-head-length                 offset: 0005 
+49fe H .frm-head-state                  offset: 0007 
+4a0c H .frm-head-offset                 offset: 0011 
+4a1a H frame-head-struct                constant 0013 structure 
+4a3c H frame-header                     constant 4a1e makestruct 
+4a4e H curr-frame                       constant 4a42 variable 
+4a60 H pend-frame                       constant 4a54 variable 
+4a70 H xor-sum                          : 
+4a98 H init-frame-header                : 
+4af6 H prep-downlink                    : 
+4b3c H more-downlink?                   : 
+4b6a H proc-dead-time                   : 
+4b7c H start-downlink                   : 
+4bda H init-frames                      : 
+4c2a H range&angle-data                 constant 4c1c 2variable 
+4c3a H set-range&angle                  : 
+4c50 H range&angle                      : 
+4c66 H init-host                        : 
+4c76 H commands                         constant 0000 
+4c84 H .cmd-opcode                      offset: 0000 
+4c92 H .cmd-args                        offset: 0002 
+4ca0 H .cmd-nargs                       offset: 010a 
+4cb0 H command-struct                   constant 010c structure 
+4dcc H command-buffer                   constant 4cb6 makestruct 
+4dde H command-result                   constant 4dd2 variable 
+4df0 H in-macro                         constant 4de4 variable 
+4e00 H set-opcode                       : 
+4e12 H load-args                        : 
+4e30 H set-cmd-length                   : 
+4e44 H get-command                      : 
+4e5a H n-args                           : 
+4e6a H opcode                           : 
+4e7a H args                             : 
+4e8a H arg0                             : 
+4e9a H arg1                             : 
+4eaa H arg2                             : 
+4eba H arg3                             : 
+4eca H arg4                             : 
+4eda H arg5                             : 
+4eea H arg6                             : 
+4efa H arg7                             : 
+4f0a H th-arg                           : 
+4f1a H cmd-error                        : 
+4f2c H .next                            offset: 0000 
+4f3a H .opcode                          offset: 0002 
+4f48 H .nargs                           offset: 0004 
+4f56 H .vector                          offset: 0006 
+4f64 H hash-command-struct              constant 0008 structure 
+4f74 H hash-access                      constant 4f68 variable 
+4f84 H hash-table                       create(adjacent) 4f86 
+4fb0 H hash-opcode                      : 
+4fc2 H check-cmd                        : 
+4fda H lookup-cmd                       : 
+5006 H trim-args                        : 
+502a H exec-cmd                         : 
+5042 H rt-cmd                           : 
+5058 H macro-cmd                        : 
+506e H init-cmd-table                   : 
+508c H in-macro?                        : 
+509c H register-cmd/args                : 
+50d6 H register-cmd                     : 
+50e4 H packet                           constant 0000 
+50f4 H tlm-sem                          constant 50e8 variable 
+5104 H get-tlm                          : 
+5116 H release-tlm                      : 
+512a H frac-volume                      constant 511e variable 
+513a H clear-tlm-volume                 : 
+5156 H cnt-tlm-volume                   : 
+517e H .pkt-header                      offset: 0000 
+518c H .pkt-id                          offset: 000a 
+519a H .pkt-group                       offset: 000c 
+51a8 H .pkt-src                         offset: 000e 
+51b6 H .pkt-len                         offset: 0012 
+51c4 H .pkt-src2                        offset: 0014 
+51d2 H .pkt-len2                        offset: 0018 
+51e0 H pkt-struct                       constant 001a structure 
+51ee H pkt-desc-size                    constant 001a 
+51fc H time-tag-pkt                     : 
+520a H tag-pkt                          : 
+521c H pkt-id!                          : 
+5232 H pkt-group!                       : 
+5240 H #first-pkt                       constant 4000 
+5250 H #cont-pkt                        constant 0000 
+525e H #last-pkt                        constant 8000 
+526e H #none-pkt                        constant c000 
+527e H pkt-src!                         : 
+5294 H pkt-src-more!                    : 
+52aa H init-pkt                         : 
+52ce H #nopkt                           constant 0000 
+57ac H frame-buffer                     constant 52d2 makestruct 
+57be H frame-fhp                        constant 57b2 variable 
+57d0 H frame-scan                       constant 57c4 variable 
+57e2 H frame-free                       constant 57d6 variable 
+57f2 H empty-frame                      : 
+581a H first-pkt                        : 
+5840 H send-frame-buf                   : 
+5860 H fill-pkt                         : 
+58bc H build-pkt-hdr                    : 
+58de H start-pkt                        : 
+58f0 H process-pkt                      : 
+5940 H send-pkt                         : 
+5952 H flush-frame                      : 
+5974 H try-partial-frame                : 
+5980 H init-packet                      : 
+598c H dump-time                        constant 0000 
+599c H dump-count                       constant 5990 variable 
+59ae H dump-int                         constant 59a2 variable 
+59be H pace-dump                        create(adjacent) 59c0 do: 
+59f2 H dump-ok?                         : 
+5a0e H c-mem-read-int                   : 
+5a26 H init-dump-time                   : 
+5a46 H dumper                           constant 0000 
+5a54 H .dump-src                        offset: 0000 
+5a62 H .dump-len                        offset: 0004 
+5a70 H dump-hdr-struct                  constant 0008 structure 
+5a86 H dump-header                      constant 5a74 makestruct 
+5ab0 H dump-pkt                         constant 5a8c makestruct 
+5ac4 H dump-src                         constant 5ab6 2variable 
+5ad6 H dump-len                         constant 5aca variable 
+5ae8 H dump-sem                         constant 5adc variable 
+5af8 H gather-dump                      : 
+5b2c H update-dump                      : 
+5b56 H send-dump                        : 
+5b7c H start-dump                       : 
+5ba4 H abort-dump                       : 
+5bc4 H try-dump-pkt                     : 
+5bee H init-dump                        : 
+5c0a H alarm                            constant 0000 
+5c18 H .alarm-id                        offset: 0000 
+5c26 H .alarm-flag                      offset: 0001 
+5c34 H .alarm-value                     offset: 0002 
+5c42 H .alarm-limit                     offset: 0003 
+5c50 H alarm-struct                     constant 0004 structure 
+5c62 H alarm-buffer                     constant 5c54 makestruct 
+5c8c H alarm-pkt                        constant 5c68 makestruct 
+5c9e H alarm-access                     constant 5c92 variable 
+5cae H record-alarm                     : 
+5ccc H gen-alarm                        : 
+5d0e H trans-alarm                      : 
+5d1c H persist-alarm                    : 
+5d2a H sw-alarm                         : 
+5d3a H init-alarm                       : 
+5d56 H crc                              : 
+5d82 H checksum                         : 
+5dba H memory                           constant 0000 
+5dc8 H first-address                    : 
+5de0 H .sum-src                         offset: 0000 
+5dee H .sum-len                         offset: 0004 
+5dfc H .sum-checksum                    offset: 0006 
+5e0a H checksum-pkt-struct              constant 0008 structure 
+5e20 H checksum-buffer                  constant 5e0e makestruct 
+5e4a H checksum-pkt                     constant 5e26 makestruct 
+5e5a H c-mem-check                      : 
+5e98 H c-mem-copy                       : 
+5ecc H load-mem                         : 
+5ee6 H c-mem-load                       : 
+5f10 H c-mem-read                       : 
+5f24 H c-mem-read-abrt                  : 
+5f30 H c-mem-run                        : 
+5f46 H .str-src                         offset: 0000 
+5f54 H .str-len                         offset: 0004 
+5f62 H .str-id                          offset: 0006 
+5f70 H struct-load-struct               constant 0008 structure 
+5f86 H data-structures                  constant 5f74 makestruct 
+5fb0 H structure-pkt                    constant 5f8c makestruct 
+5fc0 H c-mem-str-load                   : 
+6024 H c-mem-str-read                   : 
+606a H register-struct                  : 
+608c H c-mem-write                      : 
+609e H init-memory                      : 
+6112 H mac                              constant 0000 
+6120 H #macros                          constant 0100 
+6130 H #block-size                      constant 0020 
+6140 H #nest-macros                     constant 0010 
+614e H #macro-contexts                  constant 0040 
+615e H .next                            offset: 0000 
+616c H .m-data                          offset: 0002 
+617a H m-block-struct                   constant 0022 structure 
+618a H .m-id                            offset: 0000 
+6198 H .m-state                         offset: 0001 
+61a6 H m-state=unused                   constant 0000 
+61b4 H m-state=run                      constant 0001 
+61c2 H m-state=sleep                    constant 0002 
+61d0 H .m-echo                          offset: 0002 
+61de H .m-pc                            offset: 0004 
+61ec H .m-time                          offset: 0008 
+61fa H .m-sp                            offset: 000c 
+6208 H .m-stack                         offset: 000e 
+6216 H m-context-struct                 constant 004e structure 
+6226 H macros                           create(adjacent) 6228 
+6432 H install-macro                    : 
+644c H macro-id-ok?                     : 
+645c H macro-ok?                        : 
+647e H macro-code                       : 
+6492 H init-macro-obj                   : 
+64a6 H macro-contexts                   constant 0002 
+64b4 H #macro-blocks                    constant 06f4 
+64c4 H macro-blocks                     constant 1382 
+64d6 H macro-running                    constant 64ca variable 
+6534 H run-context                      constant 64dc makestruct 
+6544 H macro-step                       : 
+6560 H m!+                              : 
+6576 H m@+                              : 
+6592 H context-access                   constant 6586 variable 
+65a2 H flush-context                    : 
+65c8 H load-context                     : 
+65f2 H init-context                     : 
+6626 H kill-context                     : 
+663a H get-context                      : 
+6688 H match-context                    : 
+66d2 H check-contexts                   : 
+6722 H runnable-context                 : 
+675c H fork-macro                       : 
+678a H halt-macro                       : 
+67be H delay-macro                      : 
+67e8 H nest-macro                       : 
+681a H end-macro                        : 
+6862 H loop-macro                       : 
+6892 H unloop-macro                     : 
+68d4 H run-prog-macro                   : 
+68fc H run-cmd-macro                    : 
+6928 H macro-ready?                     : 
+695e H macro-load                       : 
+69a6 H macro-echo?                      : 
+69b6 H run-macro                        : 
+69c4 H run-macro-silent                 : 
+69d2 H init-macro-run                   : 
+6a14 H comp-macro                       constant 6a06 makestruct 
+6a26 H comp-id                          constant 6a1a variable 
+6a3a H comp-pc                          constant 6a2c 2variable 
+6a4e H mac-free-list                    constant 6a40 makestruct 
+6a5e H count-blocks                     : 
+6a74 H alloc-block                      : 
+6a98 H free-block                       : 
+6aac H release-mac-blocks               : 
+6ada H alloc-blocks                     : 
+6b10 H alloc-macro?                     : 
+6b62 H save-macro                       : 
+6b9c H start-macro-comp                 : 
+6bdc H append-cmd                       : 
+6c1c H end-macro-cmd                    create(adjacent) 6c1e 
+6c2c H end-macro-comp                   : 
+6c7a H install-builtin                  : 
+6c9c H install-macros                   : 
+6cc2 H init-macro-comp                  : 
+6d04 H c-mac-def                        : 
+6d2a H c-mac-delay                      : 
+6d50 H c-mac-pause                      : 
+6d76 H c-mac-end                        : 
+6d90 H c-mac-enddef                     : 
+6da6 H c-mac-halt                       : 
+6dcc H c-mac-nest                       : 
+6df6 H c-mac-run                        : 
+6e06 H c-mac-run-silent                 : 
+6e16 H c-mac-loop-begin                 : 
+6e36 H c-mac-loop-end                   : 
+6e50 H #shutdown                        constant 0001 
+6e5e H run-shutdown                     : 
+6e6c H init-macro                       : 
+6eec H #macro-words                     constant 7738 
+6efc H macro-archive                    constant 0000 
+6f0c H stream-checksum                  constant 6f00 variable 
+6f1c H open-archive                     : 
+6f38 H archive-word                     : 
+6f56 H archive-block                    : 
+6f88 H mem>                             : 
+6f9a H restore-word                     : 
+6fac H restore-block                    : 
+6fde H archive-checksum                 : 
+6ff2 H close-archive                    : 
+7000 H good-archive?                    : 
+703a H save-macros                      : 
+707e H restore-macros                   : 
+70c0 H good-macros?                     : 
+70d4 H c-mac-save                       : 
+70e0 H c-mac-restore                    : 
+70fc H init-mac-arch                    : 
+711e H block-mac                        constant 7112 variable 
+7130 H curr-mac-id                      constant 7124 variable 
+7142 H max-mac-id                       constant 7136 variable 
+7154 H group-mac                        constant 7148 variable 
+7166 H index-mac                        constant 715a variable 
+7176 H first-block                      : 
+71a0 H next-block                       : 
+71c6 H find-macro                       : 
+721c H find-block                       : 
+7270 H mac-dump-pkt                     constant 724c makestruct 
+7282 H mac-dump-sem                     constant 7276 variable 
+7294 H mac-dump-count                   constant 7288 variable 
+72a4 H mac-dump-hdr                     create(adjacent) 72a6 
+72b2 H send-mac-dump                    : 
+7304 H start-mac-dump                   : 
+732c H try-mac-dump                     : 
+7370 H mac-check-pkt                    constant 734c makestruct 
+7380 H mac-check-hdr                    create(adjacent) 7382 
+738e H macro-checksums                  create(adjacent) 7390 
+759a H check-macro                      : 
+75e4 H check-macros                     : 
+7620 H send-mac-checks                  : 
+765e H do-mac-check                     : 
+7682 H c-mac-check                      : 
+76a8 H c-mac-read                       : 
+76ce H init-mac-dump                    : 
+770c H mon                              constant 0000 
+771a H .mon-state                       offset: 0000 
+7728 H #idle                            constant 0000 
+7736 H #armed-high                      constant 0001 
+7744 H #alarmed-high                    constant 0002 
+7752 H #stuck-high                      constant 0003 
+7760 H #armed-low                       constant 0004 
+776e H #alarmed-low                     constant 0005 
+777c H #stuck-low                       constant 0006 
+778a H .mon-macro-low                   offset: 0001 
+7798 H .mon-macro-high                  offset: 0002 
+77a6 H .mon-type                        offset: 0003 
+77b4 H #s-mon-type                      constant 0000 
+77c2 H #n-mon-type                      constant 0001 
+77d0 H #r-mon-type                      constant 0002 
+77de H .mon-value                       offset: 0004 
+77ec H monitor-struct                   constant 0005 structure 
+77fa H monitor-limits                   create(adjacent) 77fc 
+780c H monitors                         create(adjacent) 780e 
+7828 H monitor[]                        : 
+783a H shutdown                         : 
+7850 H upper-limit                      : 
+7862 H lower-limit                      : 
+7874 H too-high?                        : 
+7882 H too-low?                         : 
+7890 H ->high-alarm-id                  : 
+789e H run-high-macro                   : 
+78bc H transient-high                   : 
+78da H act-high                         : 
+78f4 H panic-high                       : 
+7934 H ->low-alarm-id                   : 
+7942 H run-low-macro                    : 
+7960 H transient-low                    : 
+797e H act-low                          : 
+7998 H panic-low                        : 
+79d8 H idle-monitor                     : 
+79fe H armed-high-monitor               : 
+7a1a H alarmed-high-monitor             : 
+7a36 H stuck-high-monitor               : 
+7a4e H armed-low-monitor                : 
+7a6a H alarmed-low-monitor              : 
+7a86 H stuck-low-monitor                : 
+7a9e H monitor                          : 
+7b14 H c-mon-cntrl                      : 
+7b26 H init-monitor                     : 
+7b48 H #max-echo-args                   constant 000a 
+7b58 H echo-result                      constant 7b4c variable 
+7b82 H echo-pkt                         constant 7b5e makestruct 
+7b92 H echo-cmd                         : 
+7bcc H init-echo-pkt                    : 
+7be8 H count-mac-cmd                    : 
+7c0c H learn-macro                      : 
+7c26 H get-mac-cmd                      : 
+7c3a H handle-mac-cmd                   : 
+7c54 H ack-mac-cmd                      : 
+7c74 H process-cmd                      : 
+7c8c H count-cmd                        : 
+7cb0 H handle-cmd                       : 
+7cd0 H ack-cmd                          : 
+7ce0 H save-cmd                         : 
+7cf0 H c-cmd-null                       : 
+7cfc H init-command                     : 
+7d16 H send-crit-status                 : 
+7d46 H status-cnt                       constant 7d3a variable 
+7d70 H status-pkt                       constant 7d4c makestruct 
+7d80 H watch-memory                     : 
+7daa H send-status-pkt                  : 
+7de2 H send-status                      : 
+7df0 H clear-all-cnts                   : 
+7e16 H c-cnt-clr                        : 
+7e7c H c-stat-int                       : 
+7e92 H c-stat-mem                       : 
+7eae H init-status                      : 
+7ee8 H safing                           constant 0000 
+7ef6 H start-watchdog                   : 
+7f08 H c-pwr-off                        : 
+7f16 H c-saf-safe                       : 
+7f26 H c-saf-shut                       : 
+7f34 H c-soft-reset                     : 
+7f46 H init-com-autonomy                : 
+7f7e H #safety-timeout                  constant 0003 
+7f8e H host-bad                         constant 7f82 variable 
+7fa0 H safing-done                      constant 7f94 variable 
+7fb0 H all-is-well                      : 
+7fcc H check-safety                     create(adjacent) 7fce do: 
+8012 H init-autonomy                    : 
+8026 H telecmd                          constant 0000 
+8036 H msg-rejected                     constant 802a variable 
+8046 H reject-message                   : 
+805e H .ext-dest                        offset: 0000 
+806c H .ext-opcode                      offset: 0001 
+807a H .ext-m/length                    offset: 0002 
+8088 H .ext-args                        offset: 0004 
+8096 H .ext-checksum                    offset: 010c 
+80a6 H ext-cmd-struct                   constant 0110 structure 
+81c6 H ext-message                      constant 80ac makestruct 
+81d6 H real-time?                       : 
+81ee H command-length                   : 
+8212 H command-sum?                     : 
+824c H unwrap-command                   : 
+8298 H time-message                     : 
+82ba H process-command                  : 
+82e6 H command-message                  : 
+8302 H do-macro-cmd                     : 
+839e H command-process                  create(adjacent) 83a0 process: 
+83f0 H telemetry                        constant 0000 
+83fe H send-telemetry                   : 
+84a8 H telemetry-process                create(adjacent) 84aa process: 
+84ce H init-common                      : 
+84fe H builtin-macros                   create(adjacent) 8500 
+851a H #builtin-macros                  constant 0004 
+8528 H init-macro-builtin               : 
+853c H 1hz                              constant 0000 
+854a H 1hz-proc-timer                   create(adjacent) 854c timer 
+855e H monitor-analogs                  : 
+85de H 1hz-process                      create(adjacent) 85e0 process: 
+8602 H init-1hz                         : 
+860e H pat-mem#                         constant 0004 
+861c H pat-addr#                        constant 0000 
+862a H #max-payload                     constant 1000 
+863a H #test-pkt                        constant 000f 
+8662 H pat-pkt                          constant 863e makestruct 
+8674 H rnd-seed                         constant 8668 variable 
+8684 H seed                             : 
+8696 H random                           : 
+86c0 H init-pattern                     : 
+86fc H test-packets                     : 
+8746 H rand-packets                     : 
+878e H t-zero                           : 
+8804 H t-short                          : 
+887a H t-long                           : 
+88f0 H t-rand-short                     : 
+8970 H t-rand-long                      : 
+89f2 H t-all                            : 
+8a06 H init-test                        : 
+8a14 H init-app                         : 
+8a20 H go                               : 
+8a48 H first-boot                       constant 8a3c variable 
+8a58 H flight                           : 
+       REBOOT                           define 8a8a 
+       app-vector                       define 8ac4 
+here = 8ac6 
+page 0 here = 0000
+page 1 here = ffea
+page 2 here = fb7a
+page 3 here = 0000
+page 4 here = 0000
+page 5 here = 0000
+page 6 here = 0000
+page 7 here = 0000
+page 8 here = 0000
+page 9 here = ee70
+page a here = 0000
+page b here = 0000
+page c here = 0000
+page d here = 0000
+page e here = 0000
+page f here = 0000
+Rule <move><shifti> was applied 4 times.
+Rule <short>swap<shift> was applied 18 times.
+Rule overswap<shift> was applied 2 times.
+Rule <long><shifti> was applied 1 times.
+Rule <long><long-op> was applied 4 times.
+Rule <long>><short-op> was applied 87 times.
+Rule <short><shifti> was applied 13 times.
+Rule <short><long-op> was applied 4 times.
+Rule <short><short-op> was applied 5 times.
+Rule <long>>to<short> was applied 16 times.
+Rule [/dup<long-op>]><long-op> was applied 0 times.
+Rule [/dup<short-op>]><long-op> was applied 0 times.
+Rule [/dup<long-op>]><short-op> was applied 0 times.
+Rule 0+ was applied 23 times.
+Rule [/dup<short-op>]<short-op> was applied 5 times.
+Rule [/dup<long-op>]>to<short-op> was applied 5 times.
+Rule <call>return was applied 138 times.
+Rule <long>return was applied 4 times.
+Rule <*>return was applied 229 times.
+Rule [<short>+]<store> was applied 43 times.
+Rule [dup<short>+]<load> was applied 8 times.
+Rule [<short>+]<load> was applied 61 times.
+Rule dup<load> was applied 38 times.
+Rule drop[drop<long>] was applied 3 times.
+Rule drop<long> was applied 49 times.
+Rule <long>[over<binop>] was applied 0 times.
+Rule dup<long><bincmp> was applied 11 times.
+Rule dup[<long><binop>] was applied 6 times.
+Rule <long><binop> was applied 66 times.
+Rule drop[drop<short>] was applied 15 times.
+Rule drop<short> was applied 71 times.
+Rule dup<short><bincmp> was applied 27 times.
+Rule <short><bincmp><?br> was applied 11 times.
+Rule <short>[over<binop>] was applied 0 times.
+Rule dup[<short><binop>] was applied 22 times.
+Rule <short>drop was applied 1 times.
+Rule <short><binop> was applied 52 times.
+Rule drop[drop<reg@>] was applied 3 times.
+Rule drop<reg@> was applied 43 times.
+Rule dup<reg@><bincmp> was applied 3 times.
+Rule <reg@><bincmp><?br> was applied 6 times.
+Rule <reg@>[over<binop>] was applied 3 times.
+Rule dup[<reg@><binop>] was applied 1 times.
+Rule <reg@><binop> was applied 15 times.
+Rule <alu><reg!>2 was applied 2 times.
+Rule <alu><reg!>1 was applied 38 times.
+Rule <cmp><?br>2 was applied 53 times.
+Rule <cmp><?br>1 was applied 21 times.
+Rule <alu><?br>2 was applied 7 times.
+Rule <alu><?br>1 was applied 11 times.
+Rule <cmp>not was applied 6 times.
+Rule <alu><uncmp> was applied 15 times.
+Rule over[over<bincmp>] was applied 14 times.
+Rule over<bincmp> was applied 16 times.
+Rule swap<bincmp> was applied 0 times.
+Rule over[over<binop>] was applied 6 times.
+Rule over<binop> was applied 26 times.
+Rule swap<binop> was applied 1 times.
+Rule swapswap was applied 2 times.
+Rule nipdup was applied 5 times.
+Rule dropdup was applied 10 times.

@@ -1,0 +1,19 @@
+\ Johns Hopkins University / Applied Physics Laboratory
+\ Local variable pretty syntax:
+\   : foo ( x y z -- )	{ x y z }	\ declares three local variables
+\ Note that locals are declared in stack-argument order.
+hex
+
+: local		( "name" -- )
+   bl word count (local) ;
+: {		( -- )
+   0 begin				\ use 0 as sentinel; >in cannot be 0
+      >in @				\ record position in input stream
+      bl word count 1 = swap c@ [char] } = and
+   until				\ until "}" is found
+   drop >in @ >r			\ remember where "}" is
+   begin				\ rescan in reverse order
+      dup while
+      >in ! local			\ rewind input stream; declare local
+   repeat
+   0 (local) r> >in ! ; immediate	\ end declaration

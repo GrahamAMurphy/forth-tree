@@ -1,0 +1,49 @@
+\ (c) 2004 Johns Hopkins University / Applied Physics Laboratory
+\ Setup stacks, etc.
+\ Multitasking version:  uses stack pointers in run-time process decriptor.
+hex
+
+\ Note: atomic access of PCR/SCR registers is essential to the code
+\ here.  Reading or writing PCR or SCR automatically suppresses
+\ interrupts for one instruction.  Also, when reading the SCR we do not
+\ push or pop the stack; this prevents stack caching cycles from being
+\ inserted, thus modifying PSP.
+
+code pspreset	\ ( ... -- ) Empty parameter stack.  Does not affect return
+		\ stack.
+	cproc *literal*
+	<@	memcell >.		\ follow pointer to current process
+	<@	0 .psp-bot +# memcell >. \ read bottom-of-stack pointer
+	<reg!	nopa md popp >.		\ tuck away new psp
+	<lil	nopb pushp >.	fd00 >.
+	<lil	notb pushp >.	ff00 >.
+	<reg@	scr banda >.		\ start atomic operation
+	<reg!	bora scr >.
+	<reg@	md nopb pushp >.
+	<reg!	nopa psp popp return >.	\ end atomic operation
+
+code depth	\ ( -- n ) Return parameter stack depth.
+	<lis	0 +# nopb pushp >.	\ push dummy value; overwrite with SCR
+	<reg@	scr nopb >.		\ start atomic operation: SCR & PSP
+	<reg@	psp nopb pushp >.	\ end atomic operation
+	cproc *literal*
+	<@	memcell >.		\ follow pointer to current process
+	<@	0 .psp-bot +# memcell >. \ read bottom-of-stack pointer
+	<alu	aminusb popp >.		\ bot - psp
+	<shifti	t-cell<< <<# asr >.	\ scale addresses to stack elements
+	<alu	nopb swapp >.
+	<shifti	d# 12 <<# lsr pushp >.	\ extract ptopi
+	<alu	nopb swapp >.
+	<shifti	d#  8 <<# lsr >.	\ extract poveri
+	<alu	bminusa popp >.		\ depth = ptopi-poveri
+	<lis	2 +# aminusb >.		\       = ptopi-poveri-2
+	<lis	f +# banda >.		\       = (ptopi-poveri-2)&0xf
+	<alu	bplusa popp >.		\       = (ptopi-poveri-2)&0xf + bot-psp
+	<lis    1 +# aminusb return >.	\       = (ptopi-poveri-2)&0xf + bot-psp
+					\				- 1
+
+nohead
+\ TBD: testing psp could detect current and past underflow!
+code under?	\ ( --- t/f ) Return t if stack has underflowed.
+	' depth *call*
+	<test	nopa N return >.

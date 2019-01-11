@@ -1,0 +1,110 @@
+#!/bin/sh
+# configuration script for JHForth
+# Usage: config [arch [mach]]
+# Arch is target architecture, e.g. C, sparc assembly, 68k assembly, etc.
+# Mach is target machine; this could indicate either host (i.e. Unix) or a
+# cross-compile to a specified board.  If mach is missing it defaults to
+# host.  If both arch and mach are missing, they default to C and host,
+# respectively.
+
+# ------------------------------------------------------------------------
+# Change installat to be the full path name of where you would
+# like the Forth system to be installed.
+installat=/usr/local/bin/forth
+
+# ------------------------------------------------------------------------
+# You shouldn't need to edit below here.
+targetarch=${1-generic}	# architecture: default to generic C if no argument
+targetmach=${2-unix}	# machine: default to unix host
+
+# TBD: execprefix and srclist obsolete ...
+execprefix="./"		# default invocation prefix
+srclist='$(UNIXSRCS)'	# default: source files on command line
+
+# Use target architecture to choose architecture directory, C vs. assembly,
+# and forth2m flags.  Assume compile is for this machine (i.e., no cross-
+# compile) and a Unix/large model.  The compiler choice may be overridden
+# later if a cross-compile is requested.
+case $targetarch in
+   68k|m68*|mc68*)
+	echo -n "configuring for Motorola 680x0 "
+	arch="mc68020"
+	cors="s"
+	;;
+   sparc)
+	echo -n "configuring for sparc "
+	arch="sparc"
+	cors="s"
+	;;
+   *)
+	echo -n "configuring for C "
+	arch="cmach"
+	cors="c"
+	;;
+esac
+
+# If cross-compiling, use stand-alone/small model.  If compiling for this
+# machine (i.e. no cross-compile), use unix/large model sources.  Select
+# compiler, compilation flags, and linker.
+case $targetmach in
+   turbo|79s381|timed|camera|tracker|unano)
+	echo "cross-compiled to MIPS $targetmach single board computer ..."
+	cc="mips-elf-gcc"; cflags="-O -I$(MIPSLIB)"
+	link="mips-elf-ld"
+	ar="mips-elf-ar"
+	nm="mips-elf-nm"
+	cp cmach/mips/cross-defs.h defs.h
+	;;
+   mac-os-x)
+	echo "compiled for this machine, a MAC OS X ..."
+	cc="cc"; cflags="-O -no-cpp-precomp"
+	link="cc"
+	ar="ar"
+	nm="nm"
+	$cc -o gendefs gendefs.c 2>&1	# study host
+	gendefs >defs.h
+	rm -f gendefs
+	;;
+   unix)
+	echo "compiled for this machine ..."
+	cc="gcc"; cflags="-O"
+	link="gcc"
+	ar="ar"
+	nm="nm"
+	$cc -o gendefs gendefs.c 2>&1	# study host
+	gendefs >defs.h
+	rm -f gendefs
+	;;
+   *)
+	echo; echo "Error: unknown target"
+	exit 1
+	;;
+esac
+
+# See if compiler generates underlines (important for link with asm code)
+echo 'int foo() {return 0;}' > conftest.c
+$cc -c conftest.c 2>&1
+if $nm conftest.o | grep _foo >/dev/null 2>&1 ; then
+	:
+else
+	echo "#define NO_UNDERLINE" >>defs.h
+fi
+rm -f conftest.c conftest.o
+
+# Define for architecture specific things
+echo "#define $arch" >>defs.h
+
+# Edit makefile template
+sed	-e "s|%arch%|$arch|g" \
+	-e "s|%f2mflags%|$f2mflags|g" \
+	-e "s|%cors%|$cors|g" \
+	-e "s|%target%|$targetmach|g" \
+	-e "s|%cc%|$cc|g" \
+	-e "s|%cflags%|$cflags|g" \
+	-e "s|%link%|$link|g" \
+	-e "s|%ar%|$ar|g" \
+	-e "s|%installat%|$installat|g" \
+	-e "s|%execprefix%|$execprefix|g" \
+	-e "s|%srclist%|$srclist|g" \
+	<makefile.tem >makefile
+echo "Will be installed at " $installat

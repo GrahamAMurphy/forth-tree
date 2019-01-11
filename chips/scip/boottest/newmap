@@ -1,0 +1,214 @@
+
+       #pcr-se                          define 0001 
+       #pcr-ie                          define 0002 
+       namesize                         define 0007 
+       nf-size                          define 0008 
+       wid-step                         define 0001 
+       prec-bit                         define 0040 
+       smudge-bit                       define 0020 
+       inline-bit                       define 0080 
+       char-mask                        define 00ff 
+       chars/dump                       define 0008 
+       <does-default>                   define da40 
+       <remote-does-default>            define ba00 
+       reset-vector                     define 0000 
+       int-vector                       define 0004 
+0006   reboot                           code 
+0008   branch                           code 
+000c   ?branch                          code 
+0012   return                           code 
+0014   execute                          code 
+0018   does-default                     code 
+001c   remote-does-default              code 
+001c   (do)                             code 
+0030   (loop)                           code 
+003a   (+loop)                          code 
+0044   unloop                           code 
+0044   i                                code 
+0044   j                                code 
+005a   (next)                           code 
+0064   unnext                           code 
+0068   !                                code 
+0068   +                                code 
+0068   +!                               code 
+0074   -                                code 
+0074   -rot                             code 
+007c   0<                               code 
+007c   0=                               code 
+007c   0>                               code 
+007c   1+                               code 
+007c   1-                               code 
+007c   2*                               code 
+007c   2/                               code 
+007c   2over                            code 
+008e   2swap                            code 
+00a0   2pick                            code 
+00a8   3pick                            code 
+00b6   <                                code 
+00b6   >                                code 
+00b6   u<                               code 
+00b6   u>                               code 
+00b6   =                                code 
+00b6   <>                               code 
+00b6   >r                               code 
+00b6   @                                code 
+00b6   aligned                          code 
+00bc   and                              code 
+00bc   c!                               code 
+00bc   c@                               code 
+00bc   char+                            code 
+00bc   chars                            code 
+00bc   drop                             code 
+00bc   dup                              code 
+00bc   invert                           code 
+00bc   lshift                           code 
+00bc   negate                           code 
+00bc   nip                              code 
+00bc   nop                              code 
+00bc   not                              code 
+00bc   or                               code 
+00bc   over                             code 
+00bc   r>                               code 
+00bc   r@                               code 
+00bc   rdrop                            code 
+00bc   rot                              code 
+00c4   rotate                           code 
+00c4   rshift                           code 
+00c4   swap                             code 
+00c4   touch                            code 
+00c4   w!                               code 
+00c4   w@                               code 
+00c4   within                           code 
+00ce   xor                              code 
+00ce   cell                             code 
+00ce   cell+                            code 
+00ce   cell-                            code 
+00ce   cells                            code 
+00ce   cell/                            code 
+00ce   d+                               code 
+00da   dnegate                          code 
+00e4   d<                               code 
+00f6   cmove                            code 
+0120   cmove>                           code 
+013c   move                             code 
+014a   m*                               code 
+0162   um*                              code 
+0174   um/mod                           code 
+01a0   enable                           code 
+01a6   disable                          code 
+01ac   md!                              code 
+01ac   md@                              code 
+01ac   set-code                         code 
+01ac   get-code                         code 
+01ac   set-mem                          code 
+01ac   get-mem                          code 
+01ac   near                             code 
+01ac   far                              code 
+       nop-boot                         define 01ac 
+       NEXT-BOOT                        define 01ae 
+       EVERY-BOOT                       define 01b0 
+01b2   true                             : 
+01b2   false                            : 
+01b2   ?dup                             : 
+01ba   2dup                             : 
+01ba   s>d                              : 
+01ba   +-                               : 
+01c2   d+-                              : 
+01ca   abs                              : 
+01ce   dabs                             : 
+01d2   *                                : 
+01d6   2drop                            : 
+01d6   max                              : 
+01de   min                              : 
+01e6   umax                             : 
+01ee   umin                             : 
+01f6   2!                               : 
+0202   2@                               : 
+0208   um*m                             : 
+021a   m/mmod                           : 
+022e   sm/rem                           : 
+0248   fm/mod                           : 
+0278   /mod                             : 
+0280   /                                : 
+0284   mod                              : 
+0288   */mod                            : 
+0290   */                               : 
+       pstack                           define 0314 
+       rstack                           define 0394 
+0394   safe                             code 
+0394   cacheenable                      code 
+039a   pspreset                         code 
+03ac   spreset                          code 
+03ac   depth                            code 
+03c8   under?                           code 
+       head                             define 03cc 
+       cproc                            define 03ce 
+03d0   .next                            offset: 0000 
+03d0   .pstate                          offset: 0002 
+03d0   .psp                             offset: 0004 
+03d0   .rsp                             offset: 0006 
+03d0   .udr                             offset: 0008 
+03d0   .dpr                             offset: 000a 
+03d0   pd-run                           constant 000c structure 
+03d0   @head                            : 
+03d6   !head                            : 
+03de   @run                             : 
+03e4   !run                             : 
+03ec   resched                          code 
+0460   wait                             code 
+0488   signal                           code 
+04f6   int-prologue                     code 
+0504   int-epilogue                     code 
+       trap-base                        define f000 
+0510   emit                             code 
+051e   key                              code 
+0524   .pd-run                          offset: 0000 
+0524   .lsp-init                        offset: 0002 
+0524   .psp-init                        offset: 0004 
+0524   .rsp-init                        offset: 0006 
+0524   pd-init                          constant 0008 structure 
+       user-size                        define 000c 
+       nullrstack                       define 0544 
+       nullpstack                       define 0564 
+       nullprocess                      define 0564 
+       nullprocess-init                 define 0570 
+       defprocess                       define 057a 
+0586   init-cproc                       : 
+058c   initprocess                      : 
+05d0                                    every-boot: 
+05f2   insertprocess                    : 
+0610   nextprocess                      : 
+0632   run                              : 
+0636   removeprocess                    : 
+066a   kill                             : 
+066e   terminate                        : 
+0674   eol                              constant 000a 
+0674   cr                               : 
+067c   type                             : 
+069e   ^h                               constant 0008 
+069e   ^u                               constant 0015 
+069e   accept                           : 
+0708   .next                            offset: 0000 
+0708   .value                           offset: 0002 
+0708   .init                            offset: 0004 
+0708   .counter                         offset: 0006 
+0708   waiter                           constant 0008 structure 
+0708   every                            constant 0000 
+0708   in                               constant 0001 
+0708   tailtimer                        create(adjacent) 070a 
+0712   deltainsert                      : 
+0756   deltadelete                      : 
+078a   countdown                        : 
+07ac   processwaiter                    : 
+07d8   timeraccess                      constant 07d6 variable 
+07da   timerlist                        constant 07d8 variable 
+07da   starttimer                       : 
+07ec   signaltimers                     : 
+0822   wake                             : 
+084e   canceltimer                      : 
+0864   doeraccess                       constant 0862 variable 
+0866   doerlist                         constant 0864 variable 
+0866   startdoer                        : 
+0878   executedoers                     : 
+08ae   doit                             : 
+08ce   canceldoer                       : 

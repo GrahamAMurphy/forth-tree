@@ -1,0 +1,17 @@
+
+       memarea                          define 0100 
+       send                             define 0002 
+       get                              define 0010 
+       send-s/c                         define 001c 
+       get-s/c                          define 002a 
+       send-i2c                         define 0036 
+       read-i2c                         define 0044 
+       get-i2c                          define 004e 
+       loadstoretest1                   define 0052 
+       loadstoretest2                   define 00a0 
+       loadstoretest3                   define 00e2 
+       loadstoretest4                   define 010e 
+       iotest1                          define 0136 
+       iotest2                          define 015a 
+       done                             define 0182 
+here = 18a 

@@ -1,0 +1,22 @@
+\ (c) 2009 Johns Hopkins University / Applied Physics Laboratory
+\ Interrupt support
+\ This is a standard API for controlling interrupts.  These are stubs.
+\ This file can be copied and fleshed out in system-dependent ways.
+\ Also, this file can be used on systems that do not have interrupts.
+hex
+
+\ Number of interrupts
+0 constant #ints
+
+: get-mask	\ ( u -- mask ) Given an interrupt number, return the
+		\ corresponding interrupt mask.  Note: a '1' in a mask
+		\ enables the corresponding interrupt.
+   1 swap lshift || ; inline
+
+: unmask-int	\ ( mask -- ) Enable indicated interrupt(s).  Note: re-entrant
+		\ and can be used from within an interrupt routine.
+   drop || ; inline
+
+: mask-int	\ ( mask -- ) Disable indicated interrupt(s).  Note: re-entrant
+		\ and can be used from within an interrupt routine.
+   drop || ; inline

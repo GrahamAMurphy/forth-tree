@@ -1,0 +1,24 @@
+\ (c) 1994 Johns Hopkins University / Applied Physics Laboratory
+\ Bit fields in memory.
+hex
+
+\ TBD: need overview commentary.
+
+: bit:		\ ( bit# -- ) ( -- mask ) Define a single bit position.
+   1 swap lshift constant ;
+
+: field:	\ ( bit# width -- ) ( -- mask bit# ) Define a bit field.
+   1 swap lshift 1- over lshift swap 2constant ;
+
+: bit@		\ ( addr mask -- 0/1 ) Return value of a bit field, 0 or 1.
+   swap @ and if 1 else 0 then ;
+
+: bit!		\ ( 0/1 addr mask -- ) Set a bit field to 0 or 1.
+   rot if over @ or else invert over @ and then swap ! ;
+
+: field@	\ ( addr mask bit# -- x ) Return the contents of a field.
+   >r swap @ and r> rshift ;
+
+: field!	\ ( x addr mask bit# -- ) Set the value of a field.
+   over >r >r invert over @ and
+   rot r> lshift r> and or swap ! ;

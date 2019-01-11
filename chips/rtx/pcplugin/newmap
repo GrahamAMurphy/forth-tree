@@ -1,0 +1,381 @@
+do isn't unique
+loop isn't unique
++loop isn't unique
+8000 int-table
+8000 int-base
+100 HASHTABLESIZE
+8200 HASHTABLE
+8400 CURREGION
+8402 IN
+8404 NTIB
+8406 TIBPTR
+T 8412 reboot
+8414 return
+T 8422 execute
+8426 does-default
+842a branch
+842e ?branch
+8432 (next)
+bf40 <small-lit>
+be40 <small+lit>
+de00 <biglit>
+8432 (localloc)
+8434 (locfree)
+8436 (locstore)
+8438 (locload)
+T 8444 !
+T 8452 +
+T 8460 -
+T 846e 0<
+T 847c 1+
+T 848a 1-
+T 8498 2+
+T 84a6 2-
+T 84b4 2*
+T 84c2 2/
+T 84d0 4+
+T 84de 4-
+T 84ec >r
+T 84fa @
+T 8508 and
+T 8516 c!
+T 8524 c@
+T 8532 char+
+T 8540 drop
+T 854e dup
+T 855c invert
+T 856a negate
+T 8578 nip
+T 8586 nop
+T 8594 not
+T 85a2 or
+T 85b0 over
+T 85be r>
+T 85cc r@
+T 85da rdrop
+T 85e8 swap
+T 85f6 xor
+T 8604 cell
+T 8612 cell+
+T 8620 cell-
+T 862e cells
+T 863c cell/
+8640 times||
+8640 2*c
+8640 cu2/
+8640 u2/
+8640 c@+
+8640 c!+
+8640 c@-
+8640 c!-
+8640 cr!
+8640 cr@
+8640 md!
+8640 md@
+8640 sr!
+8640 sr@
+8640 imr!
+8640 imr@
+8640 sp@
+8640 sp@+
+8640 sp!
+8640 ibc!
+8640 ibc@
+8640 mlr@
+8640 mhr@
+8640 +cry
+8640 -cry
+8640 0+c
+8640 mulu
+8640 muls
+8640 d2*
+8640 clc
+8640 /1
+8640 /2
+8640 /3
+T 864a =
+8652 (do)
+866a unloop
+8674 ((loop))
+867c (loop)
+8682 ((+loop))
+8692 (+loop)
+8698 NEXT-BOOT
+869a EVERY-BOOT
+T 86a6 +!
+T 86be rot
+T 86d2 -rot
+T 86e6 0=
+T 86fa <>
+T 8710 <
+T 8730 >
+T 8752 0>
+T 8762 u<
+T 8776 u>
+T 878c 2over
+T 87ac 2swap
+T 87c8 2pick
+T 87dc 3pick
+T 87f6 4*
+T 8806 4/
+T 8816 aligned
+T 8828 chars
+T 8834 lshift
+T 884e rshift
+T 8868 rotate
+T 8882 touch
+T 8892 tuck
+T 88a2 within
+T 88ba d+
+T 88d4 dnegate
+T 88f0 um*
+T 8902 m*
+T 8914 um/mod
+T 8932 i
+T 8944 j
+T 8962 cmove
+T 8982 cmove>
+T 89b6 move
+T 89dc enable
+T 89ec disable
+8a46 LOCALS
+8a46 safe
+8a46 cacheenable
+8a46 pspreset
+8a56 spreset
+8a56 under?
+8a6a initlocals
+4 int-entry-size
+T 8a76 emit
+T 8a88 key
+T 8aa6 eol
+T 8ab4 cr
+T 8ac8 type
+8ae6 ^h
+8ae6 ^u
+T 8af0 accept
+8b6a match?
+8b96 (find)
+8c0e push-stream
+8c42 pop-stream
+8c60 skip-non-white
+8c78 skip-white
+8c92 skipdel
+8ca4 scan-non-white
+8cbc scan-white
+8cd4 scandel
+T 8cf0 parse
+8d3c _word
+8d8c regionptr
+8d8c hashtablesize
+8d8c hashtable
+8d8c kib
+8e0e sourceptr
+8e0e #source
+T 8e18 >in
+T 8e28 next-boot
+T 8e38 every-boot
+T 8e48 forth-wordlist
+8e4c loc-wordlist
+8e4e vocabtag
+8e50 clue
+8e52 in-colon-def
+8e54 last-colon
+8e56 last
+8e58 to?
+T 8e64 stdregion
+T 8e76 state
+T 8e88 base
+T 8e9a #order
+T 8eaa #vocs
+T 8eba current
+T 8ecc context
+8ee4 #locals
+T 8eee bl
+namesize isn't unique
+T 8efe namesize
+T 8f0c name>
+T 8f20 link>
+T 8f2e body>
+T 8f3c >name
+T 8f50 >link
+T 8f5e >body
+T 8f6c true
+T 8f7a false
+T 8f88 ?dup
+T 8f9c 2dup
+T 8fac s>d
+T 8fbc +-
+T 8fd0 d+-
+T 8fe2 abs
+T 8ff2 dabs
+T 9002 *
+T 9012 2drop
+T 9022 max
+T 903c min
+T 9056 umax
+T 9070 umin
+T 908a 2!
+T 90a0 2@
+T 90b6 um*m
+T 90d4 m/mmod
+T 90f2 sm/rem
+T 9120 fm/mod
+T 916a /mod
+T 9180 /
+T 9190 mod
+T 91a0 */mod
+T 91b4 */
+T 91c4 fill
+T 91ec environment?
+T 91fe hex
+T 9212 decimal
+T 9226 [
+T 923a ]
+9244 dp
+T 924e allocatefrom
+T 9260 here
+T 9274 pad
+T 9288 latest
+T 929a align
+T 92b2 allot
+T 92c6 ,
+T 92da c,
+92e4 *inline*
+9316 *callop*
+T 9320 compile,
+9326 *code*
+933c *literal*
+9370 *branch-dest*
+93c0 *branch-unpack*
+93ec *locstore*
+9402 *locload*
+9412 *locinit*
+941c *locfree*
+942a (does)
+943c does
+9442 <mark
+9446 <resolve
+9450 >mark
+9456 >resolve
+945c >>mark
+9464 >>resolve
+T 9484 if
+T 9498 else
+T 94b0 then
+T 94be begin
+T 94cc while
+T 94e2 until
+T 94f6 repeat
+T 950c again
+T 9520 sel
+T 952e <<
+T 9540 =>
+T 955a ==>
+T 956e >>
+T 9588 otherwise
+T 959a endsel
+T 95ae do
+T 95d0 loop
+T 95f8 +loop
+T 9620 leave
+9636 chuckbuf
+9644 reset-stream
+T 965e source
+T 9676 word
+T 96ac count
+T 96c0 ,word
+T 96d4 string,
+96e6 "s-buffer
+T 9742 "
+9756 (")
+9766 (.")
+T 9782 sliteral
+T 9796 ""
+T 97aa ."
+T 97c4 s"
+T 97de (
+T 97f4 .(
+T 9808 \
+T 9816 get-current
+T 9828 set-current
+T 983a definitions
+T 984e get-order
+T 988e set-order
+T 98cc wordlist
+98de hash
+T 9916 find
+T 9968 search-wordlist
+9984 (forget)
+99d4 notunique?
+T 99ec header
+9a32 setbits
+9a40 clearbits
+T 9a5a immediate
+T 9a6e hide
+T 9a82 reveal
+T 9a96 inline
+T 9aaa constant
+T 9ac2 variable
+T 9ad6 2variable
+T 9aee create
+T 9b02 region
+9b0e locregion
+T 9d1c to
+9d26 make-local
+T 9d90 (local)
+9db8 free-locals
+9dc6 end-scope
+T 9dfc does>
+T 9e10 :noname
+T 9e28 :
+T 9e44 recurse
+T 9e58 recursive
+T 9e6e exit
+T 9e82 ;
+9ea8 hld
+T 9eb2 space
+T 9ec4 spaces
+T 9ee4 hold
+T 9f00 <#
+T 9f14 #>
+T 9f30 sign
+T 9f46 #
+T 9f72 #s
+T 9f8a d.r
+9fa8 zeroes
+T 9fcc d.lz
+T 9ff4 d.
+T a006 .r
+T a01c .
+T a02e u.r
+T a040 u.lz
+T a052 u.
+T a062 ?
+T a072 u?
+T a082 postpone
+T a0a6 '
+T a0c2 [']
+T a0d2 literal
+T a0e0 char
+T a0f6 [char]
+T a106 dump
+T a1be forget
+T a1ec depth
+T a20e digit
+T a25c convert
+T a28c >number
+T a2c6 number
+a300 endinterp
+T a310 interpret
+T a376 evaluate
+T a38a quit
+T a3dc abort
+T a3f4 abort"
+T a40c int:
+T a432 ;int
+a43c dp0
+a462 REBOOT
+   here = a500 
+ramhere = a500 
+stack depth = 0 

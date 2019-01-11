@@ -1,0 +1,35 @@
+This is TeX, C Version 3.0 (format=lplain 91.2.15)  28 JUN 1994 15:30
+**&latex mpe
+(mpe.tex
+LaTeX Version 2.09 <7 Dec 1989>
+(/usr/local/lib/tex/inputs/article.sty
+Document Style `article' <16 Mar 88>.
+(/usr/local/lib/tex/inputs/art10.sty)
+\c@part=\count79
+\c@section=\count80
+\c@subsection=\count81
+\c@subsubsection=\count82
+\c@paragraph=\count83
+\c@subparagraph=\count84
+\c@figure=\count85
+\c@table=\count86
+)
+(/usr/local/lib/tex/inputs/fancyheadings.sty
+\headrulewidth=\dimen99
+\footrulewidth=\dimen100
+\plainheadrulewidth=\dimen101
+\plainfootrulewidth=\dimen102
+\headwidth=\dimen103
+) (mpe.aux) [1
+
+] [2] [3] (mpe.aux) ) 
+Here is how much of TeX's memory you used:
+ 209 strings out of 6960
+ 1950 string characters out of 63309
+ 37154 words of memory out of 262141
+ 2158 multiletter control sequences out of 9500
+ 18996 words of font info for 72 fonts, out of 72000 for 255
+ 14 hyphenation exceptions out of 607
+ 16i,10n,15p,160b,222s stack positions out of 300i,40n,60p,3000b,4000s
+
+Output written on mpe.dvi (3 pages, 13472 bytes).

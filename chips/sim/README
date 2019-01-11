@@ -1,0 +1,27 @@
+This directory contains the source code for simulations of the 
+FRISC 3 (aka SC32) and FRISC 4 Forth-oriented microprocessors.
+FRISC 4 is still under construction.
+File names containing a 3 pertain to FRISC 3 and those containing
+a 4 pertain to FRISC 4; all others are shared.
+
+To compile FRISC 3 simulators type:
+	make fsim3 nifsim3
+fsim3 is an interactive simulator and gives a register level view
+of FRISC 3 (via the curses library).  nifsim3 is a non-interactive
+version.  To run the simulator type:
+	fsim3 file
+where file is a FRISC 3 program.  If the file contains an entire
+FRISC 3 Forth system, the system can be simulated (with reasonable
+response times) by typing:
+	startat 0
+	sim 0xfffff
+
+These programs have been tested on Sun 3 and Sun 4 systems.
+There is a snippet of assembly language in aluops.s.
+The programs have run on Masscomp and Vaxes in the not too
+distant past.
+
+	John R. Hayes
+	Applied Physics Laboratory
+	Johns Hopkins University
+	john@hecate.jhuapl.edu -or- john@aplcomm.jhuapl.edu

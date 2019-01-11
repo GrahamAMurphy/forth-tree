@@ -1,0 +1,18 @@
+\ (c) 1992 Johns Hopkins University / Applied Physics Laboratory
+\ Local variable pretty syntax:
+\   : foo ( x y z -- )	{ x y z }	\ declares three local variables
+\ Note that locals are declared in stack-argument order.  This
+\ contradicts the recommended practice in the ANS Forth standard;
+\ if this code is loaded, an ANS Forth system no longer exists.
+hex
+
+: {
+   0 begin				\ use 0 as sentinel; >in cannot be 0
+      >in @				\ record position in input stream
+      bl word 1+ c@ [char] } =		\ until "}" is found
+   until drop >in @ >r			\ remember where "}" is
+   begin				\ rescan in reverse order
+      dup while
+      >in ! bl word count (local)	\ rewind input stream; declare local
+   repeat 0 (local)
+   r> >in ! ; immediate			\ discard declaration

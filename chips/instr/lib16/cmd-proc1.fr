@@ -1,0 +1,97 @@
+\ (c) 2000 Johns Hopkins University / Applied Physics Laboratory
+\ Command processor
+hex
+
+commands extendmodule>
+
+\ ------------------------------------------------------------------------
+\ * Handle commands from macros
+
+: count-mac-cmd	\ ( result -- ) Update macro command counters.  If result is
+		\ good, the executed counter is incremented; otherwise,
+		\ the rejected counter is incremented.
+   #ok-cmd u> if macro-cmds-rej else macro-cmds-exec then
+   dup get 1+ swap set ;		\ select counter to increment
+
+public:
+
+: learn-macro	\ ( -- result ) Learn macro: append command to current macro.
+   get-command append-cmd		\ attempt to append command to macro
+   if #ok-macro-cmd else #macro-comp-cmd then ; \ appended or error
+
+: get-mac-cmd	\ ( -- ) Get next command from macro and store internally.
+   get-command drop macro-load		\ load macro command into buffer
+      set-cmd-length ;			\  and remember its length
+
+: handle-mac-cmd \ ( -- result ) Execute next command from current macro.
+   lookup-cmd ?dup if			\ look up command; if good opcode/length
+      macro-cmd				\ execute it
+   else					\ otherwise
+      #unknown-cmd			\ produce "unknown" result
+   then ;
+
+: ack-mac-cmd	\ ( result -- ) Acknowledge current (macro) command.
+   macro-echo? if			\ if echoing enabled for this macro
+      dup count-mac-cmd			\ count as macro command
+      80 or echo-cmd			\ echo command
+   else
+      drop
+   then ;
+
+private:
+
+\ ------------------------------------------------------------------------
+\ * Handle commands from uplink
+
+: process-cmd	\ ( cmd rt? -- result ) Process given command.  The command
+		\ is either executed or appended to macro currently being
+		\ built.  A result code is returned.
+   if					\ if ordinary command
+      rt-cmd				\ execute it
+   else					\ if macro flag set
+      drop learn-macro			\ attempt to append command to macro
+   then ;
+
+: count-cmd	\ ( result -- ) Update command counters.  If result is good,
+		\ the commands-executed counter is incremented; otherwise,
+		\ the commands-rejected counter is incremented.
+   #ok-macro-cmd u> if cmds-rejected else cmds-executed then
+   dup get 1+ swap set ;		\ select counter to increment
+
+public:
+
+: handle-cmd	\ ( rt? -- result ) Handle command.
+   lookup-cmd ?dup if			\ look up command; if good opcode/length
+      dup trim-args			\ trim off unused args
+      swap process-cmd			\ process command
+   else					\ otherwise
+      drop #unknown-cmd			\ produce "unknown" result
+   then ;
+
+: ack-cmd	\ ( result -- ) Acknowledge current command.
+   dup count-cmd			\ count command
+   echo-cmd ;				\ echo command
+
+: save-cmd	\ ( args length opcode -- ) Save command in internal format.
+   set-opcode load-args ;		\ load command into buffer
+
+private:
+
+\ ------------------------------------------------------------------------
+\ Commands
+
+: c-cmd-null	\ ( -- ) Nop command.  Useful for checking interfaces.
+   ( nop ) ;
+
+\ ------------------------------------------------------------------------
+\ * Initialization
+
+public:
+: init-command	\ ( -- ) Initialize.
+   init-cmd-table			\ initialize command hash table
+   init-echo-pkt			\ initialize echo packet
+   ['] c-cmd-null	#cmd-null	0 register-cmd/args
+;
+private:
+
+endmodule>

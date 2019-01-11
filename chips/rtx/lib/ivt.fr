@@ -1,0 +1,19 @@
+\ (c) 1998 Johns Hopkins University / Applied Physics Laboratory
+\ Fill in interrupt vector table
+hex
+
+\ Note: uses set-mem/get-mem API.
+
+: fill-ivt	\ ( addr -- ) Fill in interrupt vector table at given address
+		\ in page 0.  Each vector will be a branch to block 0, in
+		\ the originating page.  The IBC is loaded with the new
+		\ vector table address.
+   get-mem swap  0 set-mem far		\ all data (may be) on remote page
+   dup d# 17 0 do			\ for each of 17 vectors
+      be0c swap !+			\ word 0: ipr@
+      be8f swap !+			\ word 1: cpr!
+      9400 i 10 * or swap !+		\ word 2: br to block 0, 32*i
+      d# 13 0 do 0 swap !+ loop		\ words 3-15: zero
+   loop drop
+   ibc!					\ override ibc
+   set-mem ;

@@ -1,0 +1,49 @@
+\ (c) 2002 Johns Hopkins University / Applied Physics Laboratory
+\ * Fast compression - compress an array of 16-bit values
+decimal
+
+module> fast16
+
+\ * Compress an array of 16-bit values in place.  The difference between
+\ * each value is computed.  The first value is not changed; the remaining
+\ * values are replaced by the differences:  value[n] <- value[n-1] -
+\ * value[n].  The differences are encoded as unsigned numbers such that
+\ * differences with small absolute values are encoded as small unsigned
+\ * numbers.  The algorithm returns the number of bits needed to represent
+\ * the largest encoded difference.  This value, along with some
+\ * bit-packing software, can be used to pack the data into a smaller
+\ * memory area.
+
+: delta16	\ ( addr len -- ) Delta encode the len cells stored
+		\ at the given address.  The first cell is not touched.
+		\ Each subsequent cell is replaced with a 16-bit code
+		\ for the difference between the cell and its predecessor.
+		\ Assumes each cell is 16 bits.
+   >r dup @ swap cell+ r> 1- 0 do	\ for each cell; s: p0 addr
+      dup >r @ swap over -		\ delta = p0 - p1; s: p1 delta
+      dup 0< if 2* invert else 2* then ( h# ffff and)
+      r@ !				\ encode and replace cell
+      r> cell+				\ step to next cell; s: p1 addr'
+   loop 2drop ;
+
+: delta-max	\ ( addr len -- u ) Find the maximum delta value stored
+		\ in the given array or cells.  The first value, presumably
+		\ not a delta, is skipped.
+   >r 0 swap cell+ r> 1- 0 do		\ for each delta; s: max addr
+      dup >r @ umax r> cell+
+   loop drop ;
+
+: count-bits	\ ( u -- n-bits ) Return number of bits needed to hold u.
+		\ Note: returns zero if input is zero.
+   0 swap begin dup while swap 1+ swap u2/ repeat drop ;
+
+public:
+: compress-fast16 \ ( addr len -- bits ) Fast compress the array of 16-bit cells
+		\ stored at the given address.  Return the number of bits
+		\ needed to hold the largest value.  len must be >= 2.
+   2dup delta16				\ delta encode all but first cell
+      delta-max				\  and find maximum value
+   count-bits ;				\ find number of bits needed, possibly 0
+private:
+
+endmodule>

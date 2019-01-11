@@ -1,0 +1,37 @@
+\ (c) 2005 Johns Hopkins University / Applied Physics Laboratory
+\ Board configuration parameters
+hex
+
+noheads
+
+\ Memory Map
+4 constant io-mem#			\ SCIP memory-mapped I/O
+   06 constant mask2-a#			\ W: UART mask
+   08 constant extints-a#		\ R: status W: int clear
+      0020 constant rx-int-msk#		\   receive interrupt mask
+      0010 constant tx-int-msk#		\   transmit interrupt mask
+   0a constant uart-a#			\ RW: UART
+   10 constant int-a#			\ R: interrupt vector W: mode/mask set
+   12 constant parin-a#			\ R: interrupts W: mode/mask reset
+      0020 constant remap-msk#		\   remap page 0
+
+\ Interrupts
+4 constant uart-int#			\ UART transmit/receive (EI5)
+5 constant #ints			\ total number of interrupts
+
+\ Boot "ROM"
+3 constant boot-mem#			\ RAM page to use for boot
+   2000 constant #boot-words		\ size of boot ROM (16-bit words)
+
+\ Configuration constants
+100 constant FIFOSIZE			\ UART buffer size
+
+\ Initialization
+every-boot:	\ ( -- ) Initialize hardware.
+   get-mem io-mem# set-mem far		\ I/O in remote location
+   ffff extints-a# !  0000 extints-a# !	\ reset all interrupt flip-flops
+   rx-int-msk# tx-int-msk# or mask2-a# ! \ enable UART interrupts
+   set-mem
+;boot
+
+heads

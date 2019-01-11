@@ -1,0 +1,23 @@
+\ (c) 1994 Johns Hopkins University / Applied Physics Laboratory
+\ UART interface functions for 2661 UART on NEAR CDH console
+\ board.  The hardware is not byte-addressable.
+hex
+
+01 define TXRDYMASK
+02 define RXRDYMASK
+
+: uart-status	\ ( -- x ) Return UART status.
+   uart-status-reg @ ;
+
+: uart@		\ ( -- c ) Read character from UART.
+   uart-data-reg @ ff and ;
+
+: uart!		\ ( c -- ) Send character to UART.
+   uart-data-reg ! ;
+
+\ Initialization
+every-boot:
+   4e uart-mode-reg !			\ mr1: 8 bits, no parity, 1 stop
+   3d uart-mode-reg !			\ mr2: internal clock, 9600 baud
+   27 uart-cmd-reg !			\ cr: enable
+;boot

@@ -1,0 +1,772 @@
+\ (c) 2009 Johns Hopkins University / Applied Physics Laboratory
+\ Test cross-compiler rules
+hex
+
+\ ------------------------------------------------------------------------
+\ ALU Operations
+
+\ Test ALUOp instruction optimizations, stack nop.
+: aluop-nop1	\ ( b a -- b a.b )
+   over - || ;
+\ aluop-nop2 and 3 are trivial ...
+: aluop-nop4	\ ( b a -- b a.b )
+   drop dup || ;
+: aluop-nop5	\ ( b a -- b a.b )
+   drop dup not || ;
+
+\ Test ALUOp instruction optimizations, stack swap.
+: aluop-swap1	\ ( b a -- a a.b )
+   swap over - || ;
+: aluop-swap2	\ ( b a -- a a.b )
+   swap drop dup || ;
+: aluop-swap3	\ ( b a -- a a.b )
+   swap drop dup not || ;
+\ aluop-swap4 is trivial ...
+: aluop-swap5	\ ( b a -- a a.b )
+   swap not || ;
+
+\ Test ALUOp instruction optimizations, stack push.
+: aluop-push1	\ ( b a -- b a a.b )
+   2dup - || ;
+\ aluop-push2 is trivial ...
+: aluop-push3	\ ( b a -- b a a.b )
+   dup not || ;
+\ aluop-push4 is trivial ...
+: aluop-push5	\ ( b a -- b a a.b )
+   over not || ;
+
+\ Test ALUOp instruction optimizations, stack pop.
+: aluop-drop1	\ ( b a -- a.b )
+   swap - || ;
+: aluop-drop2	\ ( b a -- a.b )
+   swap drop || ;
+: aluop-drop3	\ ( b a -- a.b )
+   swap drop not || ;
+\ aluop-drop4 is trivial ...
+: aluop-drop5	\ ( b a -- a.b )
+   drop not || ;
+
+\ ------------------------------------------------------------------------
+\ ALU Extended Operations
+
+\ Test ALUOpEx instruction optimizations, stack nop.
+: aluopex-nop1	\ ( b a -- b a.b t/f )
+   over - dup 0= if true else false then ;
+: aluopex-nop2	\ ( b a -- b a.b t/f )
+   dup 0= if true else false then ;
+: aluopex-nop3	\ ( b a -- b a.b t/f )
+   not dup 0= if true else false then ;
+: aluopex-nop4	\ ( b a -- b a.b t/f )
+   drop dup dup 0= if true else false then ;
+: aluopex-nop5	\ ( b a -- b a.b t/f )
+   drop dup not dup 0= if true else false then ;
+
+\ Test ALUOpEx instruction optimizations, stack swap.
+: aluopex-swap1	\ ( b a -- a a.b t/f )
+   swap over - dup 0= if true else false then ;
+: aluopex-swap2	\ ( b a -- a a.b t/f )
+   swap drop dup dup 0= if true else false then ;
+: aluopex-swap3	\ ( b a -- a a.b t/f )
+   swap drop dup not dup 0= if true else false then ;
+: aluopex-swap4	\ ( b a -- a a.b t/f )
+   swap dup 0= if true else false then ;
+: aluopex-swap5	\ ( b a -- a a.b t/f )
+   swap not dup 0= if true else false then ;
+
+\ Test ALUOpExinstruction optimizations, stack push.
+: aluopex-push1	\ ( b a -- b a a.b t/f )
+   2dup - dup 0= if true else false then ;
+: aluopex-push2	\ ( b a -- b a a.b t/f )
+   dup dup 0= if true else false then ;
+: aluopex-push3	\ ( b a -- b a a.b t/f )
+   dup not dup 0= if true else false then ;
+: aluopex-push4	\ ( b a -- b a a.b t/f )
+   over dup 0= if true else false then ;
+: aluopex-push5	\ ( b a -- b a a.b t/f )
+   over not dup 0= if true else false then ;
+
+\ Test ALUOpEx instruction optimizations, stack pop.
+: aluopex-drop1	\ ( b a -- a.b t/f )
+   - dup 0= if true else false then ;
+: aluopex-drop2	\ ( b a -- a.b t/f )
+   nip dup 0= if true else false then ;
+: aluopex-drop3	\ ( b a -- a.b t/f )
+   nip not dup 0= if true else false then ;
+: aluopex-drop4	\ ( b a -- a.b t/f )
+   drop dup 0= if true else false then ;
+: aluopex-drop5	\ ( b a -- a.b t/f )
+   drop not dup 0= if true else false then ;
+
+\ ------------------------------------------------------------------------
+\ ALU Immediate (Short) Operations
+
+\ Test ALUImm instruction optimizations, stack nop.
+: aluimm-nop1	\ ( b a -- b a.S )
+   2 - || ;
+: aluimm-nop4	\ ( b a -- b a.S )
+   drop 2 || ;
+: aluimm-nop5	\ ( b a -- b a.S )
+   drop -2 || ;
+
+\ Test ALUImm instruction optimizations, stack swap.
+: aluimm-swap1a	\ ( b a -- a a.S )
+   nip dup 2 - || ;
+: aluimm-swap1b	\ ( b a -- a a.S )
+   nip 2 over - || ;
+: aluimm-swap4	\ ( b a -- a a.S )
+   nip 2 || ;
+: aluimm-swap5	\ ( b a -- a a.S )
+   nip -2 || ;
+
+\ Test ALUImm instruction optimizations, stack push.
+: aluimm-push1a	\ ( b a -- b a a.S )
+   dup 2 - || ;
+: aluimm-push1b	\ ( b a -- b a a.S )
+   2 over - || ;
+
+\ Test ALUImm instruction optimizations, stack drop.
+: aluimm-drop1	\ ( b a -- a.S )
+   nip 2 - || ;
+: aluimm-drop4	\ ( b a -- a.S )
+   2drop 2 || ;
+: aluimm-drop5	\ ( b a -- a.S )
+   2drop -2 || ;
+
+\ ------------------------------------------------------------------------
+\ ALU Immediate (Long) Operations
+
+\ Test ALUImmL instruction optimizations, stack nop.
+: aluimmlong-nop1	\ ( b a -- b a.S )
+   40 - || ;
+: aluimmlong-nop4	\ ( b a -- b a.S )
+   drop 40 || ;
+: aluimmlong-nop5	\ ( b a -- b a.S )
+   drop -40 || ;
+
+\ Test ALUImmL instruction optimizations, stack swap.
+: aluimmlong-swap1a	\ ( b a -- a a.S )
+   nip dup 40 - || ;
+: aluimmlong-swap1b	\ ( b a -- a a.S )
+   nip 40 over - || ;
+: aluimmlong-swap4	\ ( b a -- a a.S )
+   nip 40 || ;
+: aluimmlong-swap5	\ ( b a -- a a.S )
+   nip -40 || ;
+
+\ Test ALUImmL instruction optimizations, stack push.
+: aluimmlong-push1a	\ ( b a -- b a a.S )
+   dup 40 - || ;
+: aluimmlong-push1b	\ ( b a -- b a a.S )
+   40 over - || ;
+
+\ Test ALUImmL instruction optimizations, stack drop.
+: aluimmlong-drop1	\ ( b a -- a.S )
+   nip 40 - || ;
+: aluimmlong-drop4	\ ( b a -- a.S )
+   2drop 40 || ;
+: aluimmlong-drop5	\ ( b a -- a.S )
+   2drop -40 || ;
+
+\ ------------------------------------------------------------------------
+\ ALU Tests
+
+\ Test ALUTs instruction optimizations, stack nop.
+: aluts-nop1	\ ( b a -- b a.b )
+   over < || ;
+: aluts-nop3	\ ( b a -- b a.b )
+   drop dup 0< || ;
+
+\ Test ALUTs instruction optimizations, stack swap.
+: aluts-swap1	\ ( b a -- a a.b )
+   swap over < || ;
+: aluts-swap2	\ ( b a -- a a.b )
+   nip dup 0< || ;
+: aluts-swap3	\ ( b a -- a a.b )
+   swap 0< || ;
+
+\ Test ALUTs instruction optimizations, stack push.
+: aluts-push1	\ ( b a -- b a a.b )
+   2dup < || ;
+: aluts-push2	\ ( b a -- b a a.b )
+   dup 0< || ;
+: aluts-push3	\ ( b a -- b a a.b )
+   over 0< || ;
+
+\ Test ALUTs instruction optimizations, stack pop.
+: aluts-drop1	\ ( b a -- a.b )
+   swap < || ;
+: aluts-drop2	\ ( b a -- a.b )
+   nip 0< || ;
+: aluts-drop3	\ ( b a -- a.b )
+   drop 0< || ;
+
+\ ------------------------------------------------------------------------
+\ ALU Extended Tests
+
+\ Test ALUTsEx instruction optimizations, stack nop.
+: alutsex-nop1	\ ( b a -- b a t/f )
+   2dup < if true else false then ;
+: alutsex-nop2	\ ( b a -- b a t/f )
+   dup 0= if true else false then ;
+: alutsex-nop3	\ ( b a -- b a t/f )
+   dup if true else false then ;
+: alutsex-nop4	\ ( b a -- b a t/f )
+   over 0= if true else false then ;
+: alutsex-nop5	\ ( b a -- b a t/f )
+   over if true else false then ;
+
+\ Test ALUTsEx instruction optimizations, stack swap.
+: alutsex-swap1	\ ( b a -- a b t/f )
+   swap 2dup < if true else false then ;
+: alutsex-swap2	\ ( b a -- a b t/f )
+   swap over 0< if true else false then ;
+: alutsex-swap3	\ ( b a -- a b t/f )
+   swap over if true else false then ;
+\ Note: following two actally generate ALUOpEx
+: alutsex-swap4	\ ( b a -- a b t/f )
+   swap dup 0< if true else false then ;
+: alutsex-swap5	\ ( b a -- a b t/f )
+   swap dup if true else false then ;
+
+\ Test ALUTsEx instruction optimizations, stack push.
+\ TBD: none?
+
+\ Test ALUTsEx instruction optimizations, stack pop.
+: alutsex-drop1	\ ( b a -- b t/f )
+   over < if true else false then ;
+: alutsex-drop2	\ ( b a -- b t/f )
+   0= if true else false then ;
+: alutsex-drop3	\ ( b a -- b t/f )
+   drop dup 0= if true else false then ;
+: alutsex-drop4	\ ( b a -- b t/f )
+   drop dup if true else false then ;
+
+\ ------------------------------------------------------------------------
+\ Shift Tests
+
+: shift-nop	\ ( b a -- b a<<b )
+   over lshift || ;
+\ The following can be done in one instruction, but the optimizer does
+\ not detect them.  Variable-length shifts in general, and these in
+\ particular, are rare.
+\ : shift-swap	\ ( b a -- a a<<b )
+\    swap over swap lshift || ;
+\ : shift-push	\ ( b a -- b a a<<b )
+\    2dup swap lshift || ;
+: shift-drop	\ ( b a -- a<<b )
+   swap lshift || ;
+
+\ ------------------------------------------------------------------------
+\ ShiftImm Tests
+
+: shifti-nop	\ ( b a -- b a<<I )
+   1 lshift || ;
+: shifti-swap	\ ( b a -- a a<<I )
+   nip dup 1 lshift || ;
+: shifti-push	\ ( b a -- b a a<<I )
+   dup 1 lshift || ;
+: shifti-drop	\ ( b a -- a<<I )
+   nip 1 lshift || ;
+
+\ ------------------------------------------------------------------------
+\ ALUWrReg Tests
+
+\ Test ALUWrReg instruction optimizations, stack nop.
+: aluwrreg-nop1	\ ( b a -- b a )
+   2dup - set-mem || ;
+: aluwrreg-nop2	\ ( b a -- b a )
+   dup set-mem || ;
+: aluwrreg-nop3	\ ( b a -- b a )
+   dup not set-mem || ;
+: aluwrreg-nop4	\ ( b a -- b a )
+   over set-mem || ;
+: aluwrreg-nop5	\ ( b a -- b a )
+   over not set-mem || ;
+
+\ Test ALUWrReg instruction optimizations, stack swap.
+: aluwrreg-swap1	\ ( b a -- a b )
+   2dup - set-mem swap || ;
+: aluwrreg-swap2	\ ( b a -- a b )
+   dup set-mem swap || ;
+: aluwrreg-swap3	\ ( b a -- a b )
+   dup not set-mem swap || ;
+: aluwrreg-swap4	\ ( b a -- a b )
+   over set-mem swap || ;
+: aluwrreg-swap5	\ ( b a -- a b )
+   over not set-mem swap || ;
+
+\ Test ALUWrReg instruction optimizations, stack push.
+: aluwrreg-push1	\ ( b a -- b a a )
+   2dup - set-mem dup || ;
+: aluwrreg-push2	\ ( b a -- b a a )
+   dup set-mem dup || ;
+: aluwrreg-push3	\ ( b a -- b a a )
+   dup not set-mem dup || ;
+: aluwrreg-push4	\ ( b a -- b a a )
+   over set-mem dup || ;
+: aluwrreg-push5	\ ( b a -- b a a )
+   over not set-mem dup || ;
+
+\ Test ALUWrReg instruction optimizations, stack pop.
+: aluwrreg-drop1	\ ( b a -- b )
+   over - set-mem || ;
+: aluwrreg-drop4	\ ( b a -- b )
+   drop dup set-mem || ;
+: aluwrreg-drop5	\ ( b a -- b )
+   drop dup not set-mem || ;
+
+\ ------------------------------------------------------------------------
+\ ALURdReg Tests
+
+\ Test ALURdReg instruction optimizations, stack nop.
+: alurdreg-nop1	\ ( b a -- b a.R )
+   get-mem - || ;
+: alurdreg-nop4	\ ( b a -- b a.R )
+   drop get-mem || ;
+
+\ Test ALURdReg instruction optimizations, stack swap.
+: alurdreg-swap1a	\ ( b a -- a a.R )
+   nip dup get-mem - || ;
+: alurdreg-swap1b	\ ( b a -- a a.R )
+   nip get-mem over - || ;
+: alurdreg-swap4	\ ( b a -- a a.R )
+   nip get-mem || ;
+
+\ Test ALURdReg instruction optimizations, stack push.
+: alurdreg-push1a	\ ( b a -- b a a.R )
+   dup get-mem - || ;
+: alurdreg-push1b	\ ( b a -- b a a.R )
+   get-mem over - || ;
+
+\ Test ALURdReg instruction optimizations, stack pop.
+: alurdreg-drop1	\ ( b a -- a.R )
+   nip get-mem - || ;
+: alurdreg-drop4	\ ( b a -- a.R )
+   2drop get-mem || ;
+
+\ ------------------------------------------------------------------------
+\ Load Operations
+
+\ Test Load instruction optimizations, stack nop.
+: load-nop2a	\ ( b a -- b a[S] )
+   cell+ @ || ;
+: load-nop2b	\ ( b a -- b a[S] )
+   1 + c@ || ;
+
+\ Test Load instruction optimizations, stack swap.
+: load-swap1	\ ( b a -- a a[S] )
+   nip dup @ || ;
+: load-swap2a	\ ( b a -- a a[S] )
+   nip dup cell+ @ || ;
+: load-swap2b	\ ( b a -- a a[S] )
+   nip dup 1 + c@ || ;
+
+\ Test Load instruction optimizations, stack push.
+: load-push1	\ ( b a -- b a a[S] )
+   dup @ || ;
+: load-push2a	\ ( b a -- b a a[S] )
+   dup cell+ @ || ;
+: load-push2b	\ ( b a -- b a a[S] )
+   dup 1 + c@ || ;
+
+\ Test Load instruction optimizations, stack pop.
+: load-drop1	\ ( b a -- a[S] )
+   nip @ || ;
+: load-drop2a	\ ( b a -- a[S] )
+   nip cell+ @ || ;
+: load-drop2b	\ ( b a -- a[S] )
+   nip 1 + c@ || ;
+
+\ ------------------------------------------------------------------------
+\ Store Operations
+
+: store-test1	\ ( b a -- ) Side effect: a[S] <- b
+   cell+ ! || ;
+: store-test2	\ ( b a -- ) Side effect: a[S] <- b
+   1 + c! || ;
+: store-test3	\ ( b a -- b a ) Side effect: a[S] <- b
+   2dup ! || ;
+: store-test4	\ ( b a -- b a ) Side effect: a[S] <- b
+   2dup cell+ ! || ;
+: store-test5	\ ( b a -- b a ) Side effect: a[S] <- b
+   2dup 1 + c! || ;
+
+\ ------------------------------------------------------------------------
+\ Rule-by-rule test
+
+\ Rules for ALU instructions
+: dropdup-test		\ ( b a -- b b)
+   drop dup || ;
+: nipdup-test		\ ( b a -- a a )
+   nip dup || ;
+: swapswap-test		\ ( b a -- b a )
+   swap swap || ;
+: swap<binop>-test1	\ ( b a -- a.b )
+   swap + || ;
+: swap<binop>-test2	\ ( b a -- a.b )
+   swap - || ;
+: over<binop>-test1	\ ( b a -- b a.b )
+   over + || ;
+: over<binop>-test2	\ ( b a -- b a.b )
+   over - || ;
+: over[over<binop>]-test1	\ ( b a -- b a a.b )
+   2dup + || ;
+: over[over<binop>]-test2	\ ( b a -- b a a.b )
+   2dup - || ;
+: swap[over<binop>]-test1	\ ( b a -- a a.b )
+   swap over + || ;
+: swap[over<binop>]-test2	\ ( b a -- a a.b )
+   swap over - || ;
+: <nopa>not-test1		\ ( b a -- a ~a )
+   nip dup not || ;
+: <nopa>not-test2		\ ( b a -- b a ~a )
+   dup not || ;
+: <nopa>not-test3		\ ( b a -- ~a )
+   nip not || ;
+: <nopb>not-test1		\ ( b a -- b ~b )
+   drop dup not || ;
+: <nopb>not-test2		\ ( b a -- b a ~b )
+   over not || ;
+: <nopb>not-test3		\ ( b a -- ~b )
+   drop not || ;
+
+\ Rules for test instructions
+: swap<bincmp>-test1		\ ( b a -- t/f )
+   swap = || ;
+: swap<bincmp>-test2		\ ( b a -- t/f )
+   swap u< || ;
+: over<bincmp>-test1		\ ( b a -- b t/f )
+   over = || ;
+: over<bincmp>-test2		\ ( b a -- b t/f )
+   over u< || ;
+: over[over<bincmp>]-test1	\ ( b a -- b a t/f )
+   2dup = || ;
+: over[over<bincmp>]-test2	\ ( b a -- b a t/f )
+   2dup u< || ;
+: swap[over<bincmp>]-test1	\ ( b a -- a t/f )
+   swap over = || ;
+: swap[over<bincmp>]-test2	\ ( b a -- a t/f )
+   swap over u< || ;
+: <alu><uncmp>-test1		\ ( b a -- b a t/f )
+   dup 0= || ;
+: <alu><uncmp>-test2		\ ( b a -- t/f )
+   nip 0< || ;
+: <alu><uncmp>-test3		\ ( b a -- b a t/f )
+   over 0= || ;
+: <alu><uncmp>-test4		\ ( b a -- t/f )
+   drop 0< || ;
+: <cmp>not-test1		\ ( b a -- t/f )
+   = not || ;
+: <cmp>not-test2		\ ( b a -- t/f )
+   u< not || ;
+
+\ Rules for conditional branch instructions
+: <alu><?br>1-test1		\ ( b a -- b a t/f )
+   dup if true else false then ;
+: <alu><?br>1-test2		\ ( b a -- b a t/f )
+   over if true else false then ;
+: <alu><?br>1-test3		\ ( b a -- b a t/f )
+   2dup xor if true else false then ;
+: <alu><?br>2-testa		\ ( b a -- b t/f )
+   drop dup if true else false then ;
+: <alu><?br>2-testb		\ ( b a -- b t/f )
+   over xor if true else false then ;
+: <cmp><?br>1-test		\ ( b a -- b a t/f )
+   2dup u< if true else false then ;
+: <cmp><?br>2-test		\ ( b a -- b t/f )
+   over u< if true else false then ;
+: swap[2dup<bincmp><?br>]-test	\ ( b a -- a b t/f )
+   swap 2dup u< if true else false then ;
+: <alu>[dup<uncmp><?br>]-test1	\ ( b a -- b a a t/f )
+   dup dup 0< if true else false then ;
+: <alu>[dup<uncmp><?br>]-test2	\ ( b a -- b a b t/f )
+   over dup 0< if true else false then ;
+: <alu>[dup<uncmp><?br>]-test3	\ ( b a -- a b t/f )
+   swap dup 0< if true else false then ;
+: <alu>[dup<uncmp><?br>]-test4	\ ( b a -- a.b t/f )
+   - dup 0< if true else false then ;
+: <alu>[dup<uncmp><?br>]-test5	\ ( b a -- b a.b t/f )
+   over - dup 0< if true else false then ;
+: <alu>[dup<uncmp><?br>]-test6	\ ( b a -- b a a.b t/f )
+   2dup - dup 0< if true else false then ;
+: [nipdup<uncmp>]<?br>-test	\ ( b a -- a t/f )
+   nip dup 0< if true else false then ;
+
+\ Rules for register access instructions
+: <alu><reg!>1-test1		\ ( b a -- b a dpr: a )
+   dup set-mem || ;
+: <alu><reg!>1-test2		\ ( b a -- b a dpr: b )
+   over set-mem || ;
+: <alu><reg!>2-test		\ ( b a -- b dpr: b )
+   drop dup set-mem || ;
+: <reg!>swap-test		\ ( b a -- a b dpr: a )
+   dup set-mem swap || ;
+: <reg!>dup-test		\ ( b a -- b a a dpr: b )
+   over set-mem dup || ;
+: <reg@><binop>-test1		\ ( b a -- b a.dpr )
+   get-mem - || ;
+: <reg@><binop>-test2		\ ( b a -- b a )
+   get-mem drop || ;
+: <nopa>[<reg@><binop>]-test1	\ ( b a -- b a a.dpr )
+   dup get-mem - || ;
+: <nopa>[<reg@><binop>]-test2	\ ( b a -- a a.dpr )
+   nip dup get-mem - || ;
+: [nip<reg@>]<binop>-test	\ ( b a -- a.dpr )
+   nip get-mem - || ;
+: <reg@>[over<binop>]-test	\ ( b a -- b a a.dpr )
+   get-mem over - || ;
+: [nip<reg@>][over<binop>]-test	\ ( b a -- a a.dpr )
+   nip get-mem over - || ;
+: <reg@><bincmp><?br>-test	\ ( b a -- b t/f )
+   get-mem = if true else false then ;
+: <reg@><bincmp><?br>-test-x	\ ( b a -- b t/f )
+   get-mem u< if true else false then ;
+: dup<reg@><bincmp>-test	\ ( b a -- b a t/f )
+   dup get-mem u< || ;
+: drop<reg@>-test		\ ( b a -- b dpr )
+   drop get-mem || ;
+: nip<reg@>-test		\ ( b a -- a dpr )
+   nip get-mem || ;
+: drop[drop<reg@>]-test		\ ( b a -- dpr )
+   drop drop get-mem || ;
+: <reg@><reg!>drop-test		\ ( b a -- b )
+   1 0 do loop drop || ;
+: [drop<reg@>]<reg!>drop-test	\ ( b a -- )
+   1 0 do loop drop drop || ;
+
+\ Rules for short literal instructions
+: <short><binop>-test		\ ( b a -- b a.S )
+   2 - || ;
+: <short>drop-test		\ ( b a -- b a )
+   2 drop || ;
+: <nopa>[<short><binop>]-test1	\ ( b a -- b a a.S )
+   dup 2 - || ;
+: <nopa>[<short><binop>]-test2	\ ( b a -- a a.S )
+   nip dup 2 - || ;
+: [nip<short>]<binop>-test	\ ( b a -- a.S )
+   nip 2 - || ;
+: <short>[over<binop>]-test	\ ( b a -- b a a.S )
+   2 over - || ;
+: [nip<short>][over<binop>]-test	\ ( b a -- a a.S )
+   nip 2 over - || ;
+: <short><bincmp><?br>-test	\ ( b a -- b t/f )
+   2 = if true else false then ;
+: <short><bincmp><?br>-test-x	\ ( b a -- b t/f )
+   2 u< if true else false then ;
+: 0<bincmp>-test		\ ( b a -- b t/f )
+   0 = || ;
+: dup<short><bincmp>-test	\ ( b a -- b a t/f )
+   dup 2 u< || ;
+: drop<short/i>-test1		\ ( b a -- b S )
+   drop 2 || ;
+: drop<short/i>-test2		\ ( b a -- b S )
+   drop -2 || ;
+: nip<short/i>-test1		\ ( b a -- a S )
+   nip 2 || ;
+: nip<short/i>-test2		\ ( b a -- a S )
+   nip -2 || ;
+: drop[drop<short/i>]-test1	\ ( b a -- S )
+   drop drop 2 || ;
+: drop[drop<short/i>]-test2	\ ( b a -- S )
+   drop drop -2 || ;
+
+\ Rules for long literal instructions
+: <long><binop>-test		\ ( b a -- b a.L )
+   200 - || ;
+: <nopa>[<long><binop>]-test1	\ ( b a -- b a a.L )
+   dup 200 - || ;
+: <nopa>[<long><binop>]-test2	\ ( b a -- a a.L )
+   nip dup 200 - || ;
+: [nip<long>]<binop>-test	\ ( b a -- a.L )
+   nip 200 - || ;
+: <long>[over<binop>]-test	\ ( b a -- b a.L )
+   200 over - || ;
+: [nip<long>][over<binop>]-test	\ ( b a -- a a.L )
+   nip 200 over - || ;
+: <long><bincmp><?br>-test	\ ( b a -- b t/f )
+   200 = if true else false then ;
+: <long><bincmp><?br>-test-x	\ ( b a -- b t/f )
+   200 u< if true else false then ;
+: dup<long><bincmp>-test	\ ( b a -- b a t/f )
+   dup 200 u< || ;
+: drop<long>-test		\ ( b a -- b L )
+   drop 200 || ;
+: nip<long>-test		\ ( b a -- a L )
+   nip 200 || ;
+: drop[drop<long>]-test		\ ( b a -- L )
+   drop drop 200 || ;
+
+\ Rules for load/store instructions
+variable ls-target
+: <nopa><load>-test1		\ ( b a -- a a[0] )
+   nip dup @ || ;
+: <nopa><load>-test2		\ ( b a -- b a a[0] )
+   dup @ || ;
+: <nopa><load>-test3		\ ( b a -- a[0] )
+   nip @ || ;
+: [<nopa><short>+]<load>-test1	\ ( b a -- a a[1] )
+   nip dup 1+ c@ || ;
+: [<nopa><short>+]<load>-test2	\ ( b a -- b a a[1] )
+   dup 1+ c@ || ;
+: [<nopa><short>+]<load>-test3	\ ( b a -- a[1] )
+   nip 1+ c@ || ;
+: dup<long><load><binop>-test	\ ( b a -- b a a.X )
+   dup ls-target @ - || ;
+: dup<long><load><bincmp>-test	\ ( b a -- b a t/f )
+   dup ls-target @ u< || ;
+: [<short>+]<store>-test	\ ( b a -- )
+   1+ c! || ;
+: dup<long><store>drop-test	\ ( b a -- b a )
+   dup ls-target ! || ;
+: dup<reg@><store>drop-test	\ ( b a -- b a )
+   dup get-mem ! || ;
+: overover<store>drop-test	\ ( b a -- b a )
+   2dup ! || ;
+
+\ Rules for return instructions
+\ Manually checked.
+\ : <*>return-test
+\ : <long>return-test
+\ : <call>return-test
+
+\ Rules for literal folding
+\ Note: [<nopa><long-op>]>to<short-op> is tested implicitly in following tests.
+: [<nopa><short-op>]<short-op>-test1	\ ( b a -- b a' )
+   1+ 1+ || ;
+: [<nopa><short-op>]<short-op>-test2	\ ( b a -- a a' )
+   nip dup 1+ 1+ || ;
+: [<nopa><short-op>]<short-op>-test3	\ ( b a -- b a a' )
+   dup 1+ 1+ || ;
+: [<nopa><short-op>]<short-op>-test4	\ ( b a -- a' )
+   nip 1+ 1+ || ;
+: 0+-test
+   0 + || ;
+: [<nopa><long-op>]><short-op>-test1	\ ( b a -- b a' )
+   100 + 1+ || ;
+: [<nopa><long-op>]><short-op>-test2	\ ( b a -- a a' )
+   nip dup 100 + 1+ || ;
+: [<nopa><long-op>]><short-op>-test3	\ ( b a -- b a a' )
+   dup 100 + 1+ || ;
+: [<nopa><long-op>]><short-op>-test4	\ ( b a -- a' )
+   nip 100 + 1+ || ;
+: [<nopa><short-op>]><long-op>-testa	\ ( b a -- b a' )
+   1+ 100 + || ;
+: [<nopa><short-op>]><long-op>-testb	\ ( b a -- a a' )
+   nip dup 1+ 100 + || ;
+: [<nopa><short-op>]><long-op>-testc	\ ( b a -- b a a' )
+   dup 1+ 100 + || ;
+: [<nopa><short-op>]><long-op>-testd	\ ( b a -- a' )
+   nip 1+ 100 + || ;
+: [<nopa><long-op>]><long-op>-test1	\ ( b a -- b a' )
+   100 + 100 + || ;
+: [<nopa><long-op>]><long-op>-test2	\ ( b a -- a a' )
+   nip dup 100 + 100 + || ;
+: [<nopa><long-op>]><long-op>-test3	\ ( b a -- b a a' )
+   dup 100 + 100 + || ;
+: [<nopa><long-op>]><long-op>-test4	\ ( b a -- a' )
+   nip 100 + 100 + || ;
+\ Note: <long>to<short>-test is tested implicitly in following tests.
+: <short><short-op>-test1	\ ( b a -- b S )
+   drop 1 1+ || ;
+: <short><short-op>-test2	\ ( b a -- a S )
+   nip 1 1+ || ;
+: <short><short-op>-test3	\ ( b a -- b a S )
+   1 1+ || ;
+: <short><short-op>-test4	\ ( b a -- S )
+   2drop 1 1+ || ;
+: <short><long-op>-test1	\ ( b a -- b S )
+   drop 1 100 + || ;
+: <short><long-op>-test2	\ ( b a -- a S )
+   nip 1 100 + || ;
+: <short><long-op>-test3	\ ( b a -- b a S )
+   1 100 + || ;
+: <short><long-op>-test4	\ ( b a -- S )
+   2drop 1 100 + || ;
+: <long><short-op>-test1	\ ( b a -- b S )
+   drop 100 1+ || ;
+: <long><short-op>-test2	\ ( b a -- a S )
+   nip 100 1+ || ;
+: <long><short-op>-test3	\ ( b a -- b a S )
+   100 1+ || ;
+: <long><short-op>-test4	\ ( b a -- S )
+   2drop 100 1+ || ;
+: <long><long-op>-test1		\ ( b a -- b S )
+   drop 100 100 + || ;
+: <long><long-op>-test2		\ ( b a -- a S )
+   nip 100 100 + || ;
+: <long><long-op>-test3		\ ( b a -- b a S )
+   100 100 + || ;
+: <long><long-op>-test4		\ ( b a -- S )
+   2drop 100 100 + || ;
+: <short><shifti>-test1		\ ( b a -- b S )
+   drop 1 2* || ;
+: <short><shifti>-test2		\ ( b a -- a S )
+   nip 1 2* || ;
+: <short><shifti>-test3		\ ( b a -- b a S )
+   1 2* || ;
+: <short><shifti>-test4		\ ( b a -- S )
+   2drop 1 2* || ;
+: <long><shifti>-test1		\ ( b a -- b L )
+   drop 100 2* || ;
+: <long><shifti>-test2		\ ( b a -- a L )
+   nip 100 2* || ;
+: <long><shifti>-test3		\ ( b a -- b a L )
+   100 2* || ;
+: <long><shifti>-test4		\ ( b a -- L )
+   2drop 100 2* || ;
+: [<nopa><shifti>]<shifti>-test1	\ ( b a -- b a' )
+   2* 2* || ;
+: [<nopa><shifti>]<shifti>-test2	\ ( b a -- a a' )
+   nip dup 2* 2* || ;
+: [<nopa><shifti>]<shifti>-test3	\ ( b a -- b a a' )
+   dup 2* 2* || ;
+: [<nopa><shifti>]<shifti>-test4	\ ( b a -- a' )
+   nip 2* 2* || ;
+
+\ Rules for shift instructions
+: overswap<shift>-test		\ ( b a -- b a<<b )
+   over lshift || ;
+: <short>swap<shift>-test	\ ( b a -- b a<<2 )
+   2 lshift || ;
+: [nip<short>]swap<shift>-test	\ ( b a -- a<<2 )
+   nip 2 lshift || ;
+: <short><short><shift>-test	\ ( b a -- b a I )
+   1 2 swap lshift || ;
+: <nopa><shifti>-test1		\ ( b a -- a a' )
+   nip dup 2 lshift || ;
+: <nopa><shifti>-test2		\ ( b a -- b a a' )
+   dup 2 lshift || ;
+
+\ Rules for more literal folding
+: <short><short>*-test1	\ ( b a -- b S )
+   drop 3 4 * || ;
+: <short><short>*-test2	\ ( b a -- a S )
+   nip 5 4 * || ;
+: <short><short>*-test3	\ ( b a -- b a S )
+   3 6 * || ;
+: <short><short>*-test4	\ ( b a -- S )
+   2drop 8 3 * || ;
+: <short><long>*-test1	\ ( b a -- b L )
+   drop 9 d# 100 * || ;
+: <short><long>*-test2	\ ( b a -- a L )
+   nip 8 d# 100 * || ;
+: <short><long>*-test3	\ ( b a -- b a L )
+   7 d# 100 * || ;
+: <short><long>*-test4	\ ( b a -- L )
+   2drop 6 d# 100 * || ;
+: <long><short>*-test1	\ ( b a -- b L )
+   drop d# 200 7 * || ;
+: <long><short>*-test2	\ ( b a -- a L )
+   nip d# 200 6 * || ;
+: <long><short>*-test3	\ ( b a -- b a L )
+   d# 200 5 * || ;
+: <long><short>*-test4	\ ( b a -- L )
+   2drop d# 200 4 * || ;
+: <long><long>*-test1	\ ( b a -- b L )
+   drop d# 100 d# 100 * || ;
+: <long><long>*-test2	\ ( b a -- a L )
+   nip d# 200 d# 100 * || ;
+: <long><long>*-test3	\ ( b a -- b a L )
+   d# 300 d# 100 * || ;
+: <long><long>*-test4	\ ( b a -- L )
+   2drop d# 400 d# 100 * || ;

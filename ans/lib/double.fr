@@ -1,0 +1,25 @@
+\ (c) 1992 Johns Hopkins University / Applied Physics Laboratory
+\ This file provides the ANS Forth Double Number Word Set.
+\ Many words from the word set are in the kernel; this file
+\ supplies the missing ones.
+\ BUG: double number literal syntax is missing in interpreter!
+hex
+
+: 2constant
+   create , , does> 2@ ;
+
+: 2literal
+   swap postpone literal postpone literal ; immediate
+
+: d-	dnegate d+ ;
+: d0<	nip 0< ;
+: d0=	or 0= ;
+: d2*	2dup d+ ;
+\ : d2/ TBD
+: d=	d- or 0= ;
+: dmax
+   2over 2over d< if 2swap then 2drop ;
+: dmin
+   2over 2over 2swap d< if 2swap then 2drop ;
+\ : m*/ TBD
+: m+ 0 d+ ;

@@ -1,0 +1,143 @@
+\ (c) 1991 Johns Hopkins University / Applied Physics Laboratory
+\ To use blocks, load this file, then call blocks with the number
+\ of blocks you want to allocate.  Note that blocks can be subseqently
+\ called to allocate even more blocks.
+
+\ Bugs and limitations:
+\ - A block-fid of zero, denoting a default block space, is not dealt with.
+\ - offset is missing because I am not sure what it does.
+\ - An LRU replacement strategy would be better.
+
+" struct.fr" used
+
+decimal
+
+structure block-buffer-struct
+	cell: .next			\ link for lists
+	cell: .fileid			\ file id corresponding to buffer
+	cell: .block#			\ block number being buffered
+	cell: .dirty			\ true if buffer modified
+1024   chars: .block			\ the buffered block
+endstructure
+
+variable block-fid			\ fileid of the block space
+
+variable assigned-buffers		\ a list of assigned buffers
+variable free-buffers			\ a list of unassigned buffers
+
+variable current-block-buffer		\ the current block buffer
+
+variable replaceable-buffer		\ the buffer to replace if none are free
+
+\ ------------------------------------------------------------------------
+: position-block \ ( struct -- length fileid ) Given a structure decscribing
+		\ a block buffer, position the associated file on that block
+		\ and return length of block and file id.
+		\ BUG: doesn'it deal with magic fileid=0 case.
+   dup >r .block# @ 1024 * 0 r@ .fileid @ reposition-file ?error
+   1024 r> .fileid @ ;
+
+: block-absent?	\ ( u fileid -- u fileid true | a-addr false ) See if block
+		\ u of the given file is buffered.  If it is, return structure
+		\ and false, otherwise return true.
+   assigned-buffers @ >r
+   begin
+      r@ while				\ while not at end of list
+      over r@ .block# @ =
+      over r@ .fileid @ = and		\ found?
+      if 2drop r> false exit then
+      r> .next @ >r
+   repeat rdrop true ;
+
+: all-buffers-assigned? \ ( -- true | a-addr false ) Attempt to allocate
+		\ a buffer from the free list.  If unsuccessful return true,
+		\ otherwise return the buffer and false.
+   free-buffers @
+   ?dup if				\ if there is a free buffer
+      dup .next @ free-buffers !	\ unlink it from free list
+      assigned-buffers @ over .next !	\  and link it into assigned list
+      dup assigned-buffers !
+      false
+   else true
+   then ;
+
+: steal-buffer	\ ( -- a-addr ) Reuse a buffer in use.  The buffer is
+		\ chosen semirandomly (clock algorithm).  If the replaced
+		\ buffer is dirty, it is written to disk first.
+   replaceable-buffer @
+   dup .dirty @
+   if dup .block over position-block write-file ?error drop then
+   dup .next @ dup 0= if drop assigned-buffers @ then replaceable-buffer ! ;
+
+: get-block	\ ( u fileid -- a-addr ) Get a block buffer, preferentially
+		\ from the free list, or stealing a buffer in use.
+   all-buffers-assigned? if steal-buffer then >r
+   r@ .fileid !  r@ .block# !  false r@ .dirty !  r> ;
+
+\ ------------------------------------------------------------------------
+: file-buffer	\ ( u fileid -- a-addr ) Get a buffer for block u of given file
+   block-absent? if get-block then dup current-block-buffer ! .block ;
+
+: file-block	\ ( u fileid -- a-addr ) Get a buffer and fill with block u
+		\ of given file.
+   block-absent? if
+      get-block dup .block over position-block read-file ?error drop
+   then dup current-block-buffer ! .block ;
+
+: block		\ ( u -- ) Get block u from block-fid.
+   block-fid @ file-block ;
+
+: buffer	\ ( u -- ) Buffer block u from block-fid.
+   block-fid @ file-buffer ;
+
+: update	\ ( -- ) Mark the current block buffer as modified.
+   true current-block-buffer @ .dirty ! ;
+
+: save-buffers	\ ( -- ) Transfer all modified buffers to disk.
+   assigned-buffers @
+   begin
+      dup while				\ while not at end of list
+      dup .dirty @
+      if dup .block over position-block write-file ?error drop then
+      .next @
+   repeat drop ;
+
+: empty-buffers	\ ( -- ) Unassign all buffers (without transferring modified
+		\ buffers to disk).
+   free-buffers dup @
+   begin dup while nip dup @ repeat	\ search for last free buffer
+   drop assigned-buffers @ swap !	\ link assigned buffers to free list
+   0 assigned-buffers ! ;		\ empty assigned list
+
+: flush		\ ( -- ) Transfer all modified buffers to disk and unassign
+		\ all buffers.  NOTE: this routines assumes that .next
+		\ is first structure member.
+   save-buffers
+   empty-buffers ;
+
+: load		\ ( u -- ) Interpret block u from block-fid.
+   push-block-stream interpret pop-stream ;
+
+: load-file	\ ( u fileid -- ) Switch block-fid to given file and
+		\ interpret block u.
+   block-fid @ >r block-fid !  load  r> block-fid ! ;
+
+: list		\ ( u -- ) Display block u of block-fid ;
+   block 16 0 do cr dup 64 type 64 + loop drop ;
+
+: \		\ ( -- ) Comment to end of line.  Note: redefinition.
+   blk @ if >in @  64 + -64 and  >in !  else postpone \ then ;   immediate
+
+\ ------------------------------------------------------------------------
+: blocks	\ ( u -- ) Allocate u block buffers.
+   0 do
+      here block-buffer-struct allot
+      free-buffers @ over .next !  free-buffers !
+   loop
+   free-buffers @ replaceable-buffer ! ;
+
+: block-source	\ ( -- c-addr u ) Compute the origin and length of the input
+		\ stream.
+   blk @ ?dup if block 1024 else sourceptr @ #source @ then ;
+
+' block-source 'source !

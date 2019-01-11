@@ -1,0 +1,21 @@
+Spacecraft	Instrument	Notes
+NEAR		MSI
+		NIS/MAG
+		XGRS
+		NLR
+ACE		ULEIS
+Cassini		MIMI		2 processors
+IMAGE		HENA
+TIMED		GUVI
+CONTOUR		CFI
+		CRISP
+MESSENGER	MDIS
+		MAG
+		EPPS
+		GRS
+		XRS
+		NS
+		MASCS
+MRO		CRISM
+NH		LORRI
+		PEPSSI

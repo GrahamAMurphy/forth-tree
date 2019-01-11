@@ -1,0 +1,34 @@
+\ (c) 1998 Johns Hopkins University / Applied Physics Laboratory
+\ Alternative to inter.fr:  forwards interrupts.  ROM is fixed at page 0.
+\ Must jump to interrupt vector in RAM page.  The target page is
+\ chosen dynamically; the page in use when the interrupt was generated
+\ is assumed to be the page to jump to.  This page can be found on
+\ the return stack in the IPR.  This technique assumes that code
+\ only runs in single RAM page, but this RAM page can vary across
+\ boots if the system is reconfigured.  Clever.
+
+decimal
+
+forth : interrupt-stub
+   [meta] begin [target] ipr@ cpr! [meta] again [host]
+;
+
+int-table revisit			\ fill in interrupt table
+   32 align-boundary interrupt-stub	\ 16 "normal" interrupts
+   32 align-boundary interrupt-stub
+   32 align-boundary interrupt-stub
+   32 align-boundary interrupt-stub
+   32 align-boundary interrupt-stub
+   32 align-boundary interrupt-stub
+   32 align-boundary interrupt-stub
+   32 align-boundary interrupt-stub
+   32 align-boundary interrupt-stub
+   32 align-boundary interrupt-stub
+   32 align-boundary interrupt-stub
+   32 align-boundary interrupt-stub
+   32 align-boundary interrupt-stub
+   32 align-boundary interrupt-stub
+   32 align-boundary interrupt-stub
+   32 align-boundary interrupt-stub
+   32 align-boundary interrupt-stub	\ "no interrupt" interrupt
+restore

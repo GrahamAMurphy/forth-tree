@@ -1,0 +1,35 @@
+\ (c) 2004 Johns Hopkins University / Applied Physics Laboratory
+\ Simulate MESSENGER EPU processor board features
+hex
+
+\ 8-bit left shift trick
+variable md
+: md@ md @ ;
+: sq! 8 lshift md ! ;
+
+\ ucode
+: ucode drop bl word drop ;
+
+\ Configuration register and interrupt mask
+variable dpu-cfg
+: dpu-cfg@ dpu-cfg @ ;
+: dpu-cfg! dpu-cfg ! ;
+variable dpu-mask
+: dpu-mask! dpu-mask ! ;
+
+\ I2C bus
+: i2c-data! drop ;
+: i2c-data@ 0 ;
+: i2c-cntl! drop ;
+: i2c-status@ 0 ;
+: i2c-timer! drop ;
+
+\ Interrupt controller
+: get-mask ;
+: unmask-int drop ;
+
+\ Watchdog
+: reset-watchdog ;
+
+\ Stack (should be in new kernel)
+: check-stack ;

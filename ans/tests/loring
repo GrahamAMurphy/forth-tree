@@ -1,0 +1,52 @@
+From lgc@bluemax. Tue Jun 15 14:41:20 1993
+Return-Path: <lgc@bluemax.>
+Received: from mailer.jhuapl.edu (aplmail.jhuapl.edu) by hecate.jhuapl.edu (4.1/SMI-4.1)
+	id AA01116; Tue, 15 Jun 93 14:41:18 EDT
+Received: by mailer.jhuapl.edu (5.57/1.13)
+	id AA13288; Tue, 15 Jun 93 14:42:04 EDT
+Received: from telerobotics (telerobotics.jpl.nasa.gov) by jpl-mil (4.1/SMI-4.1+xDXRm2.2)
+	id AA05982; Tue, 15 Jun 93 11:37:30 PDT
+Received: from bluemax. by telerobotics (4.1/SMI-4.1+DXRm2.5)
+	id AA21808; Tue, 15 Jun 93 11:40:13 PDT
+Received: by bluemax. (920110.SGI/911001.SGI)
+	for @telerobotics.jpl.nasa.gov:john@hecate.jhuapl.edu id AA07463; Tue, 15 Jun 93 11:37:31 -0700
+Date: Tue, 15 Jun 93 11:37:31 -0700
+From: lgc@bluemax.jpl.nasa.gov (Loring Craymer)
+Message-Id: <9306151837.AA07463@bluemax.>
+To: john@hecate.jhuapl.edu
+Subject: Test suite
+Status: RO
+
+Thanks.  I haven't had a chance to go over it in any detail yet, but I've
+noticed one oversight:  each word needs to be tested in both compiled and
+interpreted forms (with a few exceptions).  Also missing is any test of
+double number input (n. ).  I'll let you know as I find other oversights.
+
+I have to agree that ENVIRONMENT? is a pain to test.  If I remember right,
+we deleted FLOORED at the last meeting (I don't have a copy of dpANS5 with
+me), so it is difficult to verify specific environment queries.  It would
+be nice if there were an ENVIRONS environment query which returns false
+if ENVIRONMENT? always returns false and otherwise returns false only if
+the appropriate wordset is not present.  This would guarantee that the
+numeric limits, at least, were available through ENVIRONMENT? or could 
+clearly not be determined.  You might try using the limit environment
+queries anyway:
+
+: GET_LIMIT  ( n "env_query" -- n1 )
+	ENVIRONMENT?  IF SWAP DROP THEN ;
+
+so limit definitions look like
+
+0 INVERT  GET_LIMIT MAX-U  CONSTANT MAX-UINT
+
+(oops--I missed a BL WORD COUNT before ENVIRONMENT?).  GET_LIMIT could be
+prettied up to report when an ENVIRONMENT? was not available.
+
+[Some other fast notes:  LEAVE is tested for LOOP but not for +LOOP, and
+multiple LEAVEs are not tested; Badenesque control structures are not
+tested--i. e.  BEGIN WHILE WHILE REPEAT THEN.]
+
+Regards--
+			Loring
+
+

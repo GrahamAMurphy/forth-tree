@@ -1,0 +1,23 @@
+The barrel shifter is analogous to the multiplier.  Multiplying two
+operands produces a product in one clock cycle.  However, the product
+is not on the stack; rather it is in two special purpose registers, MHR
+and MLR.  On a multiply instruction execution, the RTX automaticaly
+disables interrupts for 2 or 3 clocks giving you time to read MHR/MLR
+onto the stack.  No problem.
+
+The output of the barrel shifter also lands in MHR and MLR.
+Unfortunately, interrupts are not disabled.  One solution is to wrap
+the entire operation in interrupt disable/enable code.  This is fairly
+elaborate, especially if you want it work in an interrupt routine, i.e.
+if interrupts are already disabled.  You start with 3 or 4 clocks to do
+the shift and read back the answer.  You add many more to lock out
+interrupts.
+
+Well, you say, why not have interrupt routines save MHR and MLR?  The
+problem with this is that MHR and MLR have bizarre read proporties.
+I'll spare you the details, but it takes four clocks to save the
+registers and two to restore them.
+
+Given the overhead of dealing with the interrupt problem, you might as
+well abandon the barrel shifter and shift one bit per clock.  This is
+how lshift and rshift are implemented in my RTX Forth.

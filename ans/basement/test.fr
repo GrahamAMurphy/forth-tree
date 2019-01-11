@@ -1,0 +1,10 @@
+" locals2.fr" used
+
+: foo1 { x }
+   x . ;
+
+: foo2 { x y }
+   x y + . ;
+
+: foo3 { x y z }
+   x . y . z . ;

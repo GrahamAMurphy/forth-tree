@@ -1,0 +1,239 @@
+\ (c) 1997 Johns Hopkins University / Applied Physics Laboratory
+\ Monitoring
+decimal
+
+module> mon
+
+\ ------------------------------------------------------------------------
+\ Data
+
+structure monitor-struct		\ monitoring data
+   char: .mon-state			\ state of monitoring:
+      0 constant #idle			\  idle
+      1 constant #armed-high		\  one high value seen, armed
+      2 constant #alarmed-high		\  two high values seen, alarmed
+      3 constant #stuck-high		\  more than two values seen, give up
+      4 constant #armed-low		\  one low value seen, armed
+      5 constant #alarmed-low		\  two low values seen, alarmed
+      6 constant #stuck-low		\  more than two values seen, give up
+   char: .mon-macro-low			\ macro to execute when too low
+   char: .mon-macro-high		\ macro to execute when too high
+   char: .mon-type			\ type of monitor:
+      0 constant #s-mon-type		\  shutdown: e.g. voltage, current, etc.
+      1 constant #n-mon-type		\  nop: e.g. temperature
+      2 constant #r-mon-type		\  retry: e.g. count rate
+   char: .mon-value			\ record of first off-nomimal value
+endstructure
+
+\ Monitor limits
+create monitor-limits
+   #monitors 2* allot
+
+\ Monitor table.  Monitor id indexes table with monitoring state,
+\ response macros, and monitor type or indexes table of limits.
+create monitors
+   monitor-struct #monitors * allot
+
+: monitor[]	\ ( mon-id -- monitor ) Convert monitor id into address
+		\ of corresponding monitor data structure.
+   monitor-struct * monitors + ;
+
+\ ------------------------------------------------------------------------
+\ Common
+
+: shutdown	\ ( -- ) If action is enabled, shutdown system.
+   mon-response get if			\ if active alarm response enabled
+      run-shutdown			\ run emergency shutdown macro
+   then ;
+
+\ ------------------------------------------------------------------------
+\ Limits
+
+: upper-limit	\ ( mon-id -- limit ) Return upper limit of given monitor.
+   2* monitor-limits + 1+ c@ ;
+
+: lower-limit	\ ( mon-id -- limit ) Return lower limit of given monitor.
+   2* monitor-limits +    c@ ;
+
+: too-high?	\ ( value mon-id -- t/f ) Return true iff value is less
+		\ than monitor upper limit.
+   upper-limit u> ;
+
+: too-low?	\ ( value mon-id -- t/f ) Return true iff value is less
+		\ than monitor lower limit.
+   lower-limit u< ;
+
+\ ------------------------------------------------------------------------
+\ High value responses
+
+: ->high-alarm-id \ ( mon-id -- alarm-id ) Convert a monitor id into
+		\ its corresponding high alarm id.
+   #too-high-alm + ;
+
+: run-high-macro \ ( mon-id -- ) Run "too high" response macro (if enabled).
+   mon-response get if			\ if active alarm response enabled
+      monitor[] .mon-macro-high c@	\ run "too-high" response macro
+	 run-macro
+   else drop
+   then ;
+
+: transient-high \ ( value mon-id -- state ) Convert given monitor id into
+		\ corresponding high-alarm id and issue transient alarm.
+   nip dup monitor[] .mon-value c@ swap	\ send transient value and limit
+   dup upper-limit swap			\  with alarm
+   ->high-alarm-id trans-alarm
+   #idle ;				\ return to idle state
+
+: act-high	\ ( value mon-id -- state ) Act on high value condition.
+		\ If action is enabled, start response macro running.
+		\ Convert given monitor id into corresponding high-alarm
+		\ id and issue persistent alarm.
+   dup run-high-macro			\ run "too high" response macro
+   dup upper-limit swap			\ send value and limit
+   ->high-alarm-id persist-alarm	\  with alarm
+   #alarmed-high ;
+
+: panic-high	\ ( value mon-id -- state ) Act on continued high condition.
+   dup monitor[] .mon-type c@ sel	\ based on type of monitor
+      << #s-mon-type ==> drop drop	\ shutdown everything possible
+			   shutdown  #stuck-high >>
+      << #n-mon-type ==> drop drop  #stuck-high >> \ do nothing
+      << #r-mon-type ==> run-high-macro \ redo response
+			 drop #alarmed-high >>
+   endsel ;
+
+\ ------------------------------------------------------------------------
+\ Low value responses
+
+: ->low-alarm-id \ ( mon-id -- alarm-id ) Convert a monitor id into
+		\ its corresponding high low id.
+   #too-low-alm + ;
+
+: run-low-macro	\ ( mon-id -- ) Run "too low" response macro (if enabled).
+   mon-response get if			\ if active alarm response enabled
+      monitor[] .mon-macro-low c@	\ run "too-low" response macro
+	 run-macro
+   else drop
+   then ;
+
+: transient-low	\ ( value mon-id -- state ) Convert given monitor id into
+		\ corresponding low-alarm id and issue transient alarm.
+   nip dup monitor[] .mon-value c@ swap	\ send transient value and limit
+   dup lower-limit swap			\  with alarm
+   ->low-alarm-id trans-alarm
+   #idle ;				\ return to idle state
+
+: act-low	\ ( value mon-id -- state ) Act on low value condition.
+		\ If action is enabled, start response macro running.
+		\ Convert given monitor id into corresponding low-alarm
+		\ id and issue persistent alarm.
+   dup run-low-macro			\ run "too low" response macro
+   dup lower-limit swap			\ send value and limit
+   ->low-alarm-id persist-alarm		\  with alarm
+   #alarmed-low ;
+
+: panic-low	\ ( value mon-id -- state ) Act on continued low condition.
+   dup monitor[] .mon-type c@ sel	\ based on type of monitor
+      << #s-mon-type ==> drop drop	\ shutdown everything possible
+			   shutdown  #stuck-low >>
+      << #n-mon-type ==> drop drop  #stuck-low >> \ do nothing
+      << #r-mon-type ==> run-low-macro	\ redo response
+			 drop  #alarmed-low >>
+   endsel ;
+
+\ ------------------------------------------------------------------------
+\ Monitoring state machine
+
+: idle-monitor	\ ( value mon-id -- state ) Monitor is idle.
+   over over too-low? if		\ if value is too low
+      drop drop #armed-low		\ switch to armed state
+   else too-high? if			\ if value is too high
+      #armed-high			\ switch to armed state
+   else					\ otherwise
+      #idle				\ stay in idle state
+   then then ;
+
+: armed-high-monitor \ ( value mon-id -- state ) Monitor has seen one high
+		\ value.
+   over over too-high? if		\ if value has stayed high
+      act-high				\ respond; switch to alarmed state
+   else					\ if value is not too high
+      transient-high			\ warn; return to idle state
+   then ;
+
+: alarmed-high-monitor \ ( value mon-id -- state ) Monitor has seen two low
+		\ values.
+   over over too-high? if		\ if value is still too high
+      panic-high			\ take action depending on monitor type
+   else					\ if value is not too high
+      drop drop  #idle			\ return to idle state
+   then ;
+
+: stuck-high-monitor \ ( value mon-id -- state ) Monitor has seen more than
+		\ two high values.
+   too-high? if				\ if value is still too high
+      #stuck-high			\ do nothing
+   else					\ if value is back in range
+      #idle				\ return to idle state
+   then ;
+
+: armed-low-monitor \ ( value mon-id -- state ) Monitor has seen one low
+		\ value.
+   over over too-low? if		\ if value has stayed low
+      act-low				\ respond; switch to alarmed state
+   else					\ if value is not too low
+      transient-low			\ warn; return to idle state
+   then ;
+
+: alarmed-low-monitor \ ( value mon-id -- state ) Monitor has seen two low
+		\ values.
+   over over too-low? if		\ if value is still too low
+      panic-low				\ take action depending on monitor type
+   else					\ if value is not too low
+      drop drop  #idle			\ return to idle state
+   then ;
+
+: stuck-low-monitor \ ( value mon-id -- state ) Monitor has seen more than
+		\ two low values.
+   too-low? if				\ if value is still too low
+      #stuck-low			\ do nothing
+   else					\ if value is back in range
+      #idle				\ return to idle state
+   then ;
+
+public:
+: monitor	\ ( value mon-id -- ) Monitor current value of indicated
+		\ monitor.
+   dup monitor[]
+   dup >r .mon-state c@ sel
+      << #idle		==> over r@ .mon-value c!  idle-monitor >>
+      << #armed-high	==> armed-high-monitor >>
+      << #alarmed-high	==> alarmed-high-monitor >>
+      << #stuck-high	==> stuck-high-monitor >>
+      << #armed-low	==> armed-low-monitor >>
+      << #alarmed-low	==> alarmed-low-monitor >>
+      << #stuck-low	==> stuck-low-monitor >>
+   endsel
+   r> .mon-state c! ;
+private:
+
+\ ------------------------------------------------------------------------
+\ Commands
+
+: c-mon-cntrl	\ ( -- ) Enable/disable monitor response.
+   arg0 mon-response set ;
+
+\ ------------------------------------------------------------------------
+\ Initialization
+
+public:
+
+: init-monitor	\ ( -- ) Initialize monitoring.
+   ['] c-mon-cntrl	#mon-cntrl	1	register-cmd/args
+   monitor-limits get-code #monitors 2* #limits-pkt
+      #limits-str register-struct
+;
+
+private:
+
+endmodule>

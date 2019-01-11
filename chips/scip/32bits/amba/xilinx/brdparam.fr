@@ -1,0 +1,33 @@
+\ (c) 2005 Johns Hopkins University / Applied Physics Laboratory
+\ Board configuration parameters
+hex
+
+noheads
+
+\ ------------------------------------------------------------------------
+\ General parameters
+
+\ Memory Map
+100000 constant uart-a#			\ RW: UART
+100004 constant int-a#			\ R: interrupt vector W: mode/mask set
+100006 constant parin-a#		\ R: interrupts W: mode/mask reset
+
+\ Interrupts
+0 constant uart-rx-int#			\ UART receive
+1 constant uart-tx-int#			\ UART transmit
+8 constant #ints			\ total number of interrupts
+
+\ Configuration constants
+100 constant FIFOSIZE			\ UART buffer size
+
+\ ------------------------------------------------------------------------
+\ Boot parameters
+
+\ Boot "ROM"
+70000 constant boot-addr#		\ RAM location to use for boot
+   2000 constant #boot-words		\ size of boot ROM (16-bit words)
+
+\ Remap address space: replace boot ROM (BRAM) with RAM (on board).
+1 #ints lshift constant remap-msk#	\ remap page 0 (via mode/mask reg.)
+
+heads

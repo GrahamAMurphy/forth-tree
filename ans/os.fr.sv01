@@ -1,0 +1,738 @@
+\ (c) 1992 Johns Hopkins University / Applied Physics Laboratory
+\ high level forth definitions
+hex
+
+\ Notes to john
+\ to?, locregion, (forget), (rpop), (rstore), (rfetch) have
+\ heads solely to support lib/genlocals.fr
+\ sourceptr, #source, and 'source have heads for lib/blocks.fr
+
+\ ------------------------------------------------------------------------
+\ M: system constants and variables
+
+	create kib 80 allot		\ keyboard input buffer
+	lsconstant sourceptr TIBPTR	\ pointer to pointer to text input
+	lsconstant >in IN		\ text scanner
+	lsconstant #source NTIB		\ size of text input
+	lsconstant blk BLK		\ current block number
+	lsconstant 'source-id SFILE	\ source of non-block input stream
+	variable 'source		\ vector of input stream origin
+
+	laconstant dp0 DICT		\ initial end of dicitionary
+~	lsconstant regionptr CURREGION	\ dictionary allocation region
+	variable stdregion		\ standard allocation region
+        variable state			\ interpretation state
+	variable base			\ base hex
+~	variable last-colon		\ last execution token
+	variable last			\ last dictionary entry
+~ 100	constant hashtablesize		\ size of hash table (in cells)
+~ 0	constant hashtable		\ the actual hash table (backpatched)
+0	constant forth-wordlist		\ forth words (metacompiler assumes 0)
+~ wordlist constant loc-wordlist	\ local words
+~	variable vocabtag		\ next free wordlist id
+	variable current		\ current vocabulary
+	variable #order			\ length of current search order
+8	constant #vocs			\ number of vocabs in context
+	create context			\ context vocabulary
+		20 allot		\ KLUDGE: context has #vocs cells
+~	variable leavings		\ used for compiling leave
+~	variable #locals		\ current number of locals
+~	variable #loops			\ current number of loops
+~	lsconstant defaultdoes DEFAULTDOES \ default (nop) create child behavior
+
+-1 	constant true			\ true
+0	constant false			\ false
+20	constant bl			\ an ASCII blank character
+
+\ ------------------------------------------------------------------------
+\ M: The following words are factor out knowledge about the dictionary
+\ header structure.  NOTE: >body and body> (defined in prim.fr)
+\ are only guaranteed to work for words defined with create.
+7	constant namesize		\ number of bytes in name field
+-c	offset: >name			\ ( cfa -- nfa )
+-4	offset: >link			\ ( cfa -- lfa )
+ c	offset: name>			\ ( nfa -- cfa )
+ 4	offset: link>			\ ( lfa -- cfa )
+
+\ ------------------------------------------------------------------------
+\ M: code extensions: these are low level words that may be candidates
+\ for rewriting as code definitions.
+
+: -rot   rot rot ;			\ ( n1 n2 n3 -- n3 n1 n2 )
+
+: *   um* drop ;			\ ( n1 n2 -- n1*n2 ) signed multiply
+
+: s>d   dup 0< ;			\ ( n1 -- dl dh ) sign extend
+
+: +-   0< if negate then ;		\ ( n1 n2 -- sign[n2]*n1 )
+
+: d+-   0< if dnegate then ;		\ ( d1l d1h n1 -- d2l d2h )
+
+: abs   dup +- ;			\ ( n -- |n| )
+
+: dabs   dup d+- ;			\ ( d -- |d| )
+
+: 0>    0 > ;				\ ( n -- t/f )
+
+: max   2dup < if swap then drop ;	\ ( n1 n2 -- max[n1,n2] )
+
+: min   2dup > if swap then drop ;	\ ( n1 n2 -- min[n1,n2] )
+
+: umax   2dup u< if swap then drop ;	\ ( n1 n2 -- umax[n1,n2] )
+
+: umin   2dup u> if swap then drop ;	\ ( n1 n2 -- umin[n1,n2] )
+
+: <>   = not ;				\ ( n1 n2 -- t/f )
+
+: 2!		\ ( dl dh addr -- ) m[addr]<--dh, m[addr+2]<--dl.
+   swap over ! cell+ ! ;
+
+: 2@		\ ( addr -- dl dh ) dh<--m[addr], dl<--m[addr+2].
+   dup cell+ @ swap @ ;
+
+~ : pspreset				\ ( ? -- ) empty parameter stack
+   sp0 !sp ;
+
+\ ------------------------------------------------------------------------
+\ M: unsigned multiplication and division operators: should be rewritten in
+\ assembly language.
+
+: um*m		\ ( ud1 u[mul] -- ud2 )
+   swap over um* drop >r um* 0 r> d+ ;
+
+: m/mmod	\ ( ud1 u[div] -- u[rem] ud2 )
+   >r 0 r@ um/mod r> swap >r um/mod r> ;
+
+\ signed multiplication and division operators: should be rewritten in
+\ assembly language.
+
+: m*		\ ( n1 n2 -- d )
+   2dup xor >r abs swap abs um* r> d+- ;
+
+: sm/rem	\ ( d n -- n[rem] n[quot] ) Symmetric division primitive
+   over >r 2dup xor >r  >r dabs r> abs um/mod
+   r> +- swap r> +- swap ;
+
+: fm/mod	\ ( d n -- n[rem] n[quot] ) Floored division primitive
+   dup >r 2dup xor >r  >r dabs r> abs um/mod
+   r@ +- r> rot r@ +-
+   swap 0< over and if
+      negate r> + swap 1-
+   else
+      r> drop swap
+   then ;
+
+: /mod		\ ( n1 div -- rem quot )
+ >r s>d r> fm/mod ;
+
+: /		\ ( n div -- dividend )
+ /mod nip ;
+
+: mod		\ ( n div -- mod )
+ /mod drop ;
+
+: */mod		\ ( n mul div -- rem quot )
+ >r m* r> fm/mod ;
+
+: */		\ ( n mul div -- quot )
+ */mod nip ;
+
+\ ------------------------------------------------------------------------
+\ M: Odds 'n' ends
+: depth		\ ( -- n ) return depth of stack in words not counting n.
+   @sp sp0 swap - cell/ ;
+
+: pick		\ ( n1 -- n2 ) n2 is a copy of the n1th stack item not
+		\ counting n1. 0 pick is equivalent to dup.
+   1+ cells @sp + @ ;
+
+: fill		\ ( addr n byte -- )
+   swap ?dup if
+      >r over c!
+      dup 1+ r> 1- cmove
+   else 2drop
+   then ;
+
+: roll		\ ( <'n' values> n -- <'n' values> ) the nth stack item
+		\ not counting n itself is transferred to the top of the
+		\ stack, moving the remaining values into the vacated
+		\ position. 0 roll is a nop.
+   dup >r pick
+   @sp dup cell+ r> 1+ cells cmove> drop ;
+
+: hex   10 base ! ;	\ set base to hex
+: decimal   a base ! ;	\ set base to decimal
+: octal   8 base ! ;	\ set base to octal
+
+: [   0 state ! ; immediate
+: ]   1 state ! ;
+
+\ ------------------------------------------------------------------------
+\ M: dictioary space management
+
+: dp   regionptr @ ;	\ ( -- addr )
+
+: allocatefrom		\ ( regionptr -- ) start allocating space from
+			\ given region.
+   regionptr ! ;
+
+: here   dp @ ;		\ ( -- addr )
+
+: pad   here 50 + ;	\ ( -- addr )
+
+: latest   last @ ;	\ ( -- addr ) returns addr of most recently
+			\ compiled dictionary entry, irrespective of current
+
+: align		\ ( -- ) Align dictioanry pointer.
+   here aligned dp ! ;
+
+: allot   dp +! ;	\ ( bytecount -- ) allot dictionary
+
+: ,   here ! cell allot ; \ ( word -- ) add to dictionary
+
+: w,  here w! 2 allot ;	\ ( shortword -- ) add to dictionary
+
+: c,  here c! 1 allot ;	\ ( byte -- ) add to dictionary
+
+\ ------------------------------------------------------------------------
+\ M: compiler
+
+: compile	\ ( -- ) compiles pointer to cfa of word that follows
+		\ in instruction stream at run time.
+   r> dup @ , cell+ >r ;
+
+~ : compileprim	\ ( -- ) copies a code field.
+   r> dup @ here codefieldsize allot codefieldsize move cell+ >r ;
+
+: compile,  , ;	\ ( w -- ) Compile a subroutine call to execution token.
+
+\ ------------------------------------------------------------------------
+\ M: Control Structures
+: <mark		\ ( -- addr ) used as destination of backward branch.
+   here ;
+
+: <resolve	\ ( addr -- ) resolve backward branch.
+   , ;
+
+: >mark		\ ( -- addr ) source of forward branch.
+   here 0 , ;
+
+: >resolve	\ ( addr -- ) resolve forward branch.
+   here swap ! ;
+
+: >marks ( -- )	here leavings @ , leavings ! ;
+: >resolves ( s -- )
+   leavings @
+   begin 2dup u< while dup @ >r here swap ! r> repeat
+   leavings ! drop ;
+
+: if     ( -- t )	postpone ?branch >mark ; immediate
+: else   ( t -- t' )	postpone  branch >mark swap >resolve ; immediate
+: then   ( t -- ) 	>resolve ; immediate
+: begin  ( -- s ) 	<mark ; immediate
+: while  ( s --  t s )	postpone ?branch >mark swap ; immediate
+: until  ( s -- )	postpone ?branch <resolve ; immediate
+: repeat ( t s  -- )	postpone  branch <resolve >resolve ; immediate
+: again  ( s -- ) 	postpone  branch <resolve ; immediate
+
+: leave  ( -- )		postpone (leave) >marks ; immediate
+: do     ( -- s )	postpone (do) <mark  1 #loops +! ; immediate
+: loop   ( s -- )	postpone  (loop) dup <resolve >resolves
+					-1 #loops +! ; immediate
+: +loop  ( s -- )	postpone (+loop) dup <resolve >resolves
+					-1 #loops +! ; immediate
+
+: sel    ( -- 0 )	0 ; immediate
+: <<     ( -- )		postpone dup ; immediate
+: =>     ( u -- u' t )	1+ postpone if postpone drop ; immediate
+: ==>    ( -- t )	postpone = postpone => ; immediate
+: >>     ( u t -- t' u)	postpone else swap ; immediate
+: endsel ( t .. u -- )	postpone drop 0 do postpone then loop ; immediate
+
+\ ------------------------------------------------------------------------
+\ M: Input stream
+: reset-stream	\ ( u -- ) Reuse the current input stream buffer.  Reset
+		\ the length to u and reset >in.
+   #source !  0 >in ! ;
+
+: source-id	\ ( -- fileid ) Return source of non-block input stream.
+   'source-id @ ;
+
+~ : default-source \ ( -- c-addr u ) Return start and length of input stream.
+     sourceptr @  #source @ ;
+
+: source	\ ( -- c-addr u ) Return origin and length of input stream.
+   'source perform ;
+
+: parse		\ ( c -- c-addr u ) Find address and length of next word
+		\ in the input stream.
+   'source perform _parse ;
+
+: parse-word	\ ( c -- c-addr u ) Find address and length of next word
+		\ in the input stream (skipping leading delimiters).
+   'source perform _parse-word ;
+
+: word		\ ( c -- c-addr ) copy next word delimited by c into
+		\ here buffer.
+   'source perform _word ;
+
+\ ------------------------------------------------------------------------
+\ M: Strings
+: count		\ ( addr -- addr+1 len )
+   dup 1+ swap c@ ;
+
+: ,word		\ ( c -- ) TBD redundant with string,.  should string, align?
+   word count 1+ allot drop ;
+
+: string,	\ ( c-addr u -- ) add text into dictionary.
+   dup c, here over allot align swap cmove ;
+
+~ create "s-buffer 50 allot
+: "		\ ( -- c-addr u ) Return string in a static buffer.
+   [char] " parse >r "s-buffer r@ cmove "s-buffer r> ;
+
+~ : (")		\ ( -- )
+     r> count 2dup + aligned >r ;
+~ : (.")		\ ( -- )
+     r> count 2dup + aligned >r type ;
+
+: ""		\ ( -- ) Compile a character string.
+   [char] " parse postpone (")  string, ; immediate
+: ."		\ ( -- ) Compile a character string to be displayed.
+   [char] " parse postpone (.") string, ; immediate
+
+: s"		\ State-smart character string.
+   state @ if postpone "" else " then ; immediate
+
+\ ------------------------------------------------------------------------
+\ M: comments
+
+: (   [char] ) parse 2drop ; immediate
+: .(  [char] ) parse type ; immediate
+
+: \		\ ( -- ) flush rest of input line.  Note: only works for
+		\ non-block input stream.
+   source >in ! drop ; immediate	\ TBD: slow, but fixes bug
+
+\ ------------------------------------------------------------------------
+\ M: Word List Management
+
+: get-current	\ ( -- wid ) Return the id of the compilation word list.
+   current @ ;
+
+: set-current	\ ( wid -- ) Set the compilation word list to the given id.
+   current ! ;
+
+: definitions
+   context @ set-current ;
+
+: get-order	\ ( -- wid1 .. widn n ) Return the current search order
+		\ with first search list on top.
+   #order @ ?dup if 0 do #order @ i - 1- cells context + @ loop then  #order @ ;
+
+: set-order	\ ( wid1 .. widn n -- ) Set the search order.  If n is -1
+		\ the default search order (forth) is set.
+   dup 0< if drop forth-wordlist 1 then
+   dup #order ! ?dup if 0 do i cells context + ! loop then ;
+
+: wordlist	\ ( -- wid ) Create an empty wordlist and return its id.
+   vocabtag @ dup 1+ vocabtag ! ;
+
+~ : hash	\ ( c-addr u -- a-addr[hashtable] )
+   0 -rot over + swap do i c@ + loop hashtablesize 1- and cells hashtable + ;
+
+: find		\ ( c-addr1 -- c-addr2 n ) Tries to find cstring c-addr1 in
+		\ the dictionary. c-addr2 is c-addr1 and n is 0 if not found.
+		\ If the name is found, c-addr2 is the cfa. n is -1 if the
+		\ word is non-immediate and 1 if it is immediate.
+   count 2dup hash @
+   loc-wordlist (find) if exit then	\ always search locals first
+   #order @ ?dup if 0 do		\ for each wordlist in search order
+      i cells context + @ (find) if unloop exit then
+   loop then
+   2drop 1- 0 ;
+
+: search-wordlist \ ( c-addru u wid -- 0 | w -1 | w 1 ) Search the indicated
+		\ wordlist for the character string.  If found, return an
+		\ execution token and 1 for immediate and -1 for non-immediate.
+		\ If not found, return 0.
+   >r 2dup hash @ r> (find) not if drop 2drop 0 then ;
+
+: (forget)	\ ( addr[name] -- ) Remove all dictionary entries that
+		\ were added after name (including name).
+ hashtablesize 0 do			\ for each hash table entry
+    i cells hashtable + @
+    begin
+       dup 2pick here within
+       while name> >link @
+    repeat
+    i cells hashtable + !
+ loop dp ! ;
+
+~ : notunique?	\ ( addr[name] -- t/f ) see if name is in the current
+		\ vocabulary.  if it is, return return true.
+   count get-current search-wordlist dup if nip then ;
+
+variable INJECT_HACK_C
+: INJECT_HACK_C! INJECT_HACK_C ! ;
+
+: header	\ ( -- ) create dictionary header for next word in input
+		\ stream.  The dictionary entry is aligned, ergo the
+		\ link field and parameter field are also aligned.
+   align
+   here namesize bl fill		\ blank here area first
+   bl word notunique? if
+      INJECT_HACK_C @ 0= if
+      cr ." [" here count type ."  isn't unique] " 
+      then
+   then
+   here dup last ! dup count hash
+   namesize allot get-current c,
+   dup @ , ! ;
+
+\ ------------------------------------------------------------------------
+\ M: defining words
+
+~ : setbits	\ ( mask addr -- ) set bits indicated by mask at addr
+     >r r@ c@ or r> c! ;
+
+~ : clearbits	\ ( mask addr -- ) clear bits indicated by mask at addr
+     >r not r@ c@ and r> c! ;
+
+: immediate	\ ( -- ) make most recently compiled word immediate.
+   80 latest setbits ;
+
+: hide		\ ( -- ) make latest word invisible.
+   40 latest setbits ;
+
+: reveal	\ ( -- ) make latest word visible.
+   40 latest clearbits ;
+
+: variable
+   header compileprim dovariable 0 , ;
+
+: constant	\ ( w -- ) Construct a constant of value w.
+   header compileprim doconstant , ;
+
+: offset:	\ ( w -- ) Construct a offset of value w.
+   header compileprim dooffset , ;
+
+: 2variable
+   variable 0 , ;
+
+~ : does
+   r> latest name> codefieldsize + ! ;
+
+: create
+   header compileprim docreate defaultdoes , ;
+
+\ ------------------------------------------------------------------------
+\ M: Local variables
+
+: region	\ ( size -- ) define allocation region of given size.
+   create here cell+ , allot ;
+
+200 region locregion			\ create region for making temporary
+					\ dictionary entries for locals.
+
+variable to?
+
+: to 1 to? ! ; immediate
+
+~ : make-local	\ ( c-addr u -- )
+     -1 push-stream			\ input string becomes input stream
+     locregion allocatefrom		\ compile into local region
+     get-current loc-wordlist set-current \ names are in special word list
+     create immediate
+     #locals @ dup , 1+ #locals !
+     set-current
+     stdregion allocatefrom  pop-stream
+     does>
+        to? @ if				\ if local is preceded by 'to'
+	   postpone (rstore)  0 to? !	\ compile store operation
+         else
+	   postpone (rfetch)		\ otherwise, compile fetch
+        then
+        #locals @ swap @ - 1-
+        #loops @ 2* + cells , ;
+
+: (local)	\ ( c-addr u -- ) Create a local named by given string.
+		\ If string has zero length, the last local has been declared.
+   ?dup
+   if last @ >r make-local r> last !
+   else drop #locals @ ?dup if postpone (initlocals) ( cells) , then
+   then ;
+
+~ : free-locals	\ ( -- ) Arrange for run time local variable data structure
+		\ to be freed.
+   #locals @ if postpone (rpop) #locals @ cells , then ;
+
+~ : end-scope	\ ( -- ) End the local variable scope.  Reclaim compile
+		\ time data structures and arrange for run time structures
+		\ to be freed.
+   #locals @ if
+      locregion allocatefrom
+      locregion cell+ (forget)	( TBD)
+      stdregion allocatefrom
+      free-locals
+      0 #locals !
+   then ;
+
+: does>
+   end-scope postpone does ; immediate
+
+\ ------------------------------------------------------------------------
+\ M: Colon definitions
+: :noname	\ ( -- w ) Create an execution token w.
+   here compileprim docolon dup last-colon ! ] ;
+
+: :		\ ( -- ) Start a colon definition.
+   header :noname drop hide ;
+
+: recurse	\ ( -- ) Compile call to current defintion.
+   last-colon @ , ; immediate
+
+reserve	\ Exit is also the name of a C library function
+: exit		\ ( -- ) Compile local variable clean up and subroutine return.
+   free-locals postpone return ; immediate
+
+: ;		\ ( -- ) End local variable scope, compile return, and [ .
+   end-scope postpone return  reveal  postpone [ ; immediate
+
+\ ------------------------------------------------------------------------
+\ M: Foreign code
+: foreign:	\ ( #in addr type -- ) Compile an interface routine for
+		\ a foreign C function.  The foreign function takes #in
+		\ arguments, resides at the given address, and returns
+		\ nothing (type=0) int (type>0) or pointer (type<0).
+   header compileprim doforeign , , , ;
+
+\ ------------------------------------------------------------------------
+\ M: formatted output
+
+~ variable hld
+
+: space		\ ( -- ) emit space
+   bl emit ;
+
+: spaces 	\ ( count -- )
+   0 max ?dup if 0 do space loop then ;
+
+: hold		\ ( char -- ) add character to front of string pointed to
+		\ by hld.
+   -1 hld +! hld @ c! ;
+
+: <#		\ ( -- )
+   pad hld ! ;
+
+: #>		\ ( dl dh -- addr count )
+   2drop hld @ pad over - ;
+
+: sign		\ ( sign -- )
+   0< if [char] - hold then ;
+
+: # 		\ ( dl dh -- dl' dh' )
+   base @ m/mmod rot 9 over < if 27 + then
+   [char] 0 + hold ;
+
+: #s		\ ( dl dh -- 0 0 )
+   begin # 2dup or 0= until ;
+
+: d.r		\ ( dl dh filedsize -- )
+   >r swap over dabs <# #s rot sign #>
+   r> over - spaces type ;
+
+: zeroes	\ ( n -- ) emit n zeroes
+   0 max ?dup if 0 do [char] 0 emit loop then ;
+
+: d.lz		\ ( dl dh fieldsize -- )
+   >r swap over dabs <# #s rot sign #>
+   r> over - zeroes type ;
+
+: d.		\ ( dl dh -- )
+   0 d.r space ;
+
+: .r   >r s>d r> d.r ; \ ( n fieldsize -- )
+
+: .  s>d d. ;	\ ( n -- )
+
+: u.r   0 swap d.r ; \ ( n fieldsize -- )
+
+: u.lz   0 swap d.lz ; \ ( n fieldsize -- )
+
+: u.   0 d. ;	\ ( n -- )
+
+: ?   @ . ;	\ ( addr -- )
+
+: u?   @ u. ;	\ ( addr -- )
+
+\ ------------------------------------------------------------------------
+\ M: utilities
+
+: postpone	\ ( -- ) defer action of next word in input stream.
+		\ replaces function of compile and [compile].
+   bl word find 0<
+   if compile compile
+   then , ; immediate
+
+: '		\ ( -- 0 <> cfa ) moves next word in input stream to here
+		\ and looks up in context and current vocabularies.
+		\ returns cfa if found, zero otherwise.
+   bl word find 0= if drop 0 then ;
+
+: [compile]  ' , ; immediate
+
+: [']  ' postpone (literal) , ; immediate
+
+: literal  postpone (literal) , ; immediate
+
+: char  bl word 1+ c@ ;
+
+: [char]  char postpone literal ; immediate
+
+: forget	\ ( -- ) delete the next word in the input stream from
+		\ the compilation vocabulary.
+   bl word count get-current search-wordlist
+   if >name (forget)
+   else here count type ."  ?" cr
+   then ;
+
+\ ------------------------------------------------------------------------
+\ M: debug
+
+: dump		\ ( addr u -- ) Dump memory at given address.
+   cr
+   -1 0 <# #s #> nip -rot
+   ff 0 <# #s #> nip -rot
+   over + swap do
+      i 2 pick u.lz ." :" space
+      i 8 + i do
+         i c@ over u.lz space
+      loop 4 spaces
+      i 8 + i do
+         i c@ dup bl < over 7e > or
+         if drop [char] . then
+         emit
+      loop
+   cr 8 +loop 2drop ;
+
+: .s		\ ( ... -- ... ) Non-destructively view stack.
+   @sp sp0 begin
+      2dup u< while
+      cell- dup ?
+   repeat 2drop ;
+
+\ ------------------------------------------------------------------------
+\ M: interpreter
+
+: digit		\ ( chr -- n true <or> false )
+   dup 60 u> if bl - then			\ convert to upper case
+   [char] 0 -
+   dup 9 > over 11 < and if
+      drop false
+   else
+      dup 9 u> if 7 - then
+      dup base @ 1- u> if
+         drop false
+      else
+         true
+      then
+   then ;
+
+: convert	\ ( dl dh addr1 -- dl' dh' addr2 ) convert characters to
+		\ numbers starting at addr1 accumulating in d. addr2 is
+		\ the address of the first unconvertible char.
+   >r begin
+      r> 1+ dup >r c@ digit		\ try to convert next digit
+      while >r base @ um*m r> 0 d+
+   repeat r> ;
+
+: >number	\ ( ud1 c-addr1 u1 -- ud2 c-addr2 u2 ) Convert the text
+		\ string to a number accumulating as an unsigned double.
+   begin
+      dup >r while			\ while string not empty
+      dup >r c@ digit while		\ while digits found
+      >r base @ um*m r> 0 d+		\ accumulate
+      r> 1+ r> 1-			\ remove left char from string
+   repeat r> then r> ;
+
+: number	\ ( addr -- n true <or> false )
+   dup 1+ c@ [char] - = dup >r -	\ save sign on return stack
+   0 0 rot convert
+   c@ bl = if 				\ if successful
+      drop r> +- true			\ truncate, apply sign, return true
+   else
+      2drop r> drop false		\ else return false
+   then ;
+
+  : ?stack	\ ( -- t/f ) returns true on stack underflow.
+     @sp sp0 > ;
+
+~ : endinterp	\ ( -- ) If interpreting, flush rest of input line.
+     state @ 0= if postpone \ then ;
+
+: interpret	\ ( -- )
+   begin
+      bl word c@ while			\ while not at end of line
+      here find ?dup if
+         state @ + if execute else , then
+      else
+         number if
+            state @ if
+               postpone literal
+            then
+         else
+            here count type ."  ?" cr endinterp
+         then
+      then
+      ?stack if
+         ."  stack empty" cr pspreset endinterp
+      then
+   repeat ;
+
+: evaluate	\ ( c-addr u --- ) Interpret given string.
+   -1 push-stream interpret pop-stream ;
+
+: h#		\ ( "n" -- n ) Interpret next number as hex.
+   base @ >r bl parse-word hex     evaluate r> base ! ; immediate
+: d#		\ ( "n" -- n ) Interpret next number as decimal.
+   base @ >r bl parse-word decimal evaluate r> base ! ; immediate
+
+: quit		\ ( -- )
+   spreset postpone [			\ reset return stack; interpret state
+   kib 0 0 push-stream
+   begin
+      state @ 0= if cr ." ok> " else ." ] " then
+      kib 80 accept dup 0< not while
+      reset-stream interpret
+   repeat drop pop-stream
+   cr ;
+
+: abort \ ( -- )
+   pspreset quit ;
+
+\ initial vocabulary points here
+: abort"	\ ( t/f -- ) prints message and aborts if flag is true.
+   postpone if
+   postpone ." postpone abort
+   postpone then ; immediate
+
+\ ------------------------------------------------------------------------
+\ M: high level startup code
+
+wordlist				\ next wordlist will be allocated at
+					\ run-time by Forth system
+
+~ : coldstart	\ ( -- ) Do first time initializations.
+   dp0 stdregion !			\ Note: this could be init'ed at link
+   literal vocabtag !			\ next free wordlist id
+   ['] abort" >name last !
+;
+
+~ : warmstart	\ ( -- ) Do every time initializations.
+   stdregion allocatefrom
+   ['] default-source 'source !
+   -1 set-order definitions
+   hex   0 leavings !
+   ioinit
+;

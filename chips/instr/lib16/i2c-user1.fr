@@ -1,0 +1,75 @@
+\ (c) 2002 Johns Hopkins University / Applied Physics Laboratory
+\ I2C bus user-level interface
+decimal
+
+\ * This presents a high-level user-interface to the I2C bus.  The user
+\ * can read or write to specified device locations.  The bus timing is
+\ * handled transparently.
+
+module> i2c-user
+
+\ ------------------------------------------------------------------------
+\ I2C bus access
+
+\ I2C bus virtual registers:
+variable i2c-v-device			\ device/board address
+variable i2c-v-value16			\ write data value
+variable i2c-v-cmd			\ command request:
+   0 constant #i2c-nop			\  nothing,
+   1 constant #i2c-read			\  read,
+   2 constant #i2c-write		\  or write
+	#i2c-nop i2c-v-cmd !		\ default
+variable i2c-pending			\ indicates I2C transaction in progress
+variable i2c-done			\ semaphore signalled after transaction
+
+: i2c-start-trans \ ( -- ) Start I2C transaction.
+		\ Note: called from within an interrupt routine.
+   #i2c-nop i2c-v-cmd !			\ reset command request
+   true i2c-pending ! ;
+
+: i2c-trans	\ ( -- ) Start an I2C transaction, read or write.
+		\ Note: called from within an interrupt routine.
+   i2c-v-cmd @ #i2c-write = if		\ write?
+      i2c-v-value16 @ i2c-v-device @ i2c!s
+      i2c-start-trans			\ transaction pending
+   else i2c-v-cmd @ #i2c-read = if	\ read?
+      i2c-v-device @ i2c@s
+      i2c-start-trans			\ transaction pending
+   then then ;
+
+\ I2C bus error counter: not telemetered, can be dumped.
+variable i2c-errors
+
+: i2c-complete	\ ( -- ) Complete an I2C transaction.
+		\ Note: called from within an interrupt routine.
+   i2c-pending @ if			\ if pending transaction
+      i2c-status@ if 1 i2c-errors +! then
+      false i2c-pending !
+      i2c-done signal
+   then ;
+
+public:
+
+: i2c@		\ ( device -- x ) Read 16-bit data from the given device.
+   i2c-v-device !			\ save data in virtual register
+   #i2c-read i2c-v-cmd !		\ request read
+   i2c-done wait			\ wait for completion
+   i2c@r ;				\ return result
+
+: i2c!		\ ( x device -- ) Write 16-bit data to the given device.
+   i2c-v-device ! i2c-v-value16 !	\ save data in virtual registers
+   #i2c-write i2c-v-cmd !		\ request write
+   i2c-done wait ;			\ wait for completion
+
+private:
+
+\ ------------------------------------------------------------------------
+\ Initialization
+
+public:
+: init-i2c-user	\ ( -- ) Initialize I2C user interface.
+   ['] i2c-trans    i2c-active		\ register activities
+   ['] i2c-complete i2c-active ;
+private:
+
+endmodule>

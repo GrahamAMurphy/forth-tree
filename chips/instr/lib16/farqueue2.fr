@@ -1,0 +1,98 @@
+\ (c) 2001 Johns Hopkins University / Applied Physics Laboratory
+\ This file contains a definition of a queue data structure and
+\ queueing utilities.  The first cell of all queue elements is assumed
+\ to be a link field.  The queue header is stored locally and the
+\ queue elements are stored in remote memory.  Most of the calls
+\ have a precondition that the appropriate remote is already set.
+\ Note: all of the elements must be in the same remote memory.
+\ Synchronization is handled by disabling interrupts
+hex
+
+\ Like farqueue.fr but also has unsynchonized versions of queueing functions
+\ for use in interrupt routines.
+
+structure farq-struct
+	cell: .tail			\ tail of list; things are added here
+	cell: .head			\ head of list; things are removed
+endstructure
+
+\ local memory	| remote memory
+\ +--------+	|
+\ |    o---|----|----------------------------------------------------+
+\ +--------+	|						     |
+\ |    o---|----|------------+					     |
+\ +--------+	|	     |					     |
+\		|	     v					     v
+\		|	+--------+	+--------+		+--------+
+\		|	|    o---|----->|    o---|---- ... ---->|    0   |
+\		|	+--------+	+--------+		+--------+
+\		|	|   ...  |	|   ...  |		|   ...  |
+
+\ An empty queue is represented as shown: only the head pointer will be
+\ zero.
+\ +--------+
+\ |    o---|--------------> ???
+\ +--------+
+\ |    0   |
+\ +--------+
+
+\ ------------------------------------------------------------------------
+\ Queues
+
+\ No synchronization; for use in interrupt routines.
+
+: farq-get-i	\ ( queue -- element/0 ) Return the next element in the
+		\ given queue.  If the queue is empty, return null.
+		\ Note: synchronization is the caller's responsibility.
+		\ Precondition: remote memory of elements set.
+   dup >r .head @			\ first element in queue
+   dup if dup far@ r@ .head ! then	\ head points to next in queue
+   rdrop ;
+
+: farq-put-i	\ ( element queue -- ) Put the element on the queue.
+		\ Note: synchronization is the caller's responsibility.
+		\ Precondition: remote memory of elements set.
+   >r 0 over far!			\ make element's link null
+   r@ .head @				\ check for empty queue
+   if					\ if non-empty
+      dup r@ .tail @ far!		\ last points to new element; tail too
+   else					\ empty queue
+      dup r@ .head !			\ head of queue points to new element
+   then
+   r> .tail ! ;				\ tail of queue points to new element
+
+: farq-append-i	\ ( first last queue -- ) Append the non-empty queue,
+		\ represented by pointers to the first and last block,
+		\ to the end of the given queue.
+		\ Note: synchronization is the caller's responsibility.
+		\ Precondition: remote memory of elements set.
+   dup .head @ if			\ if queue not empty
+      dup .tail @ >r  .tail !  r> far!	\ append
+   else					\ if queue is empty
+      dup >r .tail !  r> .head !	\ replace entire queue
+   then ;
+
+\ Synchronization achieved by disabling interrupts.
+
+: farq-empty	\ ( queue -- ) Empty indicated queue.
+   0 swap .head ! ;
+
+: farq-get	\ ( queue -- element/0 ) Return the next element in the
+		\ given queue.  If the queue is empty, return null.
+		\ Precondition: remote memory of elements set.
+   disable farq-get-i enable ;
+
+: farq-put	\ ( element queue -- ) Put the element on the queue.
+		\ Precondition: remote memory of elements set.
+   disable farq-put-i enable ;
+
+: farq-append	\ ( first last queue -- ) Append the non-empty queue,
+		\ represented by pointers to the first and last block,
+		\ to the end of the given queue.
+		\ Precondition: remote memory of elements set.
+   disable farq-append-i enable ;
+
+: farq-peek	\ ( queue -- element/0 ) Return pointer to next element
+		\ to be returned from queue (with a get).  Returns
+		\ null if queue is empty.
+   .head @ ;

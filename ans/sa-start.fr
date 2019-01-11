@@ -1,0 +1,26 @@
+\ (c) 1998 Johns Hopkins University / Applied Physics Laboratory
+\ Command line parser and main program
+hex
+
+\ TBD: redundant with unix-start.fr ...
+~ : strlen	\ ( z-addr -- len )
+   0 >r begin dup c@ while r> 1+ >r 1+ repeat drop r> ;
+
+\ True if warm boot.  Counts on compiler initializing to false.
+~ variable warm
+
+~ : initforth
+   warm @ not if			\ if not warm
+      coldstart				\ do first boot inits
+      true warm !
+   then warmstart ;			\ always do every boot inits
+
+~ : evalforth \ ( char*s -- )
+   dup strlen evaluate ;
+
+~ : doforth	\ ( arc argv -- )
+   2drop
+   cr ." JH forth, version ANS 1.3"
+   cr ." (c) 1998 JHU/Applied Physics Lab"
+   pspreset quit
+   ;

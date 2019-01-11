@@ -1,0 +1,94 @@
+\ (c) 1999 Johns Hopkins University / Applied Physics Laboratory
+hex
+
+variable checksum			\ checksum of a record
+
+\ ------------------------------------------------------------------------
+: get-key	\ ( -- c ) Read a character and convert to lower case.
+   key dup [char] A [char] Z 1+ within if 20 + then ;
+
+: read-digit	\ ( --- digit ) Read and convert a hex digit.  If the digit
+		\ cannot be converted, guess that it was a 0.  If guess
+		\ is incorrect, checksum should reveal it.
+		\ Base is set elsewhere.
+   get-key digit not if 0 then ;
+
+: read-byte	\ ( --- byte ) Read two hex characters from the tty and convert
+		\ them to a byte.
+   read-digit 4 rotate read-digit or dup checksum +! ;
+
+\ ------------------------------------------------------------------------
+create rbuffer 100 allot		\ receive buffer
+
+: search-for-record \ ( --- n ) Search for an S record.  Return record type.
+   begin
+      begin get-key [char] s = until
+      get-key digit
+   until ;
+
+: read-record	\ ( -- type t/f ) Read next record and save.  Return record
+		\ type and true if checksum is good.
+   search-for-record			\ find next S record
+   0 checksum !				\ reset checksum
+   read-byte 1- dup rbuffer c!		\ read and save length of remaining data
+   rbuffer 1+ swap 0 do			\ for each payload byte in record
+      read-byte over c! 1+		\ read and save
+   loop drop
+   read-byte drop checksum @ 1+ ff and 0= ;
+
+\ ------------------------------------------------------------------------
+: get-16bits	\ ( addr len -- addr' len' 16bits ) Get the 16-bit value at the
+		\ given location.  Return the value with the remaining string.
+   swap dup >r 2+ swap 2-
+   r@ c@ 8 lshift r> 1+ c@ or ;
+
+: get-24bits	\ ( addr len -- addr' len' 24bits ) Get the 24-bit value at the
+		\ given location.  Return the value with the remaining string.
+   swap dup >r 3 + swap 3 -
+   r@ c@ 8 lshift r@ 1+ c@ or 8 lshift r> 2+ c@ or ;
+
+: get-32bits	\ ( addr len -- addr' len' 32bits ) Get the 32-bit value at the
+		\ given location.  Return the value with the remaining string.
+   swap dup >r 4+ swap 4-
+   r@ c@ 8 lshift r@ 1+ c@ or 8 lshift r@ 2+ c@ or 8 lshift r> 3 + c@ or ;
+
+: s1		\ ( -- ) S1 record has a 16-bit address and data.
+   rbuffer count get-16bits swap move ;
+
+: s2		\ ( -- ) S2 record has a 24-bit address and data.
+   rbuffer count get-24bits swap move ;
+
+: s3		\ ( -- ) S3 record has a 32-bit address and data.
+   rbuffer count get-32bits swap move ;
+
+: s7		\ ( -- addr ) S7 record has a 32-bit program entry address.
+   rbuffer count get-32bits nip nip ;
+
+: s8		\ ( -- addr ) S8 record has a 24-bit program entry address.
+   rbuffer count get-24bits nip nip ;
+
+: s9		\ ( -- addr ) S9 record has a 16-bit program entry address.
+   rbuffer count get-16bits nip nip ;
+
+: s-recs	\ ( -- addr ) Load a Motorola S record file.  Return the
+		\ program entry point.
+   begin
+      read-record if			\ if record has good checksum
+	 sel				\ process based on record type
+	    << 1 ==> s1 >>
+	    << 2 ==> s2 >>
+	    << 3 ==> s3 >>
+	    << 7 ==> s7 exit >>
+	    << 8 ==> s8 exit >>
+	    << 9 ==> s9 exit >>
+	 endsel
+      else
+	 drop [char] ? emit
+      then
+   again ;
+
+: motor		\ ( -- ) Load a Motorola S record file.
+   base @ hex				\ all data is in hex
+   s-recs cr ." entry at " u.
+   base ! ;
+

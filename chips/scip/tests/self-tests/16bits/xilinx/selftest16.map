@@ -1,0 +1,275 @@
+
+       #pcr-se                          define 0001 
+       #pcr-ie                          define 0002 
+       namesize                         define 0007 
+       nf-size                          define 0008 
+       wid-step                         define 0001 
+       prec-bit                         define 0040 
+       smudge-bit                       define 0020 
+       inline-bit                       define 0080 
+       char-mask                        define 00ff 
+       chars/dump                       define 0008 
+       <does-default>                   define da40 
+       <remote-does-default>            define ba00 
+       reset-vector                     define 0000 
+       int-vector                       define 0004 
+0006   reboot                           code 
+0008   branch                           code 
+000c   ?branch                          code 
+0012   return                           code 
+0014   execute                          code 
+0018   does-default                     code 
+001c   remote-does-default              code 
+001c   (do)                             code 
+0030   (loop)                           code 
+003a   (+loop)                          code 
+0044   unloop                           code 
+0044   i                                code 
+0044   j                                code 
+005a   (next)                           code 
+0064   unnext                           code 
+0068   !                                code 
+0068   +                                code 
+0068   +!                               code 
+0074   -                                code 
+0074   -rot                             code 
+007c   0<                               code 
+007c   0=                               code 
+007c   0>                               code 
+007c   1+                               code 
+007c   1-                               code 
+007c   2*                               code 
+007c   2/                               code 
+007c   2over                            code 
+008e   2swap                            code 
+00a0   2pick                            code 
+00a8   3pick                            code 
+00b6   <                                code 
+00b6   >                                code 
+00b6   u<                               code 
+00b6   u>                               code 
+00b6   =                                code 
+00b6   <>                               code 
+00b6   >r                               code 
+00b6   @                                code 
+00b6   aligned                          code 
+00bc   and                              code 
+00bc   c!                               code 
+00bc   c@                               code 
+00bc   char+                            code 
+00bc   chars                            code 
+00bc   drop                             code 
+00bc   dup                              code 
+00bc   invert                           code 
+00bc   lshift                           code 
+00bc   negate                           code 
+00bc   nip                              code 
+00bc   not                              code 
+00bc   or                               code 
+00bc   over                             code 
+00bc   r>                               code 
+00bc   r@                               code 
+00bc   rdrop                            code 
+00bc   rot                              code 
+00c4   rotate                           code 
+00c4   rshift                           code 
+00c4   swap                             code 
+00c4   touch                            code 
+00c4   w!                               code 
+00c4   w@                               code 
+00c4   within                           code 
+00ce   xor                              code 
+00ce   cell                             code 
+00ce   cell+                            code 
+00ce   cell-                            code 
+00ce   cells                            code 
+00ce   cell/                            code 
+00ce   d+                               code 
+00da   dnegate                          code 
+00e4   d<                               code 
+00f6   cmove                            code 
+0120   cmove>                           code 
+013c   move                             code 
+014a   m*                               code 
+0162   um*                              code 
+0174   um/mod                           code 
+01a0   enable                           code 
+01a6   disable                          code 
+01ac   md!                              code 
+01ac   md@                              code 
+01ac   set-code                         code 
+01ac   get-code                         code 
+01ac   set-mem                          code 
+01ac   get-mem                          code 
+01ac   near                             code 
+01ac   far                              code 
+       nop-boot                         define 01ac 
+       NEXT-BOOT                        define 01ae 
+       EVERY-BOOT                       define 01b0 
+01b2   true                             : 
+01b2   false                            : 
+01b2   ?dup                             : 
+01ba   2dup                             : 
+01ba   s>d                              : 
+01ba   +-                               : 
+01c2   d+-                              : 
+01ca   abs                              : 
+01ce   dabs                             : 
+01d2   *                                : 
+01d6   2drop                            : 
+01d6   max                              : 
+01de   min                              : 
+01e6   umax                             : 
+01ee   umin                             : 
+01f6   2!                               : 
+0202   2@                               : 
+0208   um*m                             : 
+021a   m/mmod                           : 
+022e   sm/rem                           : 
+0248   fm/mod                           : 
+0278   /mod                             : 
+0280   /                                : 
+0284   mod                              : 
+0288   */mod                            : 
+0290   */                               : 
+       pstack                           define 0314 
+       rstack                           define 0394 
+0394   spreset                          code 
+0394   pspreset                         code 
+03aa   depth                            code 
+03c6   under?                           code 
+03ca   io-mem#                          constant 0010 
+03ca   uart-a#                          constant 0000 
+03ca   int-a#                           constant 0004 
+03ca   parin-a#                         constant 0006 
+03ca   uart-rx-int#                     constant 0000 
+03ca   uart-tx-int#                     constant 0001 
+03ca   #ints                            constant 0008 
+03ca   FIFOSIZE                         constant 0100 
+03ca   boot-mem#                        constant 0007 
+03ca   #boot-words                      constant 2000 
+03ca   remap-msk#                       constant 0100 
+03ca   int-nop                          : 
+       vector-table                     define 03cc 
+       int-response                     define 03dc 
+0408   get-mask                         : 
+0408   unmask-int                       : 
+041a   mask-int                         : 
+042c   emit                             : 
+0448   key                              : 
+046a   safe                             : 
+046a   cacheenable                      code 
+0470   initlocals                       : 
+       test                             define 0470 
+       starttest                        define 0476 
+       memarea                          define 0478 
+       callme                           define 0488 
+       regtest                          define 0800 
+       flowtest                         define 09aa 
+       stacktest                        define 09dc 
+       longimmtest                      define 0ab4 
+       alutest                          define 0b8e 
+       regtest2                         define 0d02 
+       shifttest                        define 0e1c 
+       loadstoretest                    define 0e78 
+       pstacktest                       define 0f88 
+       rstacktest                       define 1022 
+       intholdofftest                   define 10e4 
+       done                             define 10fa 
+       REBOOT                           define 1102 
+       app-vector                       define 1142 
+here = 1144 
+Rule <long><long>* was applied 0 times.
+Rule <long><short>* was applied 0 times.
+Rule <short><long>* was applied 0 times.
+Rule <short><short>* was applied 0 times.
+Rule <nopa><shifti> was applied 0 times.
+Rule <short><short><shift> was applied 2 times.
+Rule [nip<short>]swap<shift> was applied 0 times.
+Rule <short>swap<shift> was applied 1 times.
+Rule overswap<shift> was applied 0 times.
+Rule [<nopa><shifti>]<shifti> was applied 0 times.
+Rule <long><shifti> was applied 0 times.
+Rule <short><shifti> was applied 3 times.
+Rule <long><long-op> was applied 0 times.
+Rule <long><short-op> was applied 1 times.
+Rule <short><long-op> was applied 0 times.
+Rule <short><short-op> was applied 1 times.
+Rule <long>to<short> was applied 3 times.
+Rule [<nopa><long-op>]><long-op> was applied 0 times.
+Rule [<nopa><short-op>]><long-op> was applied 0 times.
+Rule [<nopa><long-op>]><short-op> was applied 0 times.
+Rule 0+ was applied 0 times.
+Rule [<nopa><short-op>]<short-op> was applied 0 times.
+Rule [<nopa><long-op>]>to<short-op> was applied 0 times.
+Rule <call>return was applied 5 times.
+Rule <long>return was applied 0 times.
+Rule <*>return was applied 21 times.
+Rule overover<store>drop was applied 0 times.
+Rule dup<reg@><store>drop was applied 0 times.
+Rule dup<long><store>drop was applied 0 times.
+Rule [<short>+]<store> was applied 1 times.
+Rule dup<long><load><bincmp> was applied 0 times.
+Rule dup<long><load><binop> was applied 0 times.
+Rule [<nopa><short>+]<load> was applied 1 times.
+Rule <nopa><load> was applied 2 times.
+Rule drop[drop<long>] was applied 0 times.
+Rule nip<long> was applied 0 times.
+Rule drop<long> was applied 0 times.
+Rule dup<long><bincmp> was applied 0 times.
+Rule <long><bincmp><?br> was applied 0 times.
+Rule [nip<long>][over<binop>] was applied 0 times.
+Rule <long>[over<binop>] was applied 0 times.
+Rule [nip<long>]<binop> was applied 0 times.
+Rule <nopa>[<long><binop>] was applied 0 times.
+Rule <long><binop> was applied 0 times.
+Rule drop[drop<short/i>] was applied 0 times.
+Rule nip<short/i> was applied 0 times.
+Rule drop<short/i> was applied 3 times.
+Rule dup<short><bincmp> was applied 1 times.
+Rule 0<bincmp> was applied 0 times.
+Rule <short><bincmp><?br> was applied 0 times.
+Rule [nip<short>][over<binop>] was applied 0 times.
+Rule <short>[over<binop>] was applied 0 times.
+Rule [nip<short>]<binop> was applied 0 times.
+Rule <nopa>[<short><binop>] was applied 1 times.
+Rule <short>drop was applied 0 times.
+Rule <short><binop> was applied 3 times.
+Rule [drop<reg@>]<reg!>drop was applied 0 times.
+Rule <reg@><reg!>drop was applied 0 times.
+Rule drop[drop<reg@>] was applied 0 times.
+Rule nip<reg@> was applied 0 times.
+Rule drop<reg@> was applied 0 times.
+Rule dup<reg@><bincmp> was applied 0 times.
+Rule <reg@><bincmp><?br> was applied 0 times.
+Rule [nip<reg@>][over<binop>] was applied 0 times.
+Rule <reg@>[over<binop>] was applied 0 times.
+Rule [nip<reg@>]<binop> was applied 0 times.
+Rule <nopa>[<reg@><binop>] was applied 0 times.
+Rule <reg@><binop> was applied 2 times.
+Rule <reg!>dup was applied 0 times.
+Rule <reg!>swap was applied 0 times.
+Rule <alu><reg!>2 was applied 0 times.
+Rule <alu><reg!>1 was applied 4 times.
+Rule [nipdup<uncmp>]<?br> was applied 0 times.
+Rule <alu>[dup<uncmp><?br>] was applied 0 times.
+Rule swap[2dup<bincmp><?br>] was applied 0 times.
+Rule <cmp><?br>2 was applied 3 times.
+Rule <cmp><?br>1 was applied 4 times.
+Rule <alu><?br>2 was applied 1 times.
+Rule <alu><?br>1 was applied 1 times.
+Rule <cmp>not was applied 0 times.
+Rule <alu><uncmp> was applied 2 times.
+Rule swap[over<bincmp>] was applied 0 times.
+Rule over[over<bincmp>] was applied 4 times.
+Rule over<bincmp> was applied 4 times.
+Rule swap<bincmp> was applied 0 times.
+Rule <nopb>not was applied 0 times.
+Rule <nopa>not was applied 0 times.
+Rule swap[over<binop>] was applied 0 times.
+Rule over[over<binop>] was applied 2 times.
+Rule over<binop> was applied 3 times.
+Rule swap<binop> was applied 0 times.
+Rule swapswap was applied 1 times.
+Rule nipdup was applied 0 times.
+Rule dropdup was applied 0 times.

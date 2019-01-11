@@ -1,0 +1,76 @@
+\ (c) 2003 Johns Hopkins University / Applied Physics Laboratory
+\ Status collection and transmission
+hex
+
+status extendmodule>
+
+\ ------------------------------------------------------------------------
+\ Status packet
+
+\ Count time until next status dump
+variable status-cnt
+
+\ Status packet descriptor
+pkt-desc-size makestruct status-pkt
+
+: watch-memory	\ ( -- ) Monitor selected memory region.
+   get-mem watch-mem get set-mem	\ prepare to read arbitrary location
+      watch-addr get
+   dup farc@ watch-byte1 set		\ copy unaligned byte-pair into status
+      1+ farc@ watch-byte2 set
+   set-mem ;
+
+public:
+: send-status	\ ( -- ) If it is time, send a status packet.
+   status-cnt @ 1+			\ if it is time to send
+   dup status-int get 1- u> if		\  another status packet
+      watch-memory			\ monitor selected memory region
+      status-pkt tag-pkt		\ tag packet
+      status-pkt send-pkt drop		\  and send it
+      drop 0
+   then status-cnt ! ;
+private:
+
+\ ------------------------------------------------------------------------
+\ Commands
+
+: clear-all-cnts \ ( -- ) Clear all command counters.
+   0 cmds-executed set			\ commands executed
+   0 cmds-rejected set			\ commands rejected
+   0 macro-cmds-exec set		\ macro commands executed
+   0 macro-cmds-rej set			\ macro commands rejected
+   0 alarm-count set			\ alarm count
+   clear-tlm-volume ;			\ telemetry volume
+
+: c-stat-clr	\ ( -- ) Clear selected counters in status data.
+   arg0 sel
+      <<  0 ==> 0 cmds-executed set >>		\ commands executed
+      <<  1 ==> 0 cmds-rejected set >>		\ commands rejected
+      <<  2 ==> 0 macro-cmds-exec set >>	\ macro commands executed
+      <<  3 ==> 0 macro-cmds-rej set >>		\ macro commands rejected
+      <<  4 ==> clear-tlm-volume >>		\ telemetry volume
+      <<  5 ==> 0 alarm-count set >>		\ alarm count
+      << ff ==> clear-all-cnts >>		\ all
+      ( default: ) #badarg-cmd cmd-error	\ reject command
+   endsel ;
+
+: c-stat-int	\ ( -- ) Set status collection interval.
+   arg1 arg0 join status-int set ;
+
+: c-stat-mem	\ ( -- ) Set address of memory region to watch.
+   arg1 watch-mem set  arg3 arg2 join watch-addr set ;
+
+\ ------------------------------------------------------------------------
+\ Initialization
+
+public:
+: init-status	\ ( -- ) Initialize status collection module.
+   config/status get-code #config/status
+      #status-pkt status-pkt init-pkt
+   ['] c-stat-clr	#stat-clr	1 register-cmd/args
+   ['] c-stat-int	#stat-int	2 register-cmd/args
+   ['] c-stat-mem	#stat-mem	4 register-cmd/args
+;
+private:
+
+endmodule>

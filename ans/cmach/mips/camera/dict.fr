@@ -1,0 +1,9 @@
+\ (c) 1992 Johns Hopkins University / Applied Physics Laboratory
+\			forth dictionary
+
+verbatim-data
+
+/* dictionary memory to be allocated by run-time system */
+static cell DICT[32768];
+
+end

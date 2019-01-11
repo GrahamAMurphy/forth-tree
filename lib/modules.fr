@@ -1,0 +1,30 @@
+\ (c) 1991 Johns Hopkins University / Applied Physics Laboratory
+\ Modules - Create a local name space. Each definition in a module may
+\ be declared to be visible (i.e. findable) outside the module or only
+\ visible within the module.
+
+\ Usage syntax:
+\ module> module's-name
+\   ( hidden / private definitions goes here )
+\ public:
+\   ( public definitions go here )
+\ private:
+\   ( more hidden data goes here.  public: and private: may be used as
+\     many times as necessary or not at all. )
+\ endmodule>
+
+: module>	\ ( --- ) Start a module definition.  Subsequent word
+		\ definitions will be hidden.
+   get-order wordlist dup constant	\ module is really a wordlist
+   dup set-current			\ new definitions are private
+   swap 1+ set-order ;			\ push onto search order stack.
+
+: public:	\ ( --- ) Subsequent definitions will be visible outside module.
+   get-order 2pick set-current set-order ;
+
+: private:	\ ( --- ) Subsequent definitions will be hidden.
+   get-order over set-current set-order	;
+
+: endmodule>	\ ( --- ) End a module definition.  Restore search
+		\ environment.
+   get-order swap drop 1- over set-current set-order ;

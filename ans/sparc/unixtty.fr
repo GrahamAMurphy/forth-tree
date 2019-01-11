@@ -1,0 +1,79 @@
+\ (c) 1998 Johns Hopkins University / Applied Physics Laboratory
+\ Forth tty interface (for Unix).
+hex
+
+lsconstant output-file OUTPUTFP		\ holds fp for interpreter output
+					\  allowing redirection by user
+
+code key	\ ( -- c )
+	call	CLAB(cmd_getc)
+	sub	psp,4,psp
+	st	tos,[psp+4]
+	next1
+	next2
+	next3
+	mov	%o0,tos			/* return character */
+end
+
+code accept	\ ( addr u1 -- u2 )
+	sethi	%hi(CLAB(errno)),tmp
+	st	%g0,[tmp+%lo(CLAB(errno))] /* reset error number */
+	mov	tos,%o1			/* number of characters */
+	call	CLAB(cmd_getline)	/* use custom line routine */
+	ld	[psp+4],%o0		/* buffer */
+	ld	[tmp+%lo(CLAB(errno))],t0 /* check error number */
+	sub	%o0,1,tos		/* don't count end of line char */
+	addcc	%g0,t0,%g0
+	beq,a	0f			/* if error */
+	sethi	%hi(forthmsg),%o0
+	call	CLAB(perror)		/* print error message */
+	or	%o0,%lo(forthmsg),%o0
+	call	CLAB(exit)		/*  and exit(1) */
+	add     %g0,1,%o0
+0:	next1
+	next2
+	next3
+	add	psp,4,psp
+end
+
+code emit	\ ( c -- )
+	mov	tos,%o0			/* character */
+	call	CLAB(cmd_putc)
+	add	psp,4,psp
+	next1
+	next2
+	next3
+	ld	[psp],tos
+end
+
+code type	\ ( addr u -- )
+	sethi	%hi(CLAB(errno)),tmp
+	st	%g0,[tmp+%lo(CLAB(errno))] /* reset error number */
+	mov	tos,%o1			/* number of bytes */
+	call	CLAB(cmd_putline)	/* use custom line routine */
+	ld	[psp+4],%o0		/* buffer */
+	ld	[tmp+%lo(CLAB(errno))],t0 /* check error number */
+	ld	[psp+8],tos
+	addcc	%g0,t0,%g0
+	beq,a	0f			/* if error */
+	sethi	%hi(forthmsg),%o0
+	call	CLAB(perror)		/* print error message */
+	or	%o0,%lo(forthmsg),%o0
+	call	CLAB(exit)		/*  and exit(1) */
+	add     %g0,1,%o0
+0:	next1
+	next2
+	next3
+	add	psp,8,psp
+end
+
+code ioinit	\ ( -- )
+	call	CLAB(cmd_ioinit)
+	next1
+	next2
+	next3
+	nop
+end
+
+: cr		\ ( -- ) send newline character.
+   0a emit ;

@@ -1,0 +1,29 @@
+\ (c) 1993 Johns Hopkins University / Applied Physics Laboratory
+\ Xicor EEPROM save and restore.
+\ This has MPE specific stuff in it, but could be made generic.
+hex
+
+nohead 100 constant #bytes/write	\ Both EEPROMs have 128 byte buffer
+nohead #bytes/write #bytes/block / constant #blocks/write
+
+nohead 0 constant eeprom-base
+nohead 1 constant eeprom-page
+
+nohead : wait-for-eeprom \ ( -- )
+   far begin eeprom-base @ eeprom-base @ = until
+   [ decimal ] 100 for next [ hex ] ;	\ wait at least tDW of 10 us.
+
+: save		\ ( -- ) Save system state in EEPROM.
+   eeprom-page set-page
+   0 eeprom-base here			\ s: src dst len
+   0 #bytes/write um/mod swap >r	\ s: src dst eepromblock
+   for					\ for each complete eeprom block
+      disable #blocks/write blocks-out enable
+      wait-for-eeprom			\ write and wait for EEPROM to write
+   next
+   r> disable bytes-out enable		\ write remainder
+   wait-for-eeprom ;
+
+: unsave	\ ( -- ) Restore system from EEPROM.
+   eeprom-page set-page
+   disable eeprom-base 0 e000 bytes-in reboot ; \ TBD what is max address?

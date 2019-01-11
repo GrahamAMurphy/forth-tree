@@ -1,0 +1,7 @@
+\ (c) 1995 Johns Hopkins University / Applied Physics Laboratory
+\ Cross-compilation of bit fields in hardware.
+hex
+
+forth : out-port: \ ( xt -- ) ( -- outport ) Define a hardware output port.
+   [host] ram-create 0 ram-, ram-,
+   s" out-port:" add-log-string ;

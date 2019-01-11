@@ -1,0 +1,17 @@
+\ (c) 1993 Johns Hopkins University / Applied Physics Laboratory
+\ If RTX byte strobes are not hooked up, bytes may be accessed
+\ with the following hacks:
+hex
+
+: c@		\ ( addr -- c )
+   1 xor  @  ff and ;
+: c!		\ ( c addr -- )
+   1 xor  swap over  @  ff00 and  or  swap  ! ;
+: c@+		\ ( addr -- c addr' )
+   dup 1+ swap  1 xor  @  ff and  swap  ;
+: c@-		\ ( addr -- c addr' )
+   dup 1- swap  1 xor  @  ff and  swap  ;
+: c!+		\ ( c addr -- addr' )
+   swap over 1 xor swap over @ ff00 and or swap ! 1+ ;
+: c!-		\ ( c addr -- addr' )
+   swap over 1 xor swap over @ ff00 and or swap ! 1- ;

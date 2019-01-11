@@ -1,0 +1,68 @@
+From moss%ibis@cs.umass.edu Thu Jul  2 11:05:11 1992
+Return-Path: <moss%ibis@cs.umass.edu>
+Received: from mailer.jhuapl.edu by hecate.jhuapl.edu (4.1/SMI-4.1)
+	id AA01595; Thu, 2 Jul 92 11:05:08 EDT
+Received: by mailer.jhuapl.edu (5.57/1.13)
+	id AA10415; Thu, 2 Jul 92 11:06:47 EDT
+Received: from ibis.cs.umass.edu by cleo.cs.umass.edu (6.65/Ultrix2.0-B)
+	id AA22247; Thu, 2 Jul 1992 11:05:16 -0400
+Received: by ibis.cs.umass.edu (5.57/Ultrix2.4-C)
+	id AA09984; Thu, 2 Jul 92 11:06:29 -0400
+Date: Thu, 2 Jul 92 11:06:29 -0400
+From: moss%ibis@cs.umass.edu (Eliot Moss)
+Message-Id: <9207021506.AA09984@ibis.cs.umass.edu>
+To: john@hecate.jhuapl.edu
+Subject: avoiding two jumps
+Reply-To: moss@cs.umass.edu
+Status: R
+
+Near the top if the interpreter function, we write:
+
+    static void *labels[256] = {
+      [0]	/* this is an extension indicating the index for the next element;
+                   it is unnecessary; any omitted elements will have the value 0;
+		   similar extensions allow the fields of struct initializers to
+		   be named */
+        &&byte_code_0, &&byte_code_1, ..., &&byte_code_15,
+	/* && gives the address of a label as a 'void *' */
+      [16] ...
+      }
+
+We have a number of these arrays, for different purposes, but you get the
+idea. The array is used via:
+
+	goto *labels[*pc_reg++];
+
+where pc_reg is declared as:
+
+	register bytecode *pc_reg;   /* plus asm stuff to force a particular
+                                        register on certain machines */
+	typedef unsigned char bytecode;
+
+The labels are defined in the ordinary way, within the interpreter function,
+e.g.,
+	byte_code_0: /* some code here, ending with: */
+		goto *labels[*pc_reg++];  /* for most bytecodes */
+
+A lot fo this is actually produced by macros, since there are groups of bytes
+that are very similar, such as those to push the Nth slot of an object, for N
+= 0 through 15; we use the ANSI C ## operator to construct the label
+identifiers with no difficulty.
+
+I don't think there's much more to say about it, except you can use label
+values much more dynamiclly if you like. For example, we have a method cache,
+and once cache_reg is set to point to an appropriate entry (defined as a
+struct with several components), we simply do 'goto *cache_reg->target' to
+accomplish the actual transfer of control to the correct internal routine
+(code either for a Smalltalk primitive or code to do a full message send).
+
+That's about it, except I'll note again that the extensions are specific to
+gcc and occur in no other compiler, to my knowledge. Regards --
+
+		J. Eliot B. Moss, Associate Professor
+		Department of Computer Science
+		Lederle Graduate Research Center
+		University of Massachusetts
+		Amherst, MA  01003
+		(413) 545-4206, 545-1249 (fax); Moss@cs.umass.edu
+

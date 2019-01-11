@@ -1,0 +1,25 @@
+\ (c) 1994 Johns Hopkins University / Applied Physics Laboratory
+\ Automatic initialization.
+\ Usage:
+\   init:  ... ( arbitrary code here ) ;init
+\   ...
+\   init:  ... ( arbitrary code here ) ;init
+\   init ( initialize )
+\ init executes all the initialization functions defined between init:
+\ and ;init.  The functions are executed in the order in which
+\ they are defined; however, you shouldn't count on this as alternative
+\ implementations could do things in the opposite order.
+hex
+
+variable 'init			\ xt of latest 'init
+   ' nop 'init !
+
+: init:		\ ( -- xt colon-sys ) Start an anonymous function to
+		\ be executed by 'init'.
+   :noname  'init @ compile, ;	\ start initer, compile call to last initializer
+
+: ;init		\ ( xt colon-sys -- ) Complete anonymous function.
+   postpone ;  'init ! ; immediate
+
+: init		\ ( -- ) Execute all anonymous functions.
+   'init @ execute ;

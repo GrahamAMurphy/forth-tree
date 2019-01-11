@@ -1,0 +1,58 @@
+\ (c) 1993 Johns Hopkins University / Applied Physics Laboratory
+\ Setup stacks (and control registers)
+
+noheads					\ none of these can be accessed by user
+
+decimal
+40 cells allot label LOCALS		\ local variables stack
+hex
+
+: safe					\ establish necessary preconditions
+   disable				\ disable interrupts
+   ffff imr!				\ mask off all interrupts
+[ifdef] multitasking
+   default-sp sp!			\ select substack for default process
+   init-sur sur!			\ configure substacks
+[else]
+   00 sp!				\ use entire stack if not multitasking
+[then]
+   int-base ibc!			\ set int vector base; disable others
+   || ; inline
+
+: cacheenable
+   \ There are no stack caches on RTX; this will be removed by cross compiler
+   || ; inline
+
+\		Initialize the stack pointers
+
+: pspreset				\ reset parameter stack
+[ifdef] rtx2010
+   sp@  [ psp-stack-mask invert ] literal  and  sp!  || ;
+[else]
+\ The following code was copied from an RTX2000 Forth written by Harris.
+\ I don't know why it decrements the return stack pointer (-100 sp@+)
+\ but it doesn't work unless you do this!
+   -100  sp@+  ff00  and  sp!  || ;
+[then]
+
+: spreset				\ reset return stack
+[ifdef] rtx2010
+   sp@  [ sp-stack-mask invert ] literal  and  sp!  || ; inline
+[else]
+\ The following code was copied from an RTX2000 Forth written by Harris.
+\ The parameter stack pointer must be decremented by 2 (-2 sp@+) !
+   -2  sp@+  ff  and  sp!  || ; inline
+[then]
+
+: under?	\ ( --- t/f )  Return t if stack has underflowed
+[ifdef] rtx2010
+   sp@  psp-stack-mask and  0 substack-size 4 - within not ;
+[else]
+   sp@  ff  and  2  80  within  not ;
+[then]
+
+: initlocals	\ reset the interpreter's local variable stack.
+   LOCALS lsp!
+;
+
+heads

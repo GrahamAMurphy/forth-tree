@@ -1,0 +1,236 @@
+\ (c) 2005 Johns Hopkins University / Applied Physics Laboratory
+\ Test I/O of 16-bit SCIP in LORRI Actel.  Assumes that the test port and
+\ s/c telemetry/command have been looped back.  Also, assumes that a test
+\ I2C slave is present.  Tests RAMs and EEPROM.  Sends a test byte out
+\ both serial ports and tests that it returns successfully.  Sends a test
+\ pattern to I2C slave then reads it back.  If successful, a value of all
+\ ones is written to parallel port output.
+hex
+
+\ reset vector
+2 allot
+
+\ memory test area
+100 define memarea
+
+label send
+\ UART send	\ ( x -- )
+\ Precondition: far memory page set and far mode selected.
+	<lis	0 +# nopb pushp >.		\ I/O base address
+1 l:	<@	6 +# mem16 pushp >.		\ read parallel port
+	<lis	2 +# banda >.			\ test for UART transmit ready
+	<testx	nopa Zbar popp >.
+	<?br	>. 1 back
+	<!	0 +# mem16 popp >.		\ store UART data
+	<alu	nopb popp return >.
+
+label get
+\ UART get	\ ( -- x )
+\ Precondition: far memory page set and far mode selected.
+	<lis	0 +# nopb pushp >.		\ I/O base address
+1 l:	<@	6 +# mem16 pushp >.		\ read parallel port
+	<lis	1 +# banda >.			\ test for UART receive ready
+	<testx	nopa Zbar popp >.
+	<?br	>. 1 back
+	<@	0 +# mem16 return >.		\ read UART data
+
+label send-s/c
+\ S/C send	\ ( x -- )
+\ Precondition: far memory page set and far mode selected.
+	<lis	0 +# nopb pushp >.		\ I/O base address
+1 l:	<@	6 +# mem16 pushp >.		\ read parallel port
+	<lis	8 +# banda >.			\ test for S/C transmit ready
+	<testx	nopa Zbar popp >.
+	<?br	>. 1 back
+	<!	8 +# mem16 popp >.		\ store S/C data
+	<alu	nopb popp return >.
+
+label get-s/c
+\ S/C get	\ ( -- x )
+\ Precondition: far memory page set and far mode selected.
+	<lis	0 +# nopb pushp >.		\ I/O base address
+1 l:	<@	6 +# mem16 pushp >.		\ read parallel port
+	<lis	4 +# banda >.			\ test for S/C receive ready
+	<testx	nopa Zbar popp >.
+	<?br	>. 1 back
+	<@	8 +# mem16 return >.		\ read S/C data
+
+label send-i2c
+\ I2C send	\ ( x -- )
+\ Precondition: far memory page set and far mode selected.
+	<lis	0 +# nopb pushp >.		\ I/O base address
+	<!	c +# mem16 popp >.		\ store I2C data
+	<lil	nopb >.		54 >.		\ I2C address and write bit
+	<lis	0 +# nopb pushp >.		\ I/O base address
+	<!	e +# mem16 popp >.		\ store I2C address; trigger
+	<alu	nopb popp return >.
+
+label read-i2c
+\ I2C get	\ ( -- )
+\ Precondition: far memory page set and far mode selected.
+	<lil	nopb >.		55 >.		\ I2C address and read bit
+	<lis	0 +# nopb pushp >.		\ I/O base address
+	<!	e +# mem16 popp >.		\ store I2C address; trigger
+	<alu	nopb popp return >.
+
+label get-i2c
+\ I2C get	\ ( -- x )
+\ Precondition: far memory page set and far mode selected.
+	<lis	0 +# nopb pushp >.		\ I/O base address
+	<@	c +# mem16 return >.		\ read I2C data
+
+label loadstoretest1
+here *callop* w0 forth @ host t-w!		\ patch reset vector
+	memarea *literal*			\ initialize: address of buffer
+	<reg!	nopa udr popp >.
+	55aa *literal*				\ test pattern is 55aa
+	<spec	farmode >.			\ all accesses are far
+	<lis	1 +# nopb pushp >.		\ accesses to page 1
+	<reg!	nopa dpr popp >.
+	<reg@	udr nopb pushp >.
+	<!	0 +# mem16 popp >.		\ write 16 bits
+	<reg@	udr nopb pushp >.
+	<@	0 +# mem16 >.			\ read back 16 bits and verify
+	<lil	aminusb >.	55aa >.
+	<testx	nopa EQ popp >.
+0 l:	<?br	>.	0 back
+	<reg@	udr nopb pushp >.
+	<!	0 +# mem8 popp >.		\ write low-address 8 bits
+	<reg@	udr nopb pushp >.
+	<@	0 +# mem8 >.			\ read back 8 bits and verify
+	<lil	aminusb >.	00aa >.
+	<testx	nopa EQ popp >.
+0 l:	<?br	>.	0 back
+	<alu	nota >.				\ test pattern now aa55
+	<reg@	udr nopb pushp >.
+	<!	1 +# mem8 popp >.		\ write high-address 8 bits
+	<reg@	udr nopb pushp >.
+	<@	1 +# mem8 >.			\ read back 8 bits and verify
+	<lil	aminusb >.	0055 >.
+	<testx	nopa EQ popp >.
+0 l:	<?br	>.	0 back
+	<reg@	udr nopb pushp >.
+	<@	0 +# mem16 >.			\ read back 16 bits and verify
+	<lil	aminusb >.	aa55 >.
+	<testx	nopa EQ popp >.
+0 l:	<?br	>.	0 back
+
+label loadstoretest2
+	\ test pattern is aa55
+	<lis	4 +# nopb pushp >.		\ accesses to page 4
+	<reg!	nopa dpr popp >.
+	<reg@	udr nopb pushp >.
+	<!	0 +# mem16 popp >.		\ write 16 bits
+	<reg@	udr nopb pushp >.
+	<@	0 +# mem16 >.			\ read back 16 bits and verify
+	<lil	aminusb >.	aa55 >.
+	<testx	nopa EQ popp >.
+0 l:	<?br	>.	0 back
+	<reg@	udr nopb pushp >.
+	<!	0 +# mem8 popp >.		\ write low-address 8 bits
+	<reg@	udr nopb pushp >.
+	<@	0 +# mem8 >.			\ read back 8 bits and verify
+	<lil	aminusb >.	0055 >.
+	<testx	nopa EQ popp >.
+0 l:	<?br	>.	0 back
+	<alu	nota >.				\ test pattern now 55aa
+	<reg@	udr nopb pushp >.
+	<!	1 +# mem8 popp >.		\ write high-address 8 bits
+	<reg@	udr nopb pushp >.
+	<@	1 +# mem8 >.			\ read back 8 bits and verify
+	<lil	aminusb >.	00aa >.
+	<testx	nopa EQ popp >.
+0 l:	<?br	>.	0 back
+	<reg@	udr nopb pushp >.
+	<@	0 +# mem16 >.			\ read back 16 bits and verify
+	<lil	aminusb >.	55aa >.
+	<testx	nopa EQ popp >.
+0 l:	<?br	>.	0 back
+
+label loadstoretest3				\ EEPROM 16-bit write only
+	\ test pattern is 55aa
+	<lis	8 +# nopb pushp >.		\ accesses to page 8
+	<reg!	nopa dpr popp >.
+	<reg@	udr nopb pushp >.
+	<!	0 +# mem16 popp >.		\ write 16 bits
+	<reg@	udr nopb pushp >.
+	<@	0 +# mem16 >.			\ read back 16 bits and verify
+	<lil	aminusb >.	55aa >.
+	<testx	nopa EQ popp >.
+0 l:	<?br	>.	0 back
+	<reg@	udr nopb pushp >.
+	<@	0 +# mem8 >.			\ read back 8 bits and verify
+	<lil	aminusb >.	0055 >.
+	<testx	nopa EQ popp >.
+0 l:	<?br	>.	0 back
+	<reg@	udr nopb pushp >.
+	<@	1 +# mem8 >.			\ read back 8 bits and verify
+	<lil	aminusb >.	00aa >.
+	<testx	nopa EQ popp >.
+0 l:	<?br	>.	0 back
+
+label loadstoretest4				\ expansion bus
+	<alu	nota >.				\ test pattern is aa55
+	<lis	c +# nopb pushp >.		\ accesses to page 12
+	<reg!	nopa dpr popp >.
+	<reg@	udr nopb pushp >.
+	<!	0 +# mem16 popp >.		\ write 16 bits
+	<reg@	udr nopb pushp >.
+	<@	0 +# mem16 >.			\ read back 16 bits and
+	<lil	aminusb >.	ffff >.		\   verify bus pull-up
+	<testx	nopa EQ popp >.
+0 l:	<?br	>.	0 back
+	<alu	nota >.				\ test pattern is 55aa
+	<reg@	udr nopb pushp >.
+	<!	0 +# mem16 popp >.		\ write 16 bits
+	<reg@	udr nopb pushp >.
+	<@	0 +# mem16 >.			\ read back 16 bits and
+	<lil	aminusb >.	ffff >.		\   verify bus pull-up
+	<testx	nopa EQ popp >.
+0 l:	<?br	>.	0 back
+
+label iotest1
+	\ test pattern is 55aa
+	<lis	10 +# nopb pushp >.		\ accesses to page 16
+	<reg!	nopa dpr popp >.
+	<alu	nopa pushp >.
+	send *call*				\ send to test-port
+	<alu	nopa pushp >.
+	send-s/c *call*				\ send to S/C
+	<alu	nopa pushp >.
+	send-i2c *call*				\ send to I2C slave
+	\ trick: test port loopback is slowest; use to timeout I2C
+	get *call*				\ test port loop back to rcver
+	<lil	aminusb >.	00aa >.
+	<testx	nopa EQ popp >.
+0 l:	<?br	>.	0 back
+	get-s/c *call*				\ S/C loop back to rcver
+	<lil	aminusb >.	00aa >.
+	<testx	nopa EQ popp >.
+0 l:	<?br	>.	0 back
+
+label iotest2
+	<alu	nota >.				\ test pattern now aa55
+	<alu	nopa pushp >.
+	send *call*				\ send to test-port
+	send-s/c *call*				\ send to S/C
+	read-i2c *call*				\ start I2C slave read
+	\ trick: test port loopback is slowest; use to timeout I2C
+	get *call*				\ test port loop back to rcver
+	<lil	aminusb >.	0055 >.
+	<testx	nopa EQ popp >.
+0 l:	<?br	>.	0 back
+	get-s/c *call*				\ S/C loop back to rcver
+	<lil	aminusb >.	0055 >.
+	<testx	nopa EQ popp >.
+0 l:	<?br	>.	0 back
+	get-i2c *call*				\ I2C loop back
+	<lil	aminusb >.	55aa >.
+	<testx	nopa EQ popp >.
+0 l:	<?br	>.	0 back
+
+label done
+	<lis	0 +# notb pushp >.		\ success: -1
+	<lis	2 +# nopb pushp >.		\ parallel port address
+	<!	mem16 popp >.			\ write to port
+0 l:	<br	>.	0 back			\ done

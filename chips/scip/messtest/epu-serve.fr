@@ -1,0 +1,20 @@
+\ (c) 2002 Johns Hopkins University / Applied Physics Laboratory
+\ EPU interface
+
+module> epu
+
+: forward-epu-cmd \ ( args len dest|opcode rt? -- ) Forward current command
+		\ to EPU.  If the the argument is true, the command is sent
+		\ as "real-time".  Otherwise, it is sent as "macro learn".
+   ." EPU " if ." RT " else ." MA " then ." Cmd: "
+   u. ?dup if dump else drop then ;
+
+\ ------------------------------------------------------------------------
+\ Initialization
+
+public:
+: init-epu	\ ( -- ) Initialize.
+   ['] forward-epu-cmd epu-callback ;
+private:
+
+endmodule>

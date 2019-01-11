@@ -1,0 +1,34 @@
+\ (c) 2009 Johns Hopkins University / Applied Physics Laboratory
+\ Test double increment implementations
+decimal
+
+code c+		\ ( x y -- x+y ) Add; capture carry out in flag.
+	<alux	bplusa Cry popp >.
+	<exit> inline
+
+code +c		\ ( x y -- x+y+C ) Add with flag, i.e. carry in.
+	<alu	bplusax popp >.
+	<exit> inline
+
+code c1+	\ ( x -- x+1 ) Add one; capture carry out in flag.
+	<alux	inca Cry >.
+	<exit> inline
+
+code 0+c	\ ( x -- x' ) Add in flag (carry).
+	<lis	0 +# bplusax >.
+	<exit> inline
+
+: 1d+!		\ ( addr -- ) Add one to double at given address.
+   >r 1 0 r@ 2@ d+ r> 2! ;
+
+: 1d+!-new	\ ( addr -- ) Add one to double at given address.
+   dup cell+ @ c1+ over cell+ !
+   dup @ 0 +c swap ! ;
+
+: d+!		\ ( dl dh addr -- ) Add double to contents of given address.
+   dup >r 2@ d+ r> 2! ;
+
+: d+!-new	\ ( dl dh addr -- ) Add double to contents of given address.
+   >r swap r@ cell+ @ c+ r@ cell+ !
+   r@ @ +c r> ! ;
+

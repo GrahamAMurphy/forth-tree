@@ -1,0 +1,39 @@
+hex
+
+100 define memarea
+
+\ note: starts executing at address 0.
+label loadstoretest
+	memarea *literal*		\ initialize: address of memory buffer
+	<reg!	nopa udr popp >.
+	55aa *literal*			\ test pattern is 55aa
+	<reg@	udr nopb pushp >.
+	<!	0 +# mem16 popp >.	\ write 16 bits
+	<reg@	udr nopb pushp >.
+	<@	0 +# mem16 >.		\ read back 16 bits and verify
+	<lil	aminusb >.	55aa >.
+	<testx	nopa EQ popp >.
+0 l:	<?br	>.	0 back
+	<reg@	udr nopb pushp >.
+	<!	0 +# mem8 popp >.	\ write low-address 8 bits
+	<reg@	udr nopb pushp >.
+	<@	0 +# mem16 >.		\ read back 16 bits and verify
+	<lil	aminusb >.	aaaa >.
+	<testx	nopa EQ popp >.
+0 l:	<br	>.	0 back
+	<lis	1 +# bplusa >.		\ test pattern now 55ab
+	<reg@	udr nopb pushp >.
+	<!	1 +# mem8 popp >.	\ write high-address 8 bits
+	<reg@	udr nopb pushp >.
+	<@	0 +# mem16 >.		\ read back 16 bits and verify
+	<lil	aminusb >.	aaab >.
+	<testx	nopa EQ popp >.
+0 l:	<?br	>.	0 back
+
+label iotest
+	<lis	10 +# nopb pushp >.		\ remaining accesses to page 16
+	<reg!	nopa dpr popp >.		\   everything is far
+	<spec	farmode >.
+	<lis	2 +# nopb pushp >.		\ parallel port address
+	<!	mem16 popp >.			\ write test pattern: ab
+0 l:	<br	>.	0 back			\ done

@@ -1,0 +1,22 @@
+\ (c) 1993 Johns Hopkins University / Applied Physics Laboratory
+\ More RTX primtives.  These are RTX2010 specific; there is a corresponding
+\ file for RTX2000 primitives.
+\ This 'primitives' are written in Forth with the assumption that
+\ a peephole optimizer will generate code as good as could be written
+\ by hand.  The spacing between words indicates whether I expect
+\ the optimizer to combine words into a single RTX instruction:
+\ one space indicates that combination is possible, two spaces otherwise.
+hex
+
+	b008 code 0=			<exit>	inline
+
+nohead	be12 code mxr@			<exit>	inline
+nohead	be92 code mxr!			<exit>	inline
+
+nohead	b00a code lsr			<exit>	inline
+nohead	b00e code lsl			<exit>	inline
+
+: lshift ( x u -- x' )		mxr!  0  lsl  mlr@  nip ;
+: rshift ( x u -- x' )		mxr!  0  lsr  mlr@  nip ;
+: rotate ( x u -- x' )		f and  mxr!  dup  lsl  mhr@  nip ;
+

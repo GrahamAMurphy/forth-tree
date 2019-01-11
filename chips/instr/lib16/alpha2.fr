@@ -1,0 +1,103 @@
+\ (c) 2001 Johns Hopkins University / Applied Physics Laboratory
+\ Simple memory monitor: accepts downloads, inspects memory, copies
+\ memory, and executes programs.
+\ This is intended to be a component for a boot ROM ...
+hex
+
+\ ------------------------------------------------------------------------
+\ Conversion utilities
+
+: .dig		\ ( n -- ) converts to ascii and emits one hex digit.
+   dup 0a - 0< not if 27 + then 30 + emit ;
+ 
+: h.		\ ( n p -- ) converts n to ascii and displays p ls digits.
+		\ Assumes 16 bit cell.
+   >r 4 r@ - ?dup if 0 do 4 rotate loop then
+   r> 0 do 4 rotate dup 0f and .dig loop drop ;
+
+: convert-hex	\ ( addr u -- ud u ) Convert the given text string
+		\ to a double unsigned number.  The string is assumed
+		\ to be in hex.  Return number of unconverted characters.
+   0 0 2swap				\ initialize accumulator to zero
+   begin
+      dup >r while			\ while string not empty
+      dup >r c@ hexdigit while		\ while digits found
+      >r 10 um*m r> 0 d+		\ accumulate
+      r> 1+ r> 1-			\ remove left char from string
+   repeat r> then drop r> ;		\ return number of characters left
+
+\ ------------------------------------------------------------------------
+\ I/O
+
+10 constant cmdbuf-size
+create cmdbuf  cmdbuf-size allot	\ holds command input arguments
+
+: warn		\ ( -- ) Display warning indicator (a '?').
+   [char] ? emit ;
+
+: read-hex32	\ ( -- ud ) Get one line of input and convert
+		\ it to a double unsigned number.
+   begin
+      cmdbuf cmdbuf-size accept		\ read a line
+      cmdbuf swap convert-hex		\ and try to convert to hex
+      while				\ if there is a problem
+      warn 2drop			\ display error indicator and try again
+   repeat ;
+
+: read-hex16	\ ( -- u ) Get one line of input and convert it to
+		\ an unsigned number.
+   begin
+      read-hex32 while			\ while larger than one cell
+      warn drop				\ display error indicator and try again
+   repeat ;
+
+: read-hex8	\ ( -- u ) Get one line of input and convert it to
+		\ an 8-bit unsigned number.
+   begin
+      read-hex16 dup ff u>
+      while				\ while larger than 8 bits
+      warn drop				\ display error indicator and try again
+   repeat ;
+
+\ ---------------------------------------------------------------------------
+\ commands
+
+: inspect	\ ( -- ) Inspect/change memory.
+   open-mem
+   read-hex32 seek-memid seek-memaddr
+   begin
+      cr mem-pos 2 h. [char] , emit 4 h.
+      [char] : emit mem-peek 2 h. space
+      key dup [char] q <> while		\ 'q' quits
+      sel
+	 << [char] - ==> -1 step-mem >> \ '-' moves back one byte
+	 << [char] m ==> [char] = emit	\ change; prompt
+			 read-hex8 >mem >> \ then read new value
+	 ( default )	 1 step-mem	\ move forward one byte
+      endsel
+   repeat drop
+   close-mem ;
+
+: copy-cmd	\ ( -- ) Copy memory.  Source, destination, and length
+		\ will be extracted from command line.
+   read-hex32 read-hex32 read-hex16 copy ;
+
+: interboot	\ ( boot-addr boot-mem -- entry-addr entry-mem ) Accept
+		\ single-letter commands from keyboard.  Attempt to find
+		\ a program to run.  On success, return program's entry point.
+   begin cr [char] > emit space		\ prompt
+      key dup bl 7f within		\ check for printable chr
+      if dup else bl then emit space	\ echo chr if printable
+      sel				\ execute appropriate cmd
+        << [char] b ==> 2dup bootload >>
+        << [char] g ==> read-hex32 bootload >>
+        << [char] e ==> read-hex32 true >>
+        << [char] c ==> copy-cmd false >>
+        << [char] i ==> inspect false >>
+        << [char] l ==> download false >>
+	<< eol      ==> ( nop ) false >>
+        ( default ) warn false swap
+      endsel
+   until
+   2swap 2drop ;
+ 

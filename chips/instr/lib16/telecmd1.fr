@@ -1,0 +1,20 @@
+\ (c) 2003 Johns Hopkins University / Applied Physics Laboratory
+\ Message read
+hex
+
+module> telecmd
+
+\ ------------------------------------------------------------------------
+\ * Process messages
+
+public:
+
+0 20 30 process: command-process \ ( -- pid ) Message reception process.
+   begin
+      check-stack			\ check, clear, and count stack errors
+      handle-message			\ read and process message
+   again ;process
+
+private:
+
+endmodule>

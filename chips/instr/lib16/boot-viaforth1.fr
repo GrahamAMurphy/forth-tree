@@ -1,0 +1,27 @@
+\ (c) 2009 Johns Hopkins University / Applied Physics Laboratory
+\ Boot from EEPROM (via Forth)
+decimal
+
+\ Early in development, it is common to have just the Forth interpreter
+\ as the "boot" program.  This works well for downloading the code over
+\ the serial test port.  However, this can be inconvenient for
+\ end-users.  This short program, when downloaded over the test port, can
+\ boot a program saved in EEPROM.
+
+: copy-out	\ ( page# -- ) Copy local ROM page, starting at address 0,
+		\ to given page.  Copies #boot-words of data.
+   set-mem
+   0 h# 4000 0 do			\ for each of word
+      dup @ over far ! near cell+	\ copy word to remote page
+   loop drop ;
+
+: boot-from-eeprom \ ( boot-mem -- ) Boot code from given EEPROM location.
+		\ If failure, e.g. bad checksum, hang.
+   0 swap bootload if far-execute then
+   begin again ;
+
+: boot		\ ( boot-mem -- ) Boot code from given EEPROM location.
+		\ Note: copies this code out of the way.
+   disable				\ turn off interrupts
+   1 copy-out				\ copy self to page 1
+   ['] boot-from-eeprom 1 far-execute ;

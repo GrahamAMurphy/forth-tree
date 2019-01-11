@@ -1,0 +1,64 @@
+\ (c) 1994 Johns Hopkins University / Applied Physics Laboratory
+\ Structure access words
+\ Examples of use:
+\	structure foo		\ declare a structure named foo
+\	      cell: .thing1	\ with a one cell field named .thing1
+\	   2 cells: .thing2	\ and a two cell field named .thing2
+\	endstructure
+\	
+\	structure foobar	\ another structure
+\	         cell: .thing
+\	   foo struct: .blah	\ nested structure
+\	endstructure
+\
+\	foobar makestruct test	\ allocate space for a structure instance
+\	1234 test .blah .thing1 ! \ access structure
+
+forth create struct-name 80 allot host
+forth : structure \ ( "name" --- addr len offset ) structure access
+   [host] bl parse-word >r		\ extract name from input stream
+   struct-name r@ move			\ and copy into buffer
+   struct-name r> 0 ;			\ return string and starting offset
+
+forth : endstructure \ ( addr len size --- )
+   [host] -rot
+   -1 push-stream constant pop-stream	\ structure length is constant
+   s" structure" add-log-string ;
+
+forth : \offset	\ ( n -- )
+   >in @ swap offset: >in ! [host] ;
+
+forth : offset:	\ ( offset -- ) define an offset.
+   [host] dup \offset			\ define interactive version
+   header s" offset:" add-log-string	\ build target header and log
+   dup add-log-number
+   *offset* [meta] || [target] return [host] inline ; \ compile offset code
+
+forth : aus:	\ ( offset size --- offset' ) structure member compiler
+   [host] over offset: + ;
+
+forth : chars:	\ ( offset u --- offset' ) create structure member u
+		\ characters long starting at offset.
+   [host] chars aus: ;
+
+forth : char:	\ ( offset --- offset' ) create structure member 1 char long
+		\ starting at offset.
+   [host] 1 chars aus: ;
+
+forth : cells:	\ ( offset u --- offset' ) create structure member u
+		\ cells long starting at offset.
+   [host] cells >r aligned r> aus: ;
+
+forth : cell:	\ ( offset --- offset' ) create structure member 1 cell long
+		\ starting at offset.
+   [host] 1 cells: ;
+
+forth : struct:	\ ( offset size --- offset' ) nested structure definition
+   [host] >r aligned r> aus: ;
+
+forth : struct[]: \ ( offset size u --- offset' ) nested array of structures
+   [host] * struct: ;
+
+forth : makestruct \ ( size --- ) allocate memory for a struct of given size
+   [host] ram-align ram-here swap ram-allot constant
+   s" makestruct" add-log-string ;

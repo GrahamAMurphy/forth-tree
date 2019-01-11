@@ -1,0 +1,18 @@
+\ (c) 1996 Johns Hopkins University / Applied Physics Laboratory
+\ Modules - Crosscompile (fake) modules (see modules.fr)
+\ Emulate module syntax but use a flat name space; used for debugging.
+
+: module>	\ ( "name" -- )
+   0 constant ;
+
+: extendmodule>	\ ( x -- )
+   drop ;
+
+: public:	\ ( -- )
+   ;
+
+: private: 	\ ( -- )
+   ;
+
+: endmodule> 	\ ( -- )
+   ;

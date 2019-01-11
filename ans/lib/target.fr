@@ -1,0 +1,98 @@
+\ (c) 1993 Johns Hopkins University / Applied Physics Laboratory
+\ Cross compiler support.
+hex
+
+\ ------------------------------------------------------------------------
+\ Support for loads from target tree
+
+create froot   100 allot		\ buffer holds name of root directory
+variable froot-len
+create ftarget 100 allot		\ buffer holds name of target arch.
+variable ftarget-len
+
+create foverride  100 allot		\ buffer holds name of override dir.
+variable foverride-len
+
+: set-root	\ ( -- ) Look up (in FTROOT environment variable) the
+		\ cross-compiler's root directory.
+   "" FTROOT" get-env froot strsave froot-len ! drop ;
+
+create ft-dir-buffer 400 allot		\ buffer holds path to target
+: ft-dir	\ ( -- addr u ) Return a string naming the full path
+		\ to the directory containing the cross compiler.
+   froot froot-len @ ft-dir-buffer strsave
+   "" /" strcat
+   ftarget ftarget-len @ strcat
+   "" /" strcat ;
+: ft-override-dir \ ( -- addr u ) Return a string naming the override directory.
+   foverride foverride-len @ ft-dir-buffer strsave
+   "" /" strcat ;
+
+: open-ft	\ ( addr u -- fp ) Attempt to open a file named
+		\ by input string and return file pointer.
+		\ First an override directory is searched (if it exists).
+		\ Then, directories are searched beginning with FROOT + TARGET,
+		\ then parental directories are searched.  If file cannot
+		\ be found, display error message and exit.
+		\ BUG: input file name is limited in size.
+   2>r ft-override-dir ?dup if		\ if there is an override directory
+      2r@ strcat r/o open-file 0= if	\ try it first
+	 2r> 2drop exit			\ return file id
+      then
+   then drop
+   ft-dir				\ s: directory name r: file name
+   begin				\ search target directories
+      2dup 2r@ strcat
+         r/o open-file while		\ while file not found
+      drop
+      dup froot-len @ u> while		\ while not at root
+      1- begin 1- 2dup + c@ [char] / = until 1+
+   repeat				\ root found
+      2drop				\ discard directory name
+      2r> open-error ( never returns)	\ display error message and exit
+   then
+   nip nip 2r> 2drop ;			\ return file id
+
+: ftload	\ ( c-addr u -- ) Load the given file from a directory
+		\ associated with the selected target.
+   open-ft include-file ;
+
+: is-target	\ ( addr u -- ) Identify target system.  This is a relative
+		\ path name from FTROOT to the specific target.  Load
+		\ the appopriate crosscompiler.
+   set-root
+   ftarget strsave  ftarget-len ! drop
+   0 foverride-len !			\ default: no override
+   "" cross.fr" ftload ;
+
+: is-override	\ ( addr u -- ) Identify override directoy.  This can only
+		\ be used after is-target.
+		\ Note: it is too late to override cross.fr.
+   foverride strsave foverride-len ! drop ;
+
+\ ------------------------------------------------------------------------
+\ Support for accessing files from a common directory named in an 
+\ environment variable.
+
+create common-path  100 allot		\ storage for string naming directory
+variable common-len			\ length of string
+
+: is-shared	\ ( addr u -- ) Name directory containing shared/common code.
+   common-path strsave "" /" strcat
+   common-len ! drop ;
+
+: is-common	\ ( addr u -- ) Name environment string holding directory name.
+		\ Note: obsolescent.
+   get-env dup 0= abort" can't set-common"
+   is-shared ;
+
+: common	\ ( -- addr u ) Return common directory name.
+   common-path common-len @ ;
+
+: +"		\ ( addr1 u1 "string" -- addr2 u2 ) Parse string from input
+		\ stream and append to given string.  New string is returned.
+		\ Places new string in pad.
+   >r dup pad <> if			\ if string not already at pad
+      pad r@ move pad			\ move string to pad
+   then r>				\ s: pad u1
+   [char] " word count strcat ;		\ grab string from input stream

@@ -1,0 +1,347 @@
+\ (c) 1993 Johns Hopkins University / Applied Physics Laboratory
+hex
+
+\ ------------------------------------------------------------------------
+\ ALU class
+rule <drop><dup>
+	<i	a class	e alu	1 sub	0 rbit	0 abit	0 shift	i>
+	<i	a class	0 alu	3 sub	0 rbit	0 abit	0 shift	i>
+-->	<o	a class	e alu	0 sub	0 rbit	0 abit	0 shift	o>
+endrule
+
+rule <swap><drop><dup>
+	<i	a class	0 alu	1 sub	0 rbit	0 abit	0 shift	i>
+	<i	a class	0 alu	3 sub	0 rbit	0 abit	0 shift	i>
+-->	<o	a class	0 alu	2 sub	0 rbit	0 abit	0 shift o>
+endrule
+
+rule <move><not>1
+	<i	a class	0 alu	?sub	0 rbit	0 abit	0 shift i>
+	<i	a class	1 alu	0 sub	0 rbit	0 abit	0 shift i>
+-->	<o	a class	1 alu	0 ??	0 rbit	0 abit	0 shift o>
+endrule
+
+rule <move><not>2 \ intersects rule: <swap><over><binop> and <over><over><binop>
+	<i	a class	e alu	?sub	0 rbit	0 abit	0 shift i>
+	<i	a class	1 alu	0 sub	0 rbit	0 abit	0 shift i>
+-->	<o	a class	f alu	0 ??	0 rbit	0 abit	0 shift o>
+endrule
+
+rule <swap><binop>
+	<i	a class	e alu	2 sub	0 rbit	0 abit	0 shift i>
+	<i	a class	?alu	1 sub	0 rbit	0 abit	0 shift i>
+-->	<o	a class	0 ??	1 sub	0 rbit	0 abit	0 shift o>
+	constraint: 0 swappable? ;constraint
+endrule
+
+rule <over><binop>
+	<i	a class	e alu	3 sub	0 rbit	0 abit	0 shift i>
+	<i	a class	?alu	1 sub	0 rbit	0 abit	0 shift i>
+-->	<o	a class	0 ??	0 sub	0 rbit	0 abit	0 shift o>
+	constraint: 0 swappable? ;constraint
+endrule
+
+rule <swap>[<over><binop>]
+	<i	a class	e alu	2 sub	0 rbit	0 abit	0 shift i>
+	<i	a class	?alu	0 sub	0 rbit	0 abit	0 shift i>
+-->	<o	a class	0 ??	2 sub	0 rbit	0 abit	0 shift o>
+	constraint: 0 swappable? ;constraint
+endrule
+
+rule <over>[<over><binop>]
+	<i	a class	e alu	3 sub	0 rbit	0 abit	0 shift i>
+	<i	a class	?alu	0 sub	0 rbit	0 abit	0 shift i>
+-->	<o	a class	0 ??	3 sub	0 rbit	0 abit	0 shift o>
+	constraint: 0 swappable? ;constraint
+endrule
+
+rule <alu><shift>
+	<i	a class	?alu	?sub	0 rbit	0 abit	0 shift i>
+	<i	a class	0 alu	0 sub	0 rbit	0 abit	?shift	i>
+-->	<o	a class	0 ??	1 ??	0 rbit	0 abit	2 ??	o>
+endrule
+
+\ ------------------------------------------------------------------------
+\ short literals
+rule <dup>[<short><binop>]
+	<i	a class	0 alu	3 sub	0 rbit	0 abit	0 shift	i>
+	<i	b class	?alu	3 sub	0 rbit	?data	i>
+-->	<o	b class	0 ??	1 sub	0 rbit	1 ??	o>
+	constraint: 0 non-tnop? ;constraint
+endrule
+
+rule <short>[<over><binop>]
+	<i	b class	e alu	1 sub	0 rbit	?data	i>
+	<i	a class	?alu	0 sub	0 rbit	0 abit	0 shift	i>
+-->	<o	b class	1 ??	1 sub	0 rbit	0 ??	o>
+	constraint: 1 swappable? 1 non-tnop? and ;constraint
+endrule
+
+rule <drop><short>
+	<i	a class	e alu	1 sub	0 rbit	0 abit	0 shift	i>
+	<i	b class	e alu	1 sub	0 rbit	?data	i>
+-->	<o	b class	e alu	3 sub	0 rbit	0 ??	o>
+endrule
+
+rule <short><binop>
+	<i	b class	e alu	1 sub	0 rbit	?data	i>
+	<i	a class	?alu	1 sub	0 rbit	0 abit	0 shift	i>
+-->	<o	b class	1 ??	3 sub	0 rbit	0 ??	o>
+	constraint: 1 swappable? ;constraint
+endrule
+
+\ ------------------------------------------------------------------------
+\ Gbus
+rule <dup><x_g!> \ Note: constraint avoids "Predefined ASIC Bus Instructions"
+	<i	a class	0 alu	3 sub	0 rbit	0 abit	0 shift	i>
+	<i	b class	e alu	2 sub	0 rbit	?data	i>
+-->	<o	b class	0 alu	2 sub	0 rbit	0 ??	o>
+	constraint: 0 dup-g!-ok? ;constraint
+endrule
+
+rule <x_g@><binop>
+	<i	b class	e alu	0 sub	0 rbit	?data	i>
+	<i	a class	?alu	1 sub	0 rbit	0 abit	0 shift i>
+-->	<o	b class	1 ??	2 sub	0 rbit	0 ??	o>
+	constraint: 1 swappable? 1 non-nop? and ;constraint
+endrule
+
+\ Note: since this can generate "Predefined ASIC Bus Instructions" and
+\ it is not useful for any on chip registers, the optimization is not
+\ used and is replaced by a special case for {r> drop}.  It could
+\ be reinstated with a constraint to only use for off-chip G-bus access.
+\ rule <x_g@><drop>
+\	<i	b class	e alu	0 sub	0 rbit	?data	i>
+\	<i	a class	e alu	1 sub	0 rbit	0 abit	0 shift	i>
+\ -->	<o	b class	0 alu	0 sub	0 rbit	0 ??	o>
+\ endrule
+
+rule <r>><drop>
+	<i	b class	e alu	0 sub	0 rbit	1 data	i>
+	<i	a class	e alu	1 sub	0 rbit	0 abit	0 shift	i>
+-->	<o	b class	0 alu	0 sub	0 rbit	1 data	o>
+endrule
+
+rule <dup>[<x_g@><binop>]
+	<i	a class	0 alu	3 sub	0 rbit	0 abit	0 shift	i>
+	<i	b class	?alu	2 sub	0 rbit	?data	i>
+-->	<o	b class	0 ??	0 sub	0 rbit	1 ??	o>
+	constraint: 0 non-nop? ;constraint
+endrule
+
+rule <x_g@>[<over><binop>]
+	<i	b class	e alu	0 sub	0 rbit	?data	i>
+	<i	a class	?alu	0 sub	0 rbit	0 abit	0 shift	i>
+-->	<o	b class	1 ??	0 sub	0 rbit	0 ??	o>
+	constraint: 1 swappable? 1 non-nop? and ;constraint
+endrule
+
+\ ------------------------------------------------------------------------
+\ long literals
+rule <lit><swap>
+	<i	d class	e alu	0 sub	0 rbit	i>
+	<i	?lit	i>
+	<i	a class	e alu	2 sub	0 rbit	0 abit	0 shift	i>
+-->	<o	d class	0 alu	0 sub	0 rbit	o>
+	<o	0 ??	o>
+endrule
+
+rule <dup>[<lit><binop>]
+	<i	a class	0 alu	3 sub	0 rbit	0 abit	0 shift	i>
+	<i	d class	?alu	2 sub	0 rbit	i>
+	<i	?lit	i>
+-->	<o	d class	0 ??	0 sub	0 rbit	o>
+	<o	1 ??	o>
+	constraint: 0 non-tnop? ;constraint
+endrule
+
+rule <lit>[<over><binop>]
+	<i	d class	e alu	0 sub	0 rbit	i>
+	<i	?lit	i>
+	<i	a class	?alu	0 sub	0 rbit	0 abit	0 shift	i>
+-->	<o	d class	1 ??	0 sub	0 rbit	o>
+	<o	0 ??	o>
+	constraint: 1 swappable? 1 non-tnop? and ;constraint
+endrule
+
+rule <drop><lit>
+	<i	a class	e alu	1 sub	0 rbit	0 abit	0 shift	i>
+	<i	d class	e alu	0 sub	0 rbit	i>
+	<i	?lit	i>
+-->	<o	d class	e alu	2 sub	0 rbit	o>
+	<o	0 ??	o>
+endrule
+
+rule <lit><binop>
+	<i	d class	e alu	0 sub	0 rbit	i>
+	<i	?lit	i>
+	<i	a class	?alu	1 sub	0 rbit	0 abit	0 shift i>
+-->	<o	d class	1 ??	2 sub	0 rbit	o>
+	<o	0 ??	o>
+	constraint: 1 swappable? 1 non-tnop? and ;constraint
+endrule
+
+\ ------------------------------------------------------------------------
+\ fetch/store
+rule <@><swap>
+	<i	7 sclss	?c-acc	e alu	0 sub	0 rbit	i>
+	<i	a class		e alu	2 sub	0 rbit	0 abit	0 shift i>
+-->	<o	7 sclss	0 ??	0 alu	0 sub	0 rbit	o>
+endrule
+
+rule <@>[<over><binop>
+	<i	7 sclss	?c-acc	e alu	0 sub	0 rbit	i>
+	<i	a class		?alu	0 sub	0 rbit	0 abit	0 shift i>
+-->	<o	7 sclss	0 ??	1 ??	0 sub	0 rbit	o>
+	constraint: 1 swappable? 1 non-nop? and ;constraint
+endrule
+
+rule <@><short>
+	<i	7 sclss	?c-acc	e alu	0 sub	0 rbit	i>
+	<i	b class		e alu	1 sub	0 rbit	?data	i>
+-->	<o	7 sclss	0 ??	f alu	1 sub	0 rbit	1 ??	o>
+endrule
+
+rule <@><binop>
+	<i	7 sclss	?c-acc	e alu	0 sub	0 rbit	i>
+	<i	a class		?alu	1 sub	0 rbit	0 abit	0 shift i>
+-->	<o	7 sclss	0 ??	1 ??	2 sub	0 rbit	o>
+	constraint: 1 swappable? 1 non-nop? and ;constraint
+endrule
+
+\ ------------------------------------------------------------------------
+\ constant folding
+rule <short-op><short-op>
+	<i	b class	?alu	3 sub	0 rbit	?data	i>
+	<i	b class	?alu	3 sub	0 rbit	?data	i>
+-->	<o	d class	0 ??	2 sub	0 rbit	o>
+	<o	1 ??	o>
+	constraint:
+	   0 2 foldable? dup if drop 1 3 0 lit-op-folds? then
+	;constraint
+endrule
+
+rule <lit-op><short-op>
+	<i	d class	?alu	2 sub	0 rbit	i>
+	<i	?lit	i>
+	<i	b class	?alu	3 sub	0 rbit	?data	i>
+-->	<o	d class	0 ??	2 sub	0 rbit	o>
+	<o	1 ??	o>
+	constraint:
+	   0 2 foldable? dup if drop 1 3 0 lit-op-folds? then
+	;constraint
+endrule
+
+rule <short-op><lit-op>
+	<i	b class	?alu	3 sub	0 rbit	?data	i>
+	<i	d class	?alu	2 sub	0 rbit	i>
+	<i	?lit	i>
+-->	<o	d class	0 ??	2 sub	0 rbit	o>
+	<o	1 ??	o>
+	constraint:
+	   0 2 foldable? dup if drop 1 3 0 lit-op-folds? then
+	;constraint
+endrule
+
+rule <lit-op><lit-op>
+	<i	d class	?alu	2 sub	0 rbit	i>
+	<i	?lit	i>
+	<i	d class	?alu	2 sub	0 rbit	i>
+	<i	?lit	i>
+-->	<o	d class	0 ??	2 sub	0 rbit	o>
+	<o	1 ??	o>
+	constraint:
+	   0 2 foldable? dup if drop 1 3 0 lit-op-folds? then
+	;constraint
+endrule
+
+rule <short><short-op>
+	<i	b class	e alu	1 sub	0 rbit	?data	i>
+	<i	b class	?alu	3 sub	0 rbit	?data	i>
+-->	<o	d class	e alu	0 sub	0 rbit	o>
+	<o	0 ??	o>
+	constraint: 0 2 1 lit-op-melds? ;constraint
+endrule
+
+rule <lit><short-op> \ misses <drop><lit><short-op>
+	<i	d class	e alu	0 sub	0 rbit	i>
+	<i	?lit	i>
+	<i	b class	?alu	3 sub	0 rbit	?data	i>
+-->	<o	d class	e alu	0 sub	0 rbit	o>
+	<o	0 ??	o>
+	constraint: 0 2 1 lit-op-melds? ;constraint
+endrule
+
+rule <short><lit-op>
+	<i	b class	e alu	1 sub	0 rbit	?data	i>
+	<i	d class	?alu	2 sub	0 rbit	i>
+	<i	?lit	i>
+-->	<o	d class	e alu	0 sub	0 rbit	o>
+	<o	0 ??	o>
+	constraint: 0 2 1 lit-op-melds? ;constraint
+endrule
+
+rule <lit><lit-op>
+	<i	d class	e alu	0 sub	0 rbit	i>
+	<i	?lit	i>
+	<i	d class	?alu	2 sub	0 rbit	i>
+	<i	?lit	i>
+-->	<o	d class	e alu	0 sub	0 rbit	o>
+	<o	0 ??	o>
+	constraint: 0 2 1 lit-op-melds? ;constraint
+endrule
+
+rule <lit-op>to<short-op>	\ above rules could produce big numbers.
+	<i	d class	?alu	2 sub	0 rbit	i>
+	<i	?lit	i>
+-->	<o	b class	0 ??	3 sub	0 rbit	1 ??	o>
+	constraint: 0 non-nop? 1 is-short? and ;constraint
+endrule
+
+rule <lit>to<short>
+	<i	d class	e alu	0 sub	0 rbit	i>
+	<i	?lit	i>
+-->	<o	b class	e alu	1 sub	0 rbit	0 ??	o>
+	constraint: 0 is-short? ;constraint
+endrule
+
+rule <0+>			\ structures can produce 0+ nops
+	<i	b class	8 alu	3 sub	0 rbit	0 data	i>
+-->
+endrule
+
+\ ------------------------------------------------------------------------
+\ return bit
+rule <x><exit>
+	<i	?class	?alu	?sub	0 rbit	?data	i>
+	<i	a class	0 alu	0 sub	1 rbit	0 abit	0 shift	i>
+-->	<o	0 ??	1 ??	2 ??	1 rbit	3 ??	o>
+	constraint:
+	   0 non-flow?			\ no calls or branches
+	   dup if			\ no return stack access
+	      0 2 g-form? if 3 non-raccess? and then
+	   then
+	;constraint
+endrule
+
+rule <lit><exit>		\ special case for long instructions
+	<i	d class	?alu	?sub	0 rbit	i>
+	<i	?lit	i>
+	<i	a class	0 alu	0 sub	1 rbit	0 abit	0 shift	i>
+-->	<o	d class	0 ??	1 ??	1 rbit	o>
+	<o	2 ??	o>
+endrule
+
+rule <>r><exit>			\ special case: {>r exit} into {execute}
+	<i	b class	e alu	2 sub	0 rbit	1 data	i>
+	<i	a class	0 alu	0 sub	1 rbit	0 abit	0 shift	i>
+-->	<o	b class	e alu	2 sub	1 rbit	7 data o>
+endrule
+
+rule <call><exit>
+	<i	0 cbit	?cdest	i>
+	<i	a class	0 alu	0 sub	1 rbit	0 abit	0 shift	i>
+-->	<o	4 sclss	2 cond	0 ??	o>
+	constraint: 0 nearby? ;constraint
+endrule
+

@@ -1,0 +1,25 @@
+\ (c) 2003 Johns Hopkins University / Applied Physics Laboratory
+\ Command echo
+hex
+
+commands extendmodule>
+
+\ ------------------------------------------------------------------------
+\ Command echo
+
+\ Echo packet descriptor
+pkt-desc-size makestruct echo-pkt
+
+: echo-cmd	\ ( result -- ) Echo current command.  The opcode, the
+		\ first few arguments, and the given result are sent.
+   command-buffer c!			\ overwrite unused ms opcode byte
+   get-command #max-echo-args 2 + umin	\ limit number of arguments echoed
+      get-code swap			\  and record argument string in pkt
+      #echo-pkt echo-pkt init-pkt
+   echo-pkt tag-pkt			\ tag packet
+   echo-pkt send-pkt drop ;		\  and send it
+
+: init-echo-pkt	\ ( -- ) Initialize constant parts of echo packet.
+   ( nop ) ;
+
+endmodule>

@@ -1,0 +1,317 @@
+
+       #pcr-se                          define 0001 
+       #pcr-ie                          define 0002 
+       namesize                         define 0007 
+       nf-size                          define 0008 
+       wid-step                         define 0001 
+       prec-bit                         define 0040 
+       smudge-bit                       define 0020 
+       inline-bit                       define 0080 
+       char-mask                        define 00ff 
+       chars/dump                       define 0008 
+       <does-default>                   define d240a822 
+       <remote-does-default>            define d240e82a 
+       reset-vector                     define 8000 
+       int-vector                       define 8004 
+8006   reboot                           code 
+800a   branch                           code 
+800e   ?branch                          code 
+8014   return                           code 
+8016   execute                          code 
+801a   does-default                     code 
+8020   remote-does-default              code 
+8020   (do)                             code 
+8034   (loop)                           code 
+803e   (+loop)                          code 
+8048   unloop                           code 
+8048   i                                code 
+8048   j                                code 
+805e   (next)                           code 
+8068   unnext                           code 
+806c   !                                code 
+806c   +                                code 
+806c   +!                               code 
+8078   -                                code 
+8078   -rot                             code 
+8080   0<                               code 
+8080   0=                               code 
+8080   0>                               code 
+8080   1+                               code 
+8080   1-                               code 
+8080   2*                               code 
+8080   2/                               code 
+8080   2over                            code 
+8092   2swap                            code 
+80a4   2pick                            code 
+80ac   3pick                            code 
+80ba   <                                code 
+80ba   >                                code 
+80ba   u<                               code 
+80ba   u>                               code 
+80ba   =                                code 
+80ba   <>                               code 
+80ba   >r                               code 
+80ba   @                                code 
+80ba   aligned                          code 
+80c0   and                              code 
+80c0   c!                               code 
+80c0   c@                               code 
+80c0   char+                            code 
+80c0   chars                            code 
+80c0   drop                             code 
+80c0   dup                              code 
+80c0   invert                           code 
+80c0   lshift                           code 
+80c0   negate                           code 
+80c0   nip                              code 
+80c0   nop                              code 
+80c0   not                              code 
+80c0   or                               code 
+80c0   over                             code 
+80c0   r>                               code 
+80c0   r@                               code 
+80c0   rdrop                            code 
+80c0   rot                              code 
+80c8   rotate                           code 
+80c8   rshift                           code 
+80c8   swap                             code 
+80c8   touch                            code 
+80c8   w!                               code 
+80c8   w@                               code 
+80c8   within                           code 
+80d2   xor                              code 
+80d2   cell                             code 
+80d2   cell+                            code 
+80d2   cell-                            code 
+80d2   cells                            code 
+80d2   cell/                            code 
+80d2   d+                               code 
+80de   dnegate                          code 
+80e8   d<                               code 
+80fa   cmove                            code 
+8124   cmove>                           code 
+8140   move                             code 
+814e   m*                               code 
+8176   um*                              code 
+8188   um/mod                           code 
+81d4   enable                           code 
+81da   disable                          code 
+81e0   md!                              code 
+81e0   md@                              code 
+81e0   set-base                         code 
+81e0   get-base                         code 
+       nop-boot                         define 81e0 
+       NEXT-BOOT                        define 81e2 
+       EVERY-BOOT                       define 81e6 
+81ea   true                             : 
+81ea   false                            : 
+81ea   ?dup                             : 
+81f4   2dup                             : 
+81f4   s>d                              : 
+81f4   +-                               : 
+81fc   d+-                              : 
+8204   abs                              : 
+8208   dabs                             : 
+820c   *                                : 
+8210   2drop                            : 
+8210   max                              : 
+8218   min                              : 
+8220   umax                             : 
+8228   umin                             : 
+8230   2!                               : 
+823c   2@                               : 
+8242   um*m                             : 
+8254   m/mmod                           : 
+8268   sm/rem                           : 
+8282   fm/mod                           : 
+82b2   /mod                             : 
+82ba   /                                : 
+82be   mod                              : 
+82c2   */mod                            : 
+82ca   */                               : 
+       pstack                           define 83d0 
+       rstack                           define 84d0 
+84d0   spreset                          code 
+       head                             define 84d0 
+       cproc                            define 84d4 
+84d8   .next                            offset: 0000 
+84d8   .pstate                          offset: 0004 
+84d8   .psp                             offset: 0008 
+84d8   .rsp                             offset: 000c 
+84d8   .psp-bot                         offset: 0010 
+84d8   .udr                             offset: 0014 
+84d8   pd-run                           constant 0018 structure 
+84d8   @head                            : 
+84e0   !head                            : 
+84e8   @run                             : 
+84f0   !run                             : 
+84f8   resched                          code 
+8562   wait                             code 
+858a   signal                           code 
+85f8   pspreset                         code 
+8612   depth                            code 
+8636   under?                           code 
+863a   uart-a#                          constant 100000 
+863a   int-a#                           constant 100004 
+863a   parin-a#                         constant 100006 
+863a   remap-msk#                       constant 0004 
+863a   uart-rx-int#                     constant 0000 
+863a   uart-tx-int#                     constant 0001 
+863a   #ints                            constant 0002 
+863a   boot-addr#                       constant 70000 
+863a   #boot-words                      constant 2000 
+863a   FIFOSIZE                         constant 0100 
+863a   int-nop                          : 
+       vector-table                     define 863c 
+       int-response                     define 8644 
+866a   get-mask                         : 
+866a   unmask-int                       : 
+8672   mask-int                         : 
+867a   KILL                             constant 0003 
+867a   XOFF                             constant 0013 
+867a   XON                              constant 0011 
+867a   .charsin                         offset: 0000 
+867a   .charsout                        offset: 0004 
+867a   .inptr                           offset: 0008 
+867a   .outptr                          offset: 000c 
+867a   .buffer                          offset: 0010 
+867a   fifo                             constant 0110 structure 
+867a   QUIET                            constant 0000 
+867a   OUTPUT                           constant 0001 
+867a   THROTTLED                        constant 0002 
+867a   .state                           offset: 0000 
+867a   .outfifo                         offset: 0004 
+867a   .infifo                          offset: 0114 
+867a   .'uart!                          offset: 0224 
+867a   .'uart-first!                    offset: 0228 
+867a   .'uart@                          offset: 022c 
+867a   .'stop-transints                 offset: 0230 
+867a   ttystruct                        constant 0234 structure 
+867a   @fifo                            : 
+8696   !fifo                            : 
+86b4   tty-putc                         : 
+86ee   tty-transint                     : 
+8740   tty-getc                         : 
+875e   tty-incount                      : 
+8764   tty-rcvint                       : 
+8812   tty-rcvrawint                    : 
+884c   tty-size                         constant 0234 
+884c   tty-init                         : 
+8aee   tty                              constant 88ba makestruct 
+8aee   uart!                            : 
+8af6   uart-first!                      : 
+8afe   uart@                            : 
+8b04   stop-transints                   : 
+8b06                                    int: 0001 
+8b0e                                    int: 0000 
+8b16                                    every-boot: 
+8b32   emit                             : 
+8b3a   key                              : 
+8b42   key?                             : 
+8b4a   .pd-run                          offset: 0000 
+8b4a   .lsp-init                        offset: 0004 
+8b4a   .psp-init                        offset: 0008 
+8b4a   .rsp-init                        offset: 000c 
+8b4a   pd-init                          constant 0010 structure 
+       user-size                        define 0018 
+       nullrstack                       define 8b8c 
+       nullpstack                       define 8bcc 
+       nullprocess                      define 8bcc 
+       nullprocess-init                 define 8be4 
+       defprocess                       define 8bf6 
+8c0e   init-cproc                       : 
+8c16   initprocess                      : 
+8c66                                    every-boot: 
+8c94   insertprocess                    : 
+8cb4   nextprocess                      : 
+8cd6   run                              : 
+8cda   removeprocess                    : 
+8d10   kill                             : 
+8d14   terminate                        : 
+8d1c   safe                             code 
+8d1c   cacheenable                      code 
+8d22   initlocals                       : 
+8d28   test-count                       constant 8d24 variable 
+       test                             define 8d28 
+       starttest                        define 8d44 
+       memarea                          define 8d46 
+       callme                           define 8d66 
+       regtest                          define 9000 
+       flowtest                         define 91aa 
+       stacktest                        define 91e8 
+       longimmtest                      define 92c0 
+       alutest                          define 93ee 
+       regtest2                         define 95a8 
+       shifttest                        define 972a 
+       loadstoretest                    define 97aa 
+       pstacktest                       define 9960 
+       rstacktest                       define 99fa 
+       intholdofftest                   define 9abc 
+       REBOOT                           define 9ada 
+       app-vector                       define 9b1c 
+here = 9b20 
+Rule <move><shifti> was applied 0 times.
+Rule <short><short><shift> was applied 2 times.
+Rule <short>swap<shift> was applied 0 times.
+Rule overswap<shift> was applied 0 times.
+Rule [/dup<shifti>]<shifti> was applied 0 times.
+Rule <long><shifti> was applied 0 times.
+Rule <long><long-op> was applied 0 times.
+Rule <long><short-op> was applied 1 times.
+Rule <short><shifti> was applied 4 times.
+Rule <short><long-op> was applied 0 times.
+Rule <short><short-op> was applied 2 times.
+Rule <long>to<short> was applied 6 times.
+Rule [/dup<long-op>]><long-op> was applied 0 times.
+Rule [/dup<short-op>]><long-op> was applied 0 times.
+Rule [/dup<long-op>]><short-op> was applied 13 times.
+Rule 0+ was applied 16 times.
+Rule [/dup<short-op>]<short-op> was applied 8 times.
+Rule [/dup<long-op>]>to<short-op> was applied 11 times.
+Rule <call>return was applied 10 times.
+Rule <long>return was applied 0 times.
+Rule <*>return was applied 31 times.
+Rule [<short>+]<store> was applied 17 times.
+Rule [dup<short>+]<load> was applied 1 times.
+Rule [<short>+]<load> was applied 11 times.
+Rule dup<load> was applied 4 times.
+Rule drop[drop<long>] was applied 0 times.
+Rule drop<long> was applied 7 times.
+Rule <long>[over<binop>] was applied 0 times.
+Rule dup<long><bincmp> was applied 2 times.
+Rule <long><bincmp><?br> was applied 0 times.
+Rule dup[<long><binop>] was applied 0 times.
+Rule <long><binop> was applied 0 times.
+Rule drop[drop<short/i>] was applied 0 times.
+Rule drop<short/i> was applied 15 times.
+Rule dup<short><bincmp> was applied 3 times.
+Rule <short><bincmp><?br> was applied 4 times.
+Rule <short>[over<binop>] was applied 0 times.
+Rule dup[<short><binop>] was applied 4 times.
+Rule <short>drop was applied 0 times.
+Rule <short><binop> was applied 6 times.
+Rule <reg@><reg!>drop was applied 0 times.
+Rule drop[drop<reg@>] was applied 0 times.
+Rule drop<reg@> was applied 13 times.
+Rule dup<reg@><bincmp> was applied 2 times.
+Rule <reg@><bincmp><?br> was applied 0 times.
+Rule <reg@>[over<binop>] was applied 0 times.
+Rule dup[<reg@><binop>] was applied 0 times.
+Rule <reg@><binop> was applied 2 times.
+Rule <alu><reg!>2 was applied 0 times.
+Rule <alu><reg!>1 was applied 14 times.
+Rule <cmp><?br>2 was applied 11 times.
+Rule <cmp><?br>1 was applied 4 times.
+Rule <alu><?br>2 was applied 1 times.
+Rule <alu><?br>1 was applied 3 times.
+Rule <cmp>not was applied 1 times.
+Rule <alu><uncmp> was applied 3 times.
+Rule over[over<bincmp>] was applied 4 times.
+Rule over<bincmp> was applied 4 times.
+Rule swap<bincmp> was applied 0 times.
+Rule over[over<binop>] was applied 2 times.
+Rule over<binop> was applied 3 times.
+Rule swap<binop> was applied 0 times.
+Rule swapswap was applied 1 times.
+Rule nipdup was applied 1 times.
+Rule dropdup was applied 4 times.

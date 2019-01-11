@@ -1,0 +1,12 @@
+\ (c) 1993 Johns Hopkins University / Applied Physics Laboratory
+\		ROM boot code
+\	Assumes ROM at address 0 shadowed by RAM: read fetches
+\	from ROM, but write stores in RAM.
+hex
+
+rom label romboot ram
+romboot *callop* w0 forth @ host !		\ reset vector
+]  8000 0 do loop				\ TBD: hardware settle time
+   4000 for r@2* @ r@2* ! next			\ copy system to RAM.
+   10 cr! reboot				\ disable ints, unboot
+[

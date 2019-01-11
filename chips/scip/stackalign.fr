@@ -1,0 +1,7 @@
+\ (c) 2007 Johns Hopkins University / Applied Physics Laboratory
+\ Helper for process definition
+hex
+
+nohead
+: align-stack	\ ( -- ) align dictionary pointer for a stack.
+   here cell+ 1- cell/ cells dp ! ;

@@ -1,0 +1,2 @@
+	/* this hack patches a forward reference; this is only necessary
+	   to accomodate the C version */

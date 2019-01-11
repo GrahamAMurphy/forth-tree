@@ -1,0 +1,92 @@
+/* (c) 1992 Johns Hopkins University / Applied Physics Laboratory */
+
+/* hackery: must redo if ANS C */
+#define ID(x) x
+#define CAT(x,y) ID(x)y
+
+#define cells_in_code_field 1
+
+#define PRIMLIST()			/* not needed */
+#define PRIM(primid)
+#define ENDPRIMLIST()
+
+#define HEADEDDEF(defid, l, n1, n2, n3, n4, n5, h, dlink, bodylen)\
+	.data; \
+	.byte	l, n1, n2, n3, n4, n5; .word h; \
+	dlink; \
+defid:
+
+#define IHEADEDDEF(defid, l, n1, n2, n3, n4, n5, h, dlink, bodylen)\
+	.data; \
+	.byte	l+0x80, n1, n2, n3, n4, n5; .word h; \
+	dlink; \
+defid:
+
+#define HEADLESSDEF(defid, bodylen)\
+	.data; \
+defid:
+
+#define SELF(primid)\
+	.long CAT(T_,primid)
+
+#define ALIAS()
+
+#define COLON()\
+	.long _colon
+
+#define VARIABLE()\
+	.long _variable
+
+#define CONSTANT()\
+	.long _constant
+
+#define CREATE()\
+	.long _create
+
+#define OFFSET()\
+	.long _offset
+
+#define ENDDEF()
+
+#define CODE(primid)\
+	.text; \
+CAT(T_,primid):
+#define ENDCODE()
+
+#define SYMREFER(lab)\
+	.long CAT(_,lab)	/* inconsistent with ARRAYREFER */
+
+#define ARRAYREFER(lab)\
+	.long lab
+
+#define REFER(defid)\
+	.long defid
+
+#define VALUE(n)\
+	.long n
+
+#define BRANCH(defid,n)\
+	.long defid + (4*(n+cells_in_code_field))
+
+#define NAMEREF(defid)\
+	.long defid - 12
+#define NULLREF()\
+	.long 0
+
+#define TABLE(lab)\
+lab:
+#define ENDTABLE()
+
+/* missing instructions in Sun assembler */
+#define slo scs			/* missing instruction in Sun assembler */
+#define shs scc			/* missing instruction in Sun assembler */
+#define bhss bccs
+#define blos bcss
+
+/* register assignments */
+#define rlimit d7
+#define rcount d6
+#define iar a6
+#define psp a5
+#define addrnext a4
+#define next jmp a4@

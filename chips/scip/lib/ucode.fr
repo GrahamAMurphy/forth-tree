@@ -1,0 +1,7 @@
+\ (c) 2009 Johns Hopkins University / Applied Physics Laboratory
+\ Add primitives to interpreter
+hex
+
+: ucode		\ ( x -- ) Name the given SCIP instruction.
+   header , ( postpone return) b881 , inline ;
+

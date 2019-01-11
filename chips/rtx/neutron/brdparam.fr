@@ -1,0 +1,24 @@
+\ (c) 1997 Johns Hopkins University / Applied Physics Laboratory
+hex
+
+\ Memory map
+2 constant UART-pg#
+   0000 constant UART-base
+
+\ Interrupts
+4 constant UARTINT#			\ EI4: UART
+
+\ Memory bank switching abstraction.  Alias for get/set-page on this hardware.
+: get-code	\ ( -- memid ) Return a memory id for the currently
+		\ executing code.
+   cpr@ || ; inline
+
+: get-mem	\ ( -- memid ) Return the memory id for the current far
+		\ address space.
+   get-page || ; inline
+
+: set-mem	\ ( memid -- ) Set the memory id for the far address space.
+   set-page || ; inline
+
+\ Tty device driver parameters
+100 define FIFOSIZE			\ TTY input buffer, output buffer sizes

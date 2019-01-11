@@ -1,0 +1,127 @@
+\ (c) 2004 Johns Hopkins University / Applied Physics Laboratory
+\ Target model for SCIP32, a 32-bit byte-addressed Forth chip.
+hex
+ 
+def scip				\ SCIP
+
+\ ------------------------------------------------------------------------
+\ Datapath configuration
+
+\ Data and words used to describe the format of the target memory
+d# 32 constant t-dbits	\ ( -- bits ) size of target cell (in bits)
+4 constant t-cell	\ ( -- size ) size of target cell (in bytes)
+: t-cells 4* ;		\ ( n -- n' ) scale by size of target cell
+: t-cell/ 4/ ;		\ ( n -- n' ) unscale by size of target cell
+: t-cell+ 4+ ;		\ ( n -- n' ) add in cell size
+: t-cell- 4- ;		\ ( n -- n' ) subtract out cell size
+2 constant t-cell<<	\ ( -- size ) log2 of target cell size (for shifts)
+2 memsize memcell	\ assembler alias
+ 
+\ ------------------------------------------------------------------------
+\ Target memory
+
+\ Target system memory pointers
+variable w0                     \ base of object dictionary space
+variable 'h                     \ object system dictionary pointer
+variable 'r                     \ object system ram pointer
+
+create objectbuffer 10000 2* allot	\ 2*64k
+   objectbuffer 10000 2* 0 fill
+
+\ Code for handling target memory
+: saveobj	\ ( addr count -- ) save object code in file
+		\ indicated by string.  on a prom based system, only
+		\ the object code (dictionary space) is saved.
+   w/o bin open-file
+   if drop ." can't open"
+   else
+      >r objectbuffer 'h @ 'r @ umax w0 @ -
+      r@ write-file drop r> close-file drop
+   then ;
+
+: t->r		\ ( addr -- addr' ) translates target address to address in
+		\ buffer.
+   w0 @ - objectbuffer + ;
+
+: t-@		\ ( addr -- word ) Target fetch: 32 bits, big-endian.
+   t->r
+    dup c@
+    8 lshift over 1+ c@ or
+    8 lshift over 2+ c@ or
+    8 lshift swap 3 + c@ or ;
+
+: t-!		\ ( word addr -- ) Target store: 32 bits, big-endian.
+   t->r >r
+    8 rotate dup ff and r@ c!
+    8 rotate dup ff and r@ 1+ c!
+    8 rotate dup ff and r@ 2+ c!
+    8 rotate     ff and r> 3 + c! ;
+
+: t-w@		\ ( addr -- word ) Target fetch: 16 bits, big-endian.
+   t->r
+    dup c@
+    8 lshift swap 1+ c@ or ;
+
+: t-w!		\ ( word addr -- ) Target store: 16 bits, big-endian.
+   t->r >r
+    -8 rotate dup ff and r@ c!
+     8 rotate     ff and r> 1+ c! ;
+
+: t-c@		\ ( addr -- byte ) Target fetch: 8 bits.
+   t->r c@ ;
+
+: t-c!		\ ( byte addr -- ) Target fetch: 8 bits.
+   t->r c! ;
+
+: t-aligned	\ ( addr -- addr' ) align address
+   1+ 2/ 2* ;
+
+: t-stack-aligned \ ( addr -- addr' ) align address for stack
+   t-cell+ 1- t-cell/ t-cells ;
+
+\ ROM/dictionary memory
+: t-here	\ ( -- n ) return value of object dictionary pointer
+   'h @ ;
+: t-allot	\ ( n -- ) allot 'n' words of object dictionary space
+   'h +! ;
+: t-,		\ ( word -- )
+   t-here t-! t-cell t-allot ;
+: t-w,		\ ( half -- )
+   t-here t-w! 2 t-allot ;
+: t-c,		\ ( byte -- )
+   t-here t-c! 1 t-allot ;
+: t-align	\ ( -- ) align dictionary pointer
+   'h @ t-aligned 'h ! ;
+
+\ Instruction opcode access.  Opcode fits in half cell.
+: t-i@ t-w@ ;
+: t-i! t-w! ;
+: t-i, t-w, ;
+: t-inst 2 ;
+: t-i+ 2+ ;
+: t-i- 2- ;
+
+\ ------------------------------------------------------------------------
+\ Dictionary layout, etc.
+      ff constant t-char-mask	\ parameters for target memory dumper
+       8 constant t-chars/dump
+
+       7 constant t-namesize	\ object system name string length
+       8 constant t-nf-size	\ size of name field
+       1 constant t-wid-step	\ wordlist ids are 0, 1, 2, etc.
+      40 constant t-prec-bit	\ position of precedence bit
+      20 constant t-smudge-bit	\ position of smudge bit
+      80 constant t-inline-bit	\ position of inline bit
+
+: t-name>	\ ( nfa -- cfa ) convert object name field address
+		\ to object code field address
+   t-namesize + 1+ t-cell+ ;		\ skip name field and link field
+
+: t->name	\ ( cfa -- nfa) convert object code field address
+		\ to object name field address
+   t-namesize - 1- t-cell- ;		\ go back past link field and name field
+
+\ ------------------------------------------------------------------------
+\ Simulator support
+
+40000000 constant trap-base		\ simulator I/O base address
